@@ -147,13 +147,13 @@ export default function App() {
                   <Route path="/cartoes" element={<CardsPage />} />
                   <Route path="/cartoes/:id" element={<CardDetailPage />} />
                   <Route path="/faturas" element={<CardsPage />} />
-                  <Route path="/contas-e-boletos" element={<BillsPage />} />
+                  <Route path="/contas-a-pagar" element={<BillsPage />} />
                   <Route
-                    path="/contas-a-pagar"
-                    element={<Navigate to="/contas-e-boletos" replace />}
+                    path="/contas-e-boletos"
+                    element={<Navigate to="/contas-a-pagar" replace />}
                   />
-                  <Route path="/recorrentes" element={<RecurrencesPage />} />
-                  <Route path="/recorrencias" element={<Navigate to="/recorrentes" replace />} />
+                  <Route path="/recorrencias" element={<RecurrencesPage />} />
+                  <Route path="/recorrentes" element={<Navigate to="/recorrencias" replace />} />
                   <Route path="/parcelamentos" element={<InstallmentsPage />} />
                   <Route path="/orcamento" element={<BudgetPage />} />
                   <Route path="/orcamentos" element={<Navigate to="/orcamento" replace />} />

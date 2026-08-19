@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T01:28:16.481Z",
+  "generatedAt": "2026-08-19T01:38:31.549Z",
   "collections": [
     {
       "name": "users",
@@ -673,6 +673,20 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pagar", "receber"]
+        },
+        {
+          "name": "recurring_bill",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "recurring_bills"
         }
       ],
       "indexes": [
@@ -1196,6 +1210,145 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_subscriptions_user ON subscriptions (user)"]
+    },
+    {
+      "name": "recurring_bills",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pagar", "receber"]
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frequency",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["mensal", "semanal", "trimestral", "anual"]
+        },
+        {
+          "name": "due_day",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payment_method",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Dinheiro", "PIX", "Débito", "Crédito", "Boleto", "Transferência"]
+        },
+        {
+          "name": "account",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "accounts"
+        },
+        {
+          "name": "credit_card",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "credit_cards"
+        },
+        {
+          "name": "active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "next_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "last_generated",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "repetitions",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "generated_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_recurring_bills_user ON recurring_bills (user)",
+        "CREATE INDEX idx_recurring_bills_active_next ON recurring_bills (active, next_date)"
+      ]
     }
   ]
 }

@@ -75,6 +75,7 @@ export default function DashboardPage() {
   useRealtime('goal_contributions', () => refreshAll())
   useRealtime('investments', () => refreshAll())
   useRealtime('bills', () => refreshAll())
+  useRealtime('recurring_bills', () => refreshAll())
   useRealtime('budgets', () => refreshAll())
 
   const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long' })
@@ -138,6 +139,24 @@ export default function DashboardPage() {
   const topGoals = goals.slice(0, 3)
   const currentMonthPrefix = new Date().toISOString().slice(0, 7)
   const monthBudgets = budgets.filter((b) => b.month === currentMonthPrefix).slice(0, 3)
+
+  // Contas a pagar / a receber do mês corrente (não pagas) vindas da coleção bills
+  const monthBillsToPay = bills
+    .filter(
+      (b) =>
+        (b.type || 'pagar') === 'pagar' &&
+        b.status !== 'pago' &&
+        (b.due_date || '').slice(0, 7) === currentMonthPrefix,
+    )
+    .reduce((acc, b) => acc + Number(b.value || 0), 0)
+  const monthBillsToReceive = bills
+    .filter(
+      (b) =>
+        b.type === 'receber' &&
+        b.status !== 'pago' &&
+        (b.due_date || '').slice(0, 7) === currentMonthPrefix,
+    )
+    .reduce((acc, b) => acc + Number(b.value || 0), 0)
 
   const openNewTransaction = (type: 'receita' | 'despesa') => {
     setModalType(type)
@@ -352,14 +371,14 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-lg sm:text-xl font-bold text-slate-700 dark:text-slate-300 tabular-nums">
-            {formatCurrency(monthIncomePending, hideValues)}
+            {formatCurrency(monthIncomePending + monthBillsToReceive, hideValues)}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Receitas previstas</span>
         </Card>
 
         {/* A Pagar */}
         <Card
-          onClick={() => navigate('/contas-e-boletos')}
+          onClick={() => navigate('/contas-a-pagar')}
           className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B]"
         >
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
@@ -369,7 +388,10 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-lg sm:text-xl font-bold text-red-600 tabular-nums">
-            {formatCurrency(monthExpensePending + monthOpenInvoicesTotal, hideValues)}
+            {formatCurrency(
+              monthBillsToPay + monthExpensePending + monthOpenInvoicesTotal,
+              hideValues,
+            )}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">Compromissos em aberto</span>
         </Card>

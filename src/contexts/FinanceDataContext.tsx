@@ -8,6 +8,7 @@ import {
   Invoice,
   InvoiceItem,
   Bill,
+  RecurringBill,
   Recurrence,
   Installment,
   Budget,
@@ -23,6 +24,7 @@ interface FinanceDataContextType {
   transactions: Transaction[]
   invoices: Invoice[]
   bills: Bill[]
+  recurringBills: RecurringBill[]
   recurrences: Recurrence[]
   installments: Installment[]
   budgets: Budget[]
@@ -65,13 +67,21 @@ interface FinanceDataContextType {
   updateBill: (id: string, data: Partial<Bill>) => Promise<Bill>
   deleteBill: (id: string) => Promise<void>
   markBillAsPaid: (bill: Bill, accountId?: string) => Promise<void>
+  markBillAsUnpaid: (bill: Bill) => Promise<void>
+
+  createRecurringBill: (data: Partial<RecurringBill>) => Promise<RecurringBill>
+  updateRecurringBill: (id: string, data: Partial<RecurringBill>) => Promise<RecurringBill>
+  deleteRecurringBill: (id: string, mode: 'base' | 'all') => Promise<void>
+  generateRecurringBills: () => Promise<number>
 
   createRecurrence: (data: Partial<Recurrence>) => Promise<Recurrence>
   updateRecurrence: (id: string, data: Partial<Recurrence>) => Promise<Recurrence>
   deleteRecurrence: (id: string) => Promise<void>
 
   createInstallment: (data: Partial<Installment>) => Promise<Installment>
-  deleteInstallment: (id: string) => Promise<void>
+  updateInstallment: (id: string, data: Partial<Installment>) => Promise<Installment>
+  deleteInstallment: (id: string, mode: 'all' | 'future') => Promise<void>
+  toggleInstallmentParcel: (installmentId: string, parcelNumber: number) => Promise<void>
 
   saveBudget: (category: string, limitValue: number, month: string) => Promise<Budget>
 
@@ -103,6 +113,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [bills, setBills] = useState<Bill[]>([])
+  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>([])
   const [recurrences, setRecurrences] = useState<Recurrence[]>([])
   const [installments, setInstallments] = useState<Installment[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
@@ -120,6 +131,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setTransactions([])
       setInvoices([])
       setBills([])
+      setRecurringBills([])
       setRecurrences([])
       setInstallments([])
       setBudgets([])
@@ -141,6 +153,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         txRes,
         invRes,
         billRes,
+        recurringBillRes,
         recRes,
         instRes,
         budRes,
@@ -157,7 +170,13 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pb
           .collection('invoices')
           .getFullList<Invoice>({ sort: '-reference', expand: 'credit_card' }),
-        pb.collection('bills').getFullList<Bill>({ sort: 'due_date', expand: 'account' }),
+        pb.collection('bills').getFullList<Bill>({
+          sort: 'due_date',
+          expand: 'account,recurring_bill',
+        }),
+        pb
+          .collection('recurring_bills')
+          .getFullList<RecurringBill>({ sort: 'next_date', expand: 'account,credit_card' }),
         pb
           .collection('recurrences')
           .getFullList<Recurrence>({ sort: 'due_day', expand: 'account' }),
@@ -176,6 +195,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setTransactions(txRes)
       setInvoices(invRes)
       setBills(billRes)
+      setRecurringBills(recurringBillRes)
       setRecurrences(recRes)
       setInstallments(instRes)
       setBudgets(budRes)
@@ -204,6 +224,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       'invoices',
       'invoice_items',
       'bills',
+      'recurring_bills',
       'recurrences',
       'installments',
       'budgets',
@@ -554,46 +575,117 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const markBillAsPaid = async (bill: Bill, accountId?: string) => {
     if (!user) return
     const nowIso = new Date().toISOString()
+    const isReceber = bill.type === 'receber'
 
-    // Cria transação de despesa
-    const txn = await pb.collection('transactions').create<Transaction>({
-      user: user.id,
-      description: bill.description,
-      value: bill.value,
-      category: bill.category || 'Contas e Boletos',
-      date: bill.due_date || nowIso,
-      payment_method: 'Boleto',
-      status: 'realizado',
-      type: 'despesa',
-      account: accountId || bill.account || undefined,
-      source: 'manual',
-      paid_at: nowIso,
-    })
+    // Se já existe transação gerada vinculada, apenas a marca como realizada
+    const existingTxnId = bill.generated_transaction
+    let txnId = existingTxnId
+    if (existingTxnId) {
+      await pb.collection('transactions').update(existingTxnId, {
+        status: 'realizado',
+        paid_at: nowIso,
+      })
+    } else {
+      const txn = await pb.collection('transactions').create<Transaction>({
+        user: user.id,
+        description: bill.description,
+        value: bill.value,
+        category: bill.category || 'Contas e Boletos',
+        date: bill.due_date || nowIso,
+        payment_method: 'Boleto',
+        status: 'realizado',
+        type: isReceber ? 'receita' : 'despesa',
+        account: accountId || bill.account || undefined,
+        source: 'manual',
+        paid_at: nowIso,
+      })
+      txnId = txn.id
+    }
 
     // Atualiza status do boleto
     await pb.collection('bills').update(bill.id, {
       status: 'pago',
       paid_at: nowIso,
-      generated_transaction: txn.id,
+      generated_transaction: txnId,
     })
 
-    // Se for recorrente, gera o próximo boleto no mês seguinte
-    if (bill.recurring && bill.due_date) {
-      const nextDue = new Date(bill.due_date)
-      nextDue.setMonth(nextDue.getMonth() + 1)
-      await pb.collection('bills').create<Bill>({
-        user: user.id,
-        description: bill.description,
-        value: bill.value,
-        due_date: nextDue.toISOString(),
-        category: bill.category,
-        status: 'não_pago',
-        account: bill.account,
-        recurring: true,
-      })
-    }
-
     await fetchAllData()
+  }
+
+  const markBillAsUnpaid = async (bill: Bill) => {
+    if (!user) return
+    const patch: Partial<Bill> = { status: 'não_pago', paid_at: undefined }
+    // Se existir transação gerada, reverte para pendente
+    if (bill.generated_transaction) {
+      await pb
+        .collection('transactions')
+        .update(bill.generated_transaction, { status: 'pendente', paid_at: undefined })
+    }
+    await pb.collection('bills').update(bill.id, patch)
+    await fetchAllData()
+  }
+
+  const createRecurringBill = async (data: Partial<RecurringBill>) => {
+    if (!user) throw new Error('Não autenticado')
+    const rec = await pb.collection('recurring_bills').create<RecurringBill>({
+      ...data,
+      user: user.id,
+    })
+    await fetchAllData()
+    return rec
+  }
+
+  const updateRecurringBill = async (id: string, data: Partial<RecurringBill>) => {
+    const rec = await pb.collection('recurring_bills').update<RecurringBill>(id, data)
+    await fetchAllData()
+    return rec
+  }
+
+  const deleteRecurringBill = async (id: string, mode: 'base' | 'all') => {
+    // base: exclui apenas a recorrência base, mantém as contas já geradas
+    // all: exclui a base + as contas futuras (não pagas) vinculadas
+    if (mode === 'all') {
+      try {
+        const futureBills = await pb.collection('bills').getFullList<Bill>({
+          filter: `recurring_bill = "${id}" && status = "não_pago"`,
+        })
+        for (const b of futureBills) {
+          await pb
+            .collection('bills')
+            .delete(b.id)
+            .catch(() => {})
+        }
+      } catch (e) {
+        console.warn('Erro ao excluir contas futuras:', e)
+      }
+    }
+    await pb.collection('recurring_bills').delete(id)
+    await fetchAllData()
+  }
+
+  const generateRecurringBills = async (): Promise<number> => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/recurring/generate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: pb.authStore.token,
+          },
+        },
+      )
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Erro ao gerar recorrências')
+      }
+      const data = await res.json()
+      await fetchAllData()
+      return data.generated || 0
+    } catch (e) {
+      console.warn('generateRecurringBills failed:', e)
+      await fetchAllData()
+      return 0
+    }
   }
 
   const createRecurrence = async (data: Partial<Recurrence>) => {
@@ -627,16 +719,66 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return rec
   }
 
-  const deleteInstallment = async (id: string) => {
-    // Exclui grupo e transações filhas
+  const updateInstallment = async (id: string, data: Partial<Installment>) => {
+    const rec = await pb.collection('installments').update<Installment>(id, data)
+    await fetchAllData()
+    return rec
+  }
+
+  const deleteInstallment = async (id: string, mode: 'all' | 'future') => {
+    // all: exclui todas as parcelas + grupo
+    // future: exclui apenas as parcelas não pagas, mantém grupo + históricos
     const linkedTxns = transactions.filter((t) => t.installment_group === id)
-    for (const t of linkedTxns) {
-      await pb
-        .collection('transactions')
-        .delete(t.id)
-        .catch(() => {})
+    if (mode === 'all') {
+      for (const t of linkedTxns) {
+        await pb
+          .collection('transactions')
+          .delete(t.id)
+          .catch(() => {})
+      }
+      await pb.collection('installments').delete(id)
+    } else {
+      // future: exclui pendentes
+      const pending = linkedTxns.filter((t) => t.status !== 'realizado')
+      for (const t of pending) {
+        await pb
+          .collection('transactions')
+          .delete(t.id)
+          .catch(() => {})
+      }
+      // Atualiza current_installment e total
+      const inst = installments.find((i) => i.id === id)
+      if (inst) {
+        const paid = linkedTxns.filter((t) => t.status === 'realizado').length
+        await pb.collection('installments').update(id, {
+          total_installments: paid,
+          current_installment: paid,
+        })
+      }
     }
-    await pb.collection('installments').delete(id)
+    await fetchAllData()
+  }
+
+  const toggleInstallmentParcel = async (installmentId: string, parcelNumber: number) => {
+    const linkedTxns = transactions
+      .filter((t) => t.installment_group === installmentId && t.source === 'parcela')
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+    const parcel = linkedTxns[parcelNumber - 1]
+    if (!parcel) return
+    const nextStatus = parcel.status === 'realizado' ? 'pendente' : 'realizado'
+    const paid_at = nextStatus === 'realizado' ? new Date().toISOString() : undefined
+    await pb.collection('transactions').update(parcel.id, { status: nextStatus, paid_at })
+    // Recalcula current_installment
+    const inst = installments.find((i) => i.id === installmentId)
+    if (inst) {
+      const paidCount = linkedTxns.filter(
+        (t, idx) => idx !== parcelNumber - 1 && t.status === 'realizado',
+      ).length
+      const newCount = nextStatus === 'realizado' ? paidCount + 1 : paidCount
+      const total = inst.total_installments || linkedTxns.length
+      const next = Math.min(total, newCount + 1)
+      await pb.collection('installments').update(installmentId, { current_installment: next })
+    }
     await fetchAllData()
   }
 
@@ -757,6 +899,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         transactions,
         invoices,
         bills,
+        recurringBills,
         recurrences,
         installments,
         budgets: budgetsWithSpent,
@@ -797,13 +940,21 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updateBill,
         deleteBill,
         markBillAsPaid,
+        markBillAsUnpaid,
+
+        createRecurringBill,
+        updateRecurringBill,
+        deleteRecurringBill,
+        generateRecurringBills,
 
         createRecurrence,
         updateRecurrence,
         deleteRecurrence,
 
         createInstallment,
+        updateInstallment,
         deleteInstallment,
+        toggleInstallmentParcel,
 
         saveBudget,
 

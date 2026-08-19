@@ -37,9 +37,28 @@ export default function ForecastPage() {
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
+  // Contas a pagar do mês (bills não pagas) + parcelas futuras (transactions parcela pendentes)
+  const currentMonthPrefix = selectedMonth
+  const monthBillsToPay = bills
+    .filter(
+      (b) =>
+        (b.type || 'pagar') === 'pagar' &&
+        b.status !== 'pago' &&
+        (b.due_date || '').slice(0, 7) === currentMonthPrefix,
+    )
+    .reduce((acc, b) => acc + Number(b.value || 0), 0)
+  const monthFutureParcels = transactions
+    .filter(
+      (t) =>
+        t.source === 'parcela' &&
+        t.status !== 'realizado' &&
+        (t.date || '').slice(0, 7) === currentMonthPrefix,
+    )
+    .reduce((acc, t) => acc + Number(t.value || 0), 0)
+
   // Cálculo da Projeção de Fim de Mês:
-  // saldo atual + a receber − a pagar − faturas
-  const toPay = monthExpensePending + monthOpenInvoicesTotal
+  // saldo atual + a receber − a pagar − faturas − boletos − parcelas
+  const toPay = monthExpensePending + monthOpenInvoicesTotal + monthBillsToPay + monthFutureParcels
   const projectedEndMonthBalance = totalCurrentBalance + monthIncomePending - toPay
   const isPositive = projectedEndMonthBalance >= 0
 

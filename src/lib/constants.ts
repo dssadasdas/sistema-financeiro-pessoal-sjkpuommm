@@ -171,6 +171,9 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Fatura de cartão': '#820AD1',
   Compras: '#10B981',
   Investimentos: '#0E9F6E',
+  'Renda Extra': '#14B8A6',
+  Eletrônicos: '#3B82F6',
+  Casa: '#F59E0B',
   Outros: '#94A3B8',
 }
 
@@ -189,6 +192,9 @@ export const CATEGORY_SUGGESTIONS = [
   'Taxas e tarifas',
   'Compras',
   'Investimentos',
+  'Renda Extra',
+  'Eletrônicos',
+  'Casa',
   'Outros',
 ]
 

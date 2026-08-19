@@ -54,11 +54,22 @@ interface FutureInstallment {
 export default function CardDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { creditCards, accounts, invoices, payInvoice, isLoading, loadError, refreshAll } =
-    useFinance()
+  const {
+    creditCards,
+    accounts,
+    invoices,
+    transactions,
+    payInvoice,
+    isLoading,
+    loadError,
+    refreshAll,
+  } = useFinance()
   const { hideValues } = useAuth()
 
   const card = creditCards.find((c) => c.id === id)
+
+  // Parcelas vinculadas a este cartão (transactions com source = 'parcela')
+  const cardParcels = transactions.filter((t) => t.credit_card === id && t.source === 'parcela')
 
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [payModalOpen, setPayModalOpen] = useState(false)
@@ -434,8 +445,8 @@ export default function CardDetailPage() {
         )}
       </Card>
 
-      {/* Previsão de Próximas Faturas (parcelas futuras) */}
-      {futureInstallments.length > 0 && (
+      {/* Previsão de Próximas Faturas (parcelas futuras + parcelamentos vinculados) */}
+      {(futureInstallments.length > 0 || cardParcels.length > 0) && (
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 shadow-sm bg-white dark:bg-[#121A2B]">
           <h3 className="font-bold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-600" />
@@ -444,7 +455,10 @@ export default function CardDetailPage() {
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {futureInstallments.map((fi, idx) => (
-              <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+              <div
+                key={`imp-${idx}`}
+                className="py-2.5 flex items-center justify-between gap-3 text-xs"
+              >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-mono text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded">
                     {fi.installment}
@@ -464,6 +478,33 @@ export default function CardDetailPage() {
                 </div>
               </div>
             ))}
+
+            {cardParcels
+              .filter((t) => t.status !== 'realizado')
+              .sort((a, b) => (a.date < b.date ? -1 : 1))
+              .map((p) => (
+                <div key={p.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/40 px-1.5 py-0.5 rounded">
+                      parcela
+                    </span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
+                      {p.description}
+                    </span>
+                    {p.category && (
+                      <span className="text-[10px] text-slate-400">· {p.category}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-slate-400">
+                      {formatMonthYear((p.date || '').slice(0, 7))}
+                    </span>
+                    <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                      {formatCurrency(p.value, hideValues)}
+                    </span>
+                  </div>
+                </div>
+              ))}
           </div>
         </Card>
       )}

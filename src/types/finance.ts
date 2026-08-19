@@ -28,6 +28,8 @@ export type TransactionSource =
 export type CardBrand = 'Visa' | 'Mastercard' | 'Elo' | 'Amex' | 'Hipercard' | 'Outro'
 export type InvoiceStatus = 'aberta' | 'paga'
 export type BillStatus = 'pago' | 'não_pago'
+export type BillType = 'pagar' | 'receber'
+export type RecurringFrequency = 'mensal' | 'semanal' | 'trimestral' | 'anual'
 export type InvestmentType = 'bitcoin' | 'ethereum' | 'acao' | 'fii' | 'renda_fixa' | 'cdi100'
 export type PlanType = 'mensal' | 'anual'
 export type SubscriptionStatus = 'ativa' | 'bloqueada'
@@ -139,15 +141,45 @@ export interface Bill {
   due_date: string
   category?: string
   status: BillStatus
+  type?: BillType
   paid_at?: string
   account?: string
   recurring?: boolean
+  recurring_bill?: string
   generated_transaction?: string
   created: string
   updated: string
   expand?: {
     account?: Account
     generated_transaction?: Transaction
+    recurring_bill?: RecurringBill
+  }
+}
+
+export interface RecurringBill {
+  id: string
+  user: string
+  description: string
+  value: number
+  type: BillType
+  category?: string
+  frequency: RecurringFrequency
+  due_day: number
+  payment_method?: PaymentMethod
+  account?: string
+  credit_card?: string
+  active: boolean
+  start_date?: string
+  end_date?: string
+  next_date?: string
+  last_generated?: string
+  repetitions?: number
+  generated_count?: number
+  created: string
+  updated: string
+  expand?: {
+    account?: Account
+    credit_card?: CreditCard
   }
 }
 
