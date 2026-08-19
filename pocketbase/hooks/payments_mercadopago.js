@@ -47,7 +47,9 @@ routerAdd(
 
       const accessToken = $os.getenv('MERCADOPAGO_ACCESS_TOKEN') || ''
       if (!accessToken) {
-        return e.json(503, { error: 'Pagamentos via Mercado Pago não configurados.' })
+        return e.json(400, {
+          error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+        })
       }
 
       let siteUrl = $os.getenv('SITE_URL') || ''
@@ -152,7 +154,9 @@ routerAdd('POST', '/backend/v1/payments/mercadopago/webhook', (e) => {
   try {
     const accessToken = $os.getenv('MERCADOPAGO_ACCESS_TOKEN') || ''
     if (!accessToken) {
-      return e.json(503, { error: 'Mercado Pago não configurado.' })
+      return e.json(400, {
+        error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+      })
     }
 
     // MP pode enviar como query string (IPN clássico) ou body (webhook novo)
@@ -346,7 +350,9 @@ routerAdd(
       }
       const accessToken = $os.getenv('MERCADOPAGO_ACCESS_TOKEN') || ''
       if (!accessToken) {
-        return e.json(503, { error: 'Mercado Pago não configurado.' })
+        return e.json(400, {
+          error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+        })
       }
 
       const query = e.requestInfo().query || {}

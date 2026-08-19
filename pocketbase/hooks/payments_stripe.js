@@ -51,7 +51,9 @@ routerAdd(
 
       const secretKey = $os.getenv('STRIPE_SECRET_KEY') || ''
       if (!secretKey) {
-        return e.json(503, { error: 'Pagamentos via Stripe não configurados.' })
+        return e.json(400, {
+          error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+        })
       }
 
       // E-mail do usuário autenticado
@@ -151,7 +153,9 @@ routerAdd(
 
       const secretKey = $os.getenv('STRIPE_SECRET_KEY') || ''
       if (!secretKey) {
-        return e.json(503, { error: 'Pagamentos via Stripe não configurados.' })
+        return e.json(400, {
+          error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+        })
       }
 
       // Localiza a assinatura local do usuário com provider stripe
@@ -253,7 +257,9 @@ routerAdd(
 
       const secretKey = $os.getenv('STRIPE_SECRET_KEY') || ''
       if (!secretKey) {
-        return e.json(503, { error: 'Pagamentos via Stripe não configurados.' })
+        return e.json(400, {
+          error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+        })
       }
 
       let sub
@@ -326,7 +332,9 @@ routerAdd('POST', '/backend/v1/payments/stripe/webhook', (e) => {
     const secretKey = $os.getenv('STRIPE_SECRET_KEY') || ''
 
     if (!secretKey) {
-      return e.json(503, { error: 'Stripe não configurado.' })
+      return e.json(400, {
+        error: 'Pagamento não configurado. Configure as chaves de API no painel.',
+      })
     }
 
     const body = e.requestInfo().body || {}
