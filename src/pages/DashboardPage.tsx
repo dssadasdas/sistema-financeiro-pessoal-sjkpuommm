@@ -310,6 +310,15 @@ export default function DashboardPage() {
                 {totalInvestmentsResult >= 0 ? '+' : ''}
                 {formatCurrency(totalInvestmentsResult, hideValues)}
               </Badge>
+              {totalInvested > 0 && (
+                <span
+                  className={`text-xs font-bold tabular-nums ${
+                    totalInvestmentsResult >= 0 ? 'text-emerald-600' : 'text-red-600'
+                  }`}
+                >
+                  ({((totalInvestmentsResult / totalInvested) * 100).toFixed(1)}%)
+                </span>
+              )}
               <span className="text-xs text-slate-500">{investments.length} ativo(s)</span>
             </div>
           </div>

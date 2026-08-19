@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency, formatMonthYear, CATEGORY_COLORS } from '@/lib/constants'
+import { formatCurrency, formatDate, formatMonthYear, CATEGORY_COLORS } from '@/lib/constants'
 import {
   BarChart3,
   PieChart as PieIcon,
@@ -10,15 +10,44 @@ import {
   ArrowDownRight,
   Sparkles,
   Award,
-  Layers,
+  CalendarClock,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
+import { LoadingState, ErrorState } from '@/components/States'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Line,
+  LineChart,
+} from 'recharts'
+
+const MONTHS_PT_SHORT = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+]
 
 export default function ReportsPage() {
-  const { transactions } = useFinance()
+  const { transactions, bills, isLoading, loadError, refreshAll } = useFinance()
   const { hideValues } = useAuth()
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
@@ -38,10 +67,9 @@ export default function ReportsPage() {
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthResult = monthIncome - monthExpenses
-  const savingsRate =
-    monthIncome > 0 ? Math.max(0, Math.round((monthResult / monthIncome) * 100)) : 0
+  const savingsRate = monthIncome > 0 ? Math.round((monthResult / monthIncome) * 100) : 0
 
-  // Gasto por categoria (Donut e Barras Horizontais)
+  // Gasto por categoria
   const categoryStats = useMemo(() => {
     const map = new Map<string, number>()
     monthTxns
@@ -84,12 +112,13 @@ export default function ReportsPage() {
   // Comparativo dos últimos 6 meses (Receitas x Despesas)
   const last6MonthsData = useMemo(() => {
     const result = []
-    const now = new Date()
+    const [selY, selM] = selectedMonth.split('-').map((n) => parseInt(n, 10))
+    const base = new Date(selY, selM - 1, 1)
 
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const key = d.toISOString().slice(0, 7) // "YYYY-MM"
-      const label = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
+      const key = d.toISOString().slice(0, 7)
+      const label = MONTHS_PT_SHORT[d.getMonth()]
 
       const inMonth = transactions.filter((t) => (t.date || '').startsWith(key))
       const inc = inMonth
@@ -99,15 +128,104 @@ export default function ReportsPage() {
         .filter((t) => t.type === 'despesa' && t.status === 'realizado')
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
-      result.push({
-        monthKey: key,
-        label: label.charAt(0).toUpperCase() + label.slice(1),
-        income: inc,
-        expenses: exp,
-      })
+      result.push({ monthKey: key, label, income: inc, expenses: exp })
     }
     return result
-  }, [transactions])
+  }, [transactions, selectedMonth])
+
+  // Evolução dos últimos 12 meses (receitas, despesas, saldo)
+  const last12MonthsData = useMemo(() => {
+    const result = []
+    const [selY, selM] = selectedMonth.split('-').map((n) => parseInt(n, 10))
+    const base = new Date(selY, selM - 1, 1)
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(base.getFullYear(), base.getMonth() - i, 1)
+      const key = d.toISOString().slice(0, 7)
+      const label = MONTHS_PT_SHORT[d.getMonth()]
+
+      const inMonth = transactions.filter((t) => (t.date || '').startsWith(key))
+      const inc = inMonth
+        .filter((t) => t.type === 'receita' && t.status === 'realizado')
+        .reduce((acc, t) => acc + Number(t.value || 0), 0)
+      const exp = inMonth
+        .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+        .reduce((acc, t) => acc + Number(t.value || 0), 0)
+
+      result.push({ label, receitas: inc, despesas: exp, saldo: inc - exp })
+    }
+    return result
+  }, [transactions, selectedMonth])
+
+  // Comparativo com mês anterior
+  const prevMonthComparison = useMemo(() => {
+    const [selY, selM] = selectedMonth.split('-').map((n) => parseInt(n, 10))
+    const prev = new Date(selY, selM - 2, 1)
+    const prevKey = prev.toISOString().slice(0, 7)
+    const prevExp = transactions
+      .filter(
+        (t) =>
+          (t.date || '').startsWith(prevKey) && t.type === 'despesa' && t.status === 'realizado',
+      )
+      .reduce((acc, t) => acc + Number(t.value || 0), 0)
+    const diff = monthExpenses - prevExp
+    const pct = prevExp > 0 ? (diff / prevExp) * 100 : 0
+    return { prevExp, diff, pct }
+  }, [transactions, selectedMonth, monthExpenses])
+
+  // Valores a receber e a pagar no mês
+  const monthBillsToReceive = bills
+    .filter(
+      (b) =>
+        b.type === 'receber' &&
+        b.status !== 'pago' &&
+        (b.due_date || '').slice(0, 7) === selectedMonth,
+    )
+    .reduce((acc, b) => acc + Number(b.value || 0), 0)
+
+  const monthBillsToPay = bills
+    .filter(
+      (b) =>
+        (b.type || 'pagar') === 'pagar' &&
+        b.status !== 'pago' &&
+        (b.due_date || '').slice(0, 7) === selectedMonth,
+    )
+    .reduce((acc, b) => acc + Number(b.value || 0), 0)
+
+  // Resumo em linguagem simples
+  const simpleSummary = useMemo(() => {
+    const trend =
+      prevMonthComparison.prevExp === 0
+        ? null
+        : prevMonthComparison.diff > 0
+          ? 'aumentaram'
+          : prevMonthComparison.diff < 0
+            ? 'diminuíram'
+            : 'permaneceram estáveis'
+    const trendPct = Math.abs(prevMonthComparison.pct).toFixed(1)
+    return {
+      income: monthIncome,
+      expenses: monthExpenses,
+      topCategory: topCategory?.category || '—',
+      topCategoryValue: topCategory?.total || 0,
+      savingsRate,
+      trend,
+      trendPct,
+    }
+  }, [monthIncome, monthExpenses, topCategory, savingsRate, prevMonthComparison])
+
+  if (isLoading) {
+    return <LoadingState message="Carregando relatórios..." />
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        message="Não foi possível carregar os relatórios. Tente novamente."
+        onRetry={refreshAll}
+      />
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -118,7 +236,7 @@ export default function ReportsPage() {
             Relatórios Financeiros
           </h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            Análises visuais, distribuição de despesas por categoria e evolução semestral
+            Análises visuais, distribuição de despesas e evolução mensal
           </p>
         </div>
 
@@ -132,26 +250,48 @@ export default function ReportsPage() {
 
       {/* Resumo em Linguagem Simples */}
       <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border shadow-xs">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold flex-shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-              Resumo Inteligente de {formatMonthYear(selectedMonth)}
+              Resumo de {formatMonthYear(selectedMonth)}
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
-              Em {formatMonthYear(selectedMonth)} você ganhou{' '}
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+              Neste mês, você recebeu{' '}
               <strong className="text-emerald-600">
-                {formatCurrency(monthIncome, hideValues)}
-              </strong>
-              , gastou{' '}
-              <strong className="text-orange-600">
-                {formatCurrency(monthExpenses, hideValues)}
+                {formatCurrency(simpleSummary.income, hideValues)}
               </strong>{' '}
-              e economizou{' '}
-              <strong className="text-slate-900 dark:text-white">{savingsRate}%</strong> da sua
-              receita.
+              e gastou{' '}
+              <strong className="text-orange-600">
+                {formatCurrency(simpleSummary.expenses, hideValues)}
+              </strong>
+              . Sua maior despesa foi{' '}
+              <strong className="text-slate-900 dark:text-white">
+                {simpleSummary.topCategory}
+              </strong>{' '}
+              com{' '}
+              <strong className="text-slate-900 dark:text-white">
+                {formatCurrency(simpleSummary.topCategoryValue, hideValues)}
+              </strong>
+              . Você economizou{' '}
+              <strong className="text-emerald-600">{simpleSummary.savingsRate}%</strong> da sua
+              renda.
+              {simpleSummary.trend && (
+                <>
+                  {' '}
+                  Comparado ao mês passado, seus gastos{' '}
+                  <strong
+                    className={
+                      simpleSummary.trend === 'aumentaram' ? 'text-red-600' : 'text-emerald-600'
+                    }
+                  >
+                    {simpleSummary.trend} {simpleSummary.trendPct}%
+                  </strong>
+                  .
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -193,15 +333,19 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* Destaques: Maior Gasto & Maior Categoria */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Cards: Maior Gasto & Maior Categoria & A Receber / A Pagar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs text-slate-400 font-semibold">Maior Despesa do Mês</span>
-            <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
+            <div className="text-base font-bold text-slate-900 dark:text-white mt-1 truncate max-w-[140px]">
               {topExpense ? topExpense.description : 'Nenhuma'}
             </div>
-            {topExpense && <span className="text-xs text-slate-400">{topExpense.category}</span>}
+            {topExpense && (
+              <span className="text-xs text-slate-400">
+                {topExpense.category} • {formatDate(topExpense.date)}
+              </span>
+            )}
           </div>
           <div className="text-right">
             <div className="text-lg font-black text-orange-600 tabular-nums">
@@ -213,13 +357,11 @@ export default function ReportsPage() {
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
           <div>
             <span className="text-xs text-slate-400 font-semibold">Maior Categoria de Gasto</span>
-            <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
+            <div className="text-base font-bold text-slate-900 dark:text-white mt-1 truncate max-w-[140px]">
               {topCategory ? topCategory.category : 'Nenhuma'}
             </div>
             {topCategory && (
-              <span className="text-xs text-slate-400">
-                {topCategory.percentage}% do total gasto
-              </span>
+              <span className="text-xs text-slate-400">{topCategory.percentage}% do total</span>
             )}
           </div>
           <div className="text-right">
@@ -228,18 +370,40 @@ export default function ReportsPage() {
             </div>
           </div>
         </Card>
+
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+              <ArrowDownRight className="w-3 h-3 text-emerald-600" /> A Receber no Mês
+            </span>
+            <div className="text-lg font-black text-emerald-600 tabular-nums mt-1">
+              {formatCurrency(monthBillsToReceive, hideValues)}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+              <ArrowUpRight className="w-3 h-3 text-red-600" /> A Pagar no Mês
+            </span>
+            <div className="text-lg font-black text-red-600 tabular-nums mt-1">
+              {formatCurrency(monthBillsToPay, hideValues)}
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {/* Gráficos: Gasto por Categoria (Barras Horizontais) + Receitas x Despesas 6 Meses */}
+      {/* Gráficos: Donut + Barras agrupadas 6 meses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Distribuição por Categoria */}
+        {/* Donut: Gastos por Categoria */}
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-[#121A2B] shadow-sm">
           <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1 flex items-center gap-2">
             <PieIcon className="w-4 h-4 text-emerald-600" />
             Gastos por Categoria
           </h3>
-          <p className="text-xs text-slate-400 mb-6">
-            Percentual consumido em cada setor em {formatMonthYear(selectedMonth)}
+          <p className="text-xs text-slate-400 mb-4">
+            Distribuição percentual em {formatMonthYear(selectedMonth)}
           </p>
 
           {categoryStats.length === 0 ? (
@@ -247,86 +411,157 @@ export default function ReportsPage() {
               Sem despesas realizadas neste mês.
             </div>
           ) : (
-            <div className="space-y-4">
-              {categoryStats.map((item) => (
-                <div key={item.category} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <div className="flex items-center gap-2">
+            <div className="flex flex-col items-center">
+              <div className="w-full h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryStats}
+                      dataKey="total"
+                      nameKey="category"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
+                    >
+                      {categoryStats.map((entry) => (
+                        <Cell key={entry.category} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(
+                        v: number,
+                        _n: string,
+                        item: { payload?: { percentage?: number } },
+                      ) => [
+                        `${formatCurrency(v, hideValues)} (${item?.payload?.percentage || 0}%)`,
+                        '',
+                      ]}
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-full mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {categoryStats.map((item) => (
+                  <div
+                    key={item.category}
+                    className="flex items-center justify-between text-[11px]"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <div
-                        className="w-3 h-3 rounded-full"
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{item.category}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold tabular-nums text-slate-900 dark:text-white">
-                        {formatCurrency(item.total, hideValues)}
+                      <span className="text-slate-600 dark:text-slate-300 truncate">
+                        {item.category}
                       </span>
-                      <span className="text-slate-400">({item.percentage}%)</span>
                     </div>
+                    <span className="font-bold text-slate-900 dark:text-white tabular-nums">
+                      {item.percentage}%
+                    </span>
                   </div>
-                  <Progress value={item.percentage} className="h-2 rounded-full" />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </Card>
 
-        {/* Comparativo Últimos 6 Meses */}
+        {/* Barras agrupadas: Receitas x Despesas 6 meses */}
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-[#121A2B] shadow-sm">
           <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1 flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-emerald-600" />
-            Receitas x Despesas (Últimos 6 Meses)
+            Receitas x Despesas (6 meses)
           </h3>
-          <p className="text-xs text-slate-400 mb-6">
-            Histórico semestral comparativo de entradas e saídas
-          </p>
+          <p className="text-xs text-slate-400 mb-4">Histórico comparativo de entradas e saídas</p>
 
-          <div className="grid grid-cols-6 gap-2 sm:gap-3 items-end h-48 pt-4 border-b border-slate-100 dark:border-slate-800">
-            {last6MonthsData.map((m, idx) => {
-              const maxVal = Math.max(
-                ...last6MonthsData.map((x) => Math.max(x.income, x.expenses)),
-                1000,
-              )
-              const incPct = Math.min(100, Math.round((m.income / maxVal) * 100))
-              const expPct = Math.min(100, Math.round((m.expenses / maxVal) * 100))
-
-              return (
-                <div
-                  key={idx}
-                  className="flex-1 flex flex-col items-center gap-2 h-full justify-end"
-                >
-                  <div className="w-full flex items-end justify-center gap-1.5 h-44">
-                    {/* Barra Receita */}
-                    <div
-                      className="w-4 bg-emerald-500 rounded-t-md transition-all hover:bg-emerald-600"
-                      style={{ height: `${Math.max(8, incPct)}%` }}
-                      title={`Receita: ${formatCurrency(m.income)}`}
-                    />
-                    {/* Barra Despesa */}
-                    <div
-                      className="w-4 bg-orange-500 rounded-t-md transition-all hover:bg-orange-600"
-                      style={{ height: `${Math.max(8, expPct)}%` }}
-                      title={`Despesa: ${formatCurrency(m.expenses)}`}
-                    />
-                  </div>
-                  <span className="text-[10px] font-semibold text-slate-400">{m.label}</span>
-                </div>
-              )
-            })}
-          </div>
-          <div className="flex items-center justify-center gap-6 mt-4 text-xs font-semibold text-slate-500">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-emerald-500" />
-              <span>Receitas</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-orange-500" />
-              <span>Despesas</span>
-            </div>
+          <div className="w-full h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={last6MonthsData} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => (hideValues ? '•••' : `R$${(v / 1000).toFixed(0)}k`)}
+                />
+                <Tooltip
+                  formatter={(v: number) => formatCurrency(v, hideValues)}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                <Bar dataKey="income" name="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Despesas" fill="#f97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </Card>
       </div>
+
+      {/* Evolução 12 meses (receitas, despesas, saldo) */}
+      <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-[#121A2B] shadow-sm">
+        <h3 className="font-bold text-base text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-emerald-600" />
+          Evolução Mensal (Últimos 12 meses)
+        </h3>
+        <p className="text-xs text-slate-400 mb-4">Receitas, despesas e saldo líquido por mês</p>
+
+        <div className="w-full h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={last12MonthsData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => (hideValues ? '•••' : `R$${(v / 1000).toFixed(0)}k`)}
+              />
+              <Tooltip
+                formatter={(v: number) => formatCurrency(v, hideValues)}
+                contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+              <Line
+                type="monotone"
+                dataKey="receitas"
+                name="Receitas"
+                stroke="#10b981"
+                strokeWidth={2}
+                dot={{ r: 2 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="despesas"
+                name="Despesas"
+                stroke="#f97316"
+                strokeWidth={2}
+                dot={{ r: 2 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="saldo"
+                name="Saldo"
+                stroke="#6366f1"
+                strokeWidth={2}
+                dot={{ r: 2 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
 
       {/* Top 10 Maiores Despesas do Mês */}
       <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 bg-white dark:bg-[#121A2B] shadow-sm">
@@ -354,8 +589,8 @@ export default function ReportsPage() {
                     <span className="font-semibold text-slate-900 dark:text-white text-sm block">
                       {t.description}
                     </span>
-                    <span className="text-[11px] text-slate-400">
-                      {t.category} • {t.payment_method}
+                    <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                      {t.category} • {formatDate(t.date)} • {t.payment_method}
                     </span>
                   </div>
                 </div>
@@ -370,6 +605,12 @@ export default function ReportsPage() {
           </div>
         )}
       </Card>
+
+      {/* Footer nota */}
+      <div className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+        <CalendarClock className="w-3 h-3" />
+        Relatórios calculados com base nas transações realizadas do período selecionado.
+      </div>
     </div>
   )
 }
