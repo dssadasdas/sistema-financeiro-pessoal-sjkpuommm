@@ -31,6 +31,7 @@ interface FinanceDataContextType {
   investments: Investment[]
   rules: CategorizationRule[]
   isLoading: boolean
+  loadError: boolean
   refreshAll: () => Promise<void>
 
   // Computed summaries
@@ -110,6 +111,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [investments, setInvestments] = useState<Investment[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   const fetchAllData = useCallback(async () => {
     if (!user) {
@@ -126,9 +128,12 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setInvestments([])
       setRules([])
       setIsLoading(false)
+      setLoadError(false)
       return
     }
 
+    setIsLoading(true)
+    setLoadError(false)
     try {
       const [
         accRes,
@@ -180,6 +185,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setRules(ruleRes)
     } catch (err) {
       console.error('Erro ao buscar dados financeiros:', err)
+      setLoadError(true)
     } finally {
       setIsLoading(false)
     }
@@ -756,6 +762,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         investments: investmentsWithMetrics,
         rules,
         isLoading,
+        loadError,
         refreshAll: fetchAllData,
 
         totalCurrentBalance,

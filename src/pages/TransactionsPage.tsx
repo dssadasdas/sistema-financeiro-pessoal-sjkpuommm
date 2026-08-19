@@ -2,19 +2,21 @@ import React, { useState, useMemo } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, CATEGORY_COLORS } from '@/lib/constants'
+import { useRealtime } from '@/hooks/use-realtime'
+import { LoadingState, ErrorState, EmptyState } from '@/components/States'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Transaction } from '@/types/finance'
 import {
   Plus,
   Search,
-  Filter,
   CheckCircle2,
-  Clock,
   MoreVertical,
   Edit2,
   Trash2,
   ArrowUpRight,
   ArrowDownRight,
   ArrowUpDown,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,37 +44,57 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useToast } from '@/hooks/use-toast'
 import TransactionModal from '@/components/modals/TransactionModal'
 
+type SortKey = 'date_desc' | 'date_asc' | 'value_desc' | 'value_asc'
+
 export default function TransactionsPage() {
-  const { transactions, accounts, deleteTransaction, toggleTransactionStatus } = useFinance()
+  const {
+    transactions,
+    accounts,
+    creditCards,
+    deleteTransaction,
+    toggleTransactionStatus,
+    isLoading,
+    loadError,
+    refreshAll,
+  } = useFinance()
   const { hideValues } = useAuth()
+  const { toast } = useToast()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<'todos' | 'receita' | 'despesa' | 'ajuste'>('todos')
   const [statusFilter, setStatusFilter] = useState<'todos' | 'realizado' | 'pendente'>('todos')
   const [accountFilter, setAccountFilter] = useState<string>('todos')
+  const [cardFilter, setCardFilter] = useState<string>('todos')
   const [categoryFilter, setCategoryFilter] = useState<string>('todos')
+  const [sortBy, setSortBy] = useState<SortKey>('date_desc')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [txToEdit, setTxToEdit] = useState<Transaction | null>(null)
   const [deleteConfirmTx, setDeleteConfirmTx] = useState<Transaction | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  // Extrair categorias únicas
+  // Realtime: atualiza lista ao vivo
+  useRealtime('transactions', () => refreshAll())
+  useRealtime('accounts', () => refreshAll())
+  useRealtime('credit_cards', () => refreshAll())
+
   const categories = useMemo(() => {
     const set = new Set<string>()
     transactions.forEach((t) => {
       if (t.category) set.add(t.category)
     })
-    return Array.from(set)
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [transactions])
 
-  // Filtragem
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
+    const filtered = transactions.filter((tx) => {
       if (typeFilter !== 'todos' && tx.type !== typeFilter) return false
       if (statusFilter !== 'todos' && tx.status !== statusFilter) return false
       if (accountFilter !== 'todos' && tx.account !== accountFilter) return false
+      if (cardFilter !== 'todos' && tx.credit_card !== cardFilter) return false
       if (categoryFilter !== 'todos' && tx.category !== categoryFilter) return false
 
       if (searchTerm.trim()) {
@@ -84,7 +106,31 @@ export default function TransactionsPage() {
 
       return true
     })
-  }, [transactions, typeFilter, statusFilter, accountFilter, categoryFilter, searchTerm])
+
+    return filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date_asc':
+          return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
+        case 'date_desc':
+          return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+        case 'value_desc':
+          return Number(b.value || 0) - Number(a.value || 0)
+        case 'value_asc':
+          return Number(a.value || 0) - Number(b.value || 0)
+        default:
+          return 0
+      }
+    })
+  }, [
+    transactions,
+    typeFilter,
+    statusFilter,
+    accountFilter,
+    cardFilter,
+    categoryFilter,
+    searchTerm,
+    sortBy,
+  ])
 
   // Agrupamento por data (YYYY-MM-DD)
   const groupedByDate = useMemo(() => {
@@ -107,6 +153,84 @@ export default function TransactionsPage() {
     setModalOpen(true)
   }
 
+  const handleToggleStatus = async (tx: Transaction) => {
+    setActionLoading(tx.id)
+    try {
+      await toggleTransactionStatus(tx)
+      toast({
+        title: tx.status === 'realizado' ? 'Marcado como pendente' : 'Status atualizado',
+        description:
+          tx.status === 'realizado'
+            ? 'Lançamento voltou para pendente.'
+            : tx.type === 'receita'
+              ? 'Receita marcada como recebida.'
+              : 'Despesa marcada como paga.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Erro ao atualizar status',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteConfirmTx) return
+    setActionLoading(deleteConfirmTx.id)
+    try {
+      await deleteTransaction(deleteConfirmTx.id)
+      toast({
+        title: 'Lançamento excluído',
+        description: `"${deleteConfirmTx.description}" foi removido.`,
+      })
+      setDeleteConfirmTx(null)
+    } catch (err) {
+      toast({
+        title: 'Erro ao excluir',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    typeFilter !== 'todos' ||
+    statusFilter !== 'todos' ||
+    accountFilter !== 'todos' ||
+    cardFilter !== 'todos' ||
+    categoryFilter !== 'todos'
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setTypeFilter('todos')
+    setStatusFilter('todos')
+    setAccountFilter('todos')
+    setCardFilter('todos')
+    setCategoryFilter('todos')
+  }
+
+  if (isLoading) {
+    return <LoadingState message="Carregando lançamentos..." />
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        message="Não foi possível carregar seus lançamentos. Verifique sua conexão e tente novamente."
+        onRetry={refreshAll}
+      />
+    )
+  }
+
+  const accountName = (id?: string) => accounts.find((a) => a.id === id)?.name
+  const cardName = (id?: string) => creditCards.find((c) => c.id === id)?.name
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -121,13 +245,13 @@ export default function TransactionsPage() {
           onClick={handleCreate}
           className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5"
         >
-          <Plus className="w-4 h-4" /> Novo Lançamento
+          <Plus className="w-4 h-4" /> Nova Transação
         </Button>
       </div>
 
       {/* Barra de Filtros */}
       <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Busca */}
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -170,7 +294,22 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          {/* Conta */}
+          {/* Ordenação */}
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
+            <SelectTrigger className="h-10 rounded-xl">
+              <SelectValue placeholder="Ordenar por" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Data (mais recente)</SelectItem>
+              <SelectItem value="date_asc">Data (mais antiga)</SelectItem>
+              <SelectItem value="value_desc">Maior valor</SelectItem>
+              <SelectItem value="value_asc">Menor valor</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Segunda linha de filtros */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Select value={accountFilter} onValueChange={setAccountFilter}>
             <SelectTrigger className="h-10 rounded-xl">
               <SelectValue placeholder="Conta" />
@@ -185,7 +324,20 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          {/* Categoria */}
+          <Select value={cardFilter} onValueChange={setCardFilter}>
+            <SelectTrigger className="h-10 rounded-xl">
+              <SelectValue placeholder="Cartão" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os cartões</SelectItem>
+              {creditCards.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name} (•••• {c.last_four})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="h-10 rounded-xl">
               <SelectValue placeholder="Categoria" />
@@ -200,18 +352,41 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-xs text-slate-500">
+              {filteredTransactions.length} lançamento(s) encontrado(s)
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-7 text-xs text-slate-500 hover:text-slate-700"
+            >
+              Limpar filtros
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Lista Agrupada por Data */}
-      {groupedByDate.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800">
-          <p className="text-slate-500 text-sm">
-            Nenhum lançamento encontrado para os filtros selecionados.
-          </p>
-          <Button onClick={handleCreate} variant="outline" className="mt-4 rounded-xl">
-            Criar Lançamento
-          </Button>
-        </div>
+      {transactions.length === 0 ? (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="Nenhum lançamento ainda"
+          description="Comece registrando sua primeira receita ou despesa para acompanhar suas finanças."
+          actionLabel="Criar primeiro lançamento"
+          onAction={handleCreate}
+        />
+      ) : groupedByDate.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Nenhum lançamento encontrado"
+          description="Tente ajustar os filtros para encontrar o que procura."
+          actionLabel="Limpar filtros"
+          onAction={clearFilters}
+        />
       ) : (
         <div className="space-y-6">
           {groupedByDate.map(([day, txns]) => {
@@ -248,8 +423,7 @@ export default function TransactionsPage() {
                     const isDespesa = tx.type === 'despesa'
                     const isAjuste = tx.type === 'ajuste'
                     const isRealizado = tx.status === 'realizado'
-
-                    const accountName = accounts.find((a) => a.id === tx.account)?.name
+                    const isLoadingThis = actionLoading === tx.id
 
                     return (
                       <div
@@ -260,7 +434,8 @@ export default function TransactionsPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Toggle Status Clickable */}
                           <button
-                            onClick={() => toggleTransactionStatus(tx)}
+                            onClick={() => handleToggleStatus(tx)}
+                            disabled={isLoadingThis}
                             title={
                               isRealizado
                                 ? 'Marcar como pendente'
@@ -268,7 +443,7 @@ export default function TransactionsPage() {
                                   ? 'Marcar como recebida'
                                   : 'Marcar como paga'
                             }
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 ${
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 disabled:opacity-50 ${
                               isReceita
                                 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40'
                                 : isDespesa
@@ -310,12 +485,19 @@ export default function TransactionsPage() {
                                   {tx.category}
                                 </span>
                               )}
-                              {accountName && (
-                                <span className="text-[11px] text-slate-400">• {accountName}</span>
-                              )}
                               {tx.payment_method && (
                                 <span className="text-[11px] text-slate-400">
                                   • {tx.payment_method}
+                                </span>
+                              )}
+                              {accountName(tx.account) && (
+                                <span className="text-[11px] text-slate-400">
+                                  • {accountName(tx.account)}
+                                </span>
+                              )}
+                              {cardName(tx.credit_card) && (
+                                <span className="text-[11px] text-slate-400">
+                                  • {cardName(tx.credit_card)}
                                 </span>
                               )}
                             </div>
@@ -338,8 +520,9 @@ export default function TransactionsPage() {
                               {formatCurrency(tx.value, hideValues)}
                             </div>
                             <button
-                              onClick={() => toggleTransactionStatus(tx)}
-                              className="text-[10px] text-slate-400 hover:text-emerald-600 underline block ml-auto"
+                              onClick={() => handleToggleStatus(tx)}
+                              disabled={isLoadingThis}
+                              className="text-[10px] text-slate-400 hover:text-emerald-600 underline block ml-auto disabled:opacity-50"
                             >
                               {isRealizado
                                 ? 'Realizado'
@@ -368,7 +551,7 @@ export default function TransactionsPage() {
                                 <Edit2 className="w-3.5 h-3.5 mr-2" /> Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => toggleTransactionStatus(tx)}
+                                onClick={() => handleToggleStatus(tx)}
                                 className="cursor-pointer"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-emerald-600" />
@@ -417,15 +600,11 @@ export default function TransactionsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                if (deleteConfirmTx) {
-                  await deleteTransaction(deleteConfirmTx.id)
-                  setDeleteConfirmTx(null)
-                }
-              }}
+              onClick={handleDelete}
+              disabled={actionLoading === deleteConfirmTx?.id}
               className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
             >
-              Excluir
+              {actionLoading === deleteConfirmTx?.id ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

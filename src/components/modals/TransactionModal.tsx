@@ -62,8 +62,8 @@ export default function TransactionModal({
       setPaymentMethod(transactionToEdit.payment_method || 'PIX')
       setStatus(transactionToEdit.status || 'realizado')
       setType(transactionToEdit.type || 'despesa')
-      setAccountId(transactionToEdit.account || '')
-      setCreditCardId(transactionToEdit.credit_card || '')
+      setAccountId(transactionToEdit.account || 'none')
+      setCreditCardId(transactionToEdit.credit_card || 'none')
     } else {
       setDescription('')
       setValue('')
@@ -73,8 +73,8 @@ export default function TransactionModal({
       setPaymentMethod('PIX')
       setStatus('realizado')
       setType(initialType)
-      setAccountId(accounts[0]?.id || '')
-      setCreditCardId(creditCards[0]?.id || '')
+      setAccountId(accounts[0]?.id || 'none')
+      setCreditCardId(creditCards[0]?.id || 'none')
     }
   }, [transactionToEdit, initialType, accounts, creditCards, open])
 
@@ -100,9 +100,9 @@ export default function TransactionModal({
         payment_method: paymentMethod,
         status,
         type,
-        account: accountId || undefined,
+        account: accountId && accountId !== 'none' ? accountId : undefined,
         credit_card:
-          type === 'despesa' && paymentMethod === 'Crédito' ? creditCardId || undefined : undefined,
+          type === 'despesa' && creditCardId && creditCardId !== 'none' ? creditCardId : undefined,
         source: 'manual',
         paid_at: status === 'realizado' ? new Date().toISOString() : undefined,
       }
@@ -292,7 +292,7 @@ export default function TransactionModal({
                   <SelectValue placeholder="Selecione a conta" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma conta</SelectItem>
+                  <SelectItem value="none">Nenhuma conta</SelectItem>
                   {accounts.map((acc) => (
                     <SelectItem key={acc.id} value={acc.id}>
                       {acc.name} ({acc.bank})
@@ -302,15 +302,15 @@ export default function TransactionModal({
               </Select>
             </div>
 
-            {paymentMethod === 'Crédito' && (
+            {type === 'despesa' && (
               <div className="space-y-1">
                 <Label>Cartão de Crédito</Label>
-                <Select value={creditCardId} onValueChange={setCreditCardId}>
+                <Select value={creditCardId || 'none'} onValueChange={setCreditCardId}>
                   <SelectTrigger className="h-10 rounded-xl">
                     <SelectValue placeholder="Selecione o cartão" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum cartão</SelectItem>
+                    <SelectItem value="none">Nenhum cartão</SelectItem>
                     {creditCards.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name} (•••• {c.last_four})

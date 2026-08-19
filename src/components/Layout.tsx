@@ -43,7 +43,8 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/inicio', icon: LayoutDashboard },
-  { label: 'Transações', path: '/lancamentos', icon: ArrowLeftRight },
+  { label: 'Transações', path: '/transacoes', icon: ArrowLeftRight },
+  { label: 'Extrato', path: '/extrato', icon: Receipt },
   { label: 'Cartões de Crédito', path: '/cartoes', icon: CreditCard },
   { label: 'Contas a Pagar', path: '/contas-e-boletos', icon: Receipt },
   { label: 'Recorrências', path: '/recorrentes', icon: Repeat },
@@ -59,7 +60,8 @@ function SidebarNav({ onNavigate, pathname }: { onNavigate?: () => void; pathnam
       {navItems.map((item) => {
         const Icon = item.icon
         const isActive =
-          pathname === item.path || (item.path !== '/inicio' && pathname.startsWith(item.path))
+          pathname === item.path ||
+          (item.path !== '/inicio' && pathname.startsWith(item.path + '/'))
         return (
           <NavLink
             key={item.path}
@@ -292,7 +294,7 @@ export default function Layout() {
         </NavLink>
 
         <NavLink
-          to="/lancamentos"
+          to="/transacoes"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
               isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
