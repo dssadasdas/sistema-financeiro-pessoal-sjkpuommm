@@ -1,3 +1,6 @@
+// DEPRECATED — substituído por ai_chat.js (Skip AI Gateway). Mantido apenas
+// como fallback offline.
+//
 // IA Financeira generativa (OpenAI gpt-4o-mini) com fallback baseado em regras.
 // Rota: POST /backend/v1/ai/advisor
 // Body: { message: string, context: {...} }
@@ -6,6 +9,10 @@
 // Rate limiting: máx. 10 chamadas por usuário por hora (registro em ai_advisor_requests).
 // Fallback seguro: se a chave OpenAI não existir, a API falhar ou demorar, devolve
 // análise determinística baseada no contexto enviado pelo cliente.
+//
+// Observação: a rota em produção é /backend/v1/ai/ask e /backend/v1/ai/ask-stream
+// (hook ai_chat.js, que conversa com o agente "ia-financeira" via Skip AI Gateway).
+// Este hook antigo só deve ser usado se o gateway estiver indisponível.
 
 routerAdd(
   'POST',

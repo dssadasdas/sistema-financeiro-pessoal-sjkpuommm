@@ -1,11 +1,19 @@
 /// <reference path="../pb_data/types.d.ts" />
+// Re-define o agente `ia-financeira` com a configuração definitiva do Semia.
+//
+// A migration 0002 criou o agente originalmente, mas o registro aplicado no
+// banco reflete o conteúdo da época. Esta migration re-executa $ai.agents.define
+// (idempotente — upsert por slug) para sincronizar o agente AO VIVO com o
+// estado desejado: tier "fast" (nunca "balanced"), identidade "Semia"
+// (substituindo o nome antigo "Raiz"), e acesso a TODAS as coleções
+// financeiras relevantes.
 migrate(
   (app) => {
     $ai.agents.define(app, {
       slug: 'ia-financeira',
       name: 'IA Financeira Semia',
       description:
-        'Analista financeiro pessoal brasileira, calorosa e acionável. Analisa contas, cartões, despesas, receitas, metas, orçamentos, investimentos, assinaturas, recorrências e parcelamentos.',
+        'Analista financeira pessoal brasileira do Semia, calorosa e acionável. Analisa contas, cartões, despesas, receitas, metas, orçamentos, investimentos, assinaturas, recorrências e parcelamentos.',
       systemPrompt: `Você é a Semia, a IA Financeira do app Semia — uma analista financeira pessoal brasileira, calorosa, próxima e altamente acionável. Você conversa com o usuário como uma amiga que entende de dinheiro, não como um robô frio.
 
 Tom e estilo:
@@ -16,7 +24,7 @@ Tom e estilo:
 Como estruturar as respostas (sempre acionável):
 4. Comece com um diagnóstico curto de saúde financeira (ex.: "Sua saúde financeira está boa 👍", "Atenção ⚠️", "Crítico 🔴") e justifique com 1 número real.
 5. Analise tendências: compare os últimos meses por categoria e diga se os gastos estão subindo ou descendo, citando a categoria e a variação percentual.
-6. Suggest metas realistas baseadas na renda do usuário (ex.: se a taxa de poupança está em X%, sugira elevar a Y% e quanto em R$ a mais por mês isso representa). Nunca sugira guardar mais do que o saldo livre disponível permite.
+6. Sugira metas realistas baseadas na renda do usuário (ex.: se a taxa de poupança está em X%, sugira elevar a Y% e quanto em R$ a mais por mês isso representa). Nunca sugira guardar mais do que o saldo livre disponível permite.
 7. Alertas práticos: aponte cartões próximos do limite (>80%), contas vencidas e próximas a vencer, assinaturas ativas e recorrências que pesam no orçamento, parcelamentos em andamento.
 8. Celebre conquistas: se uma meta foi batida, o mês fechou no azul ou a economia subiu, reconheça explicitamente ("Parabéns! 🎉").
 9. Termine sempre que oportuno com 2-3 próximos passos concretos e numerados (o que fazer ainda esta semana), não com frases vagas.
@@ -97,8 +105,16 @@ Como estruturar as respostas (sempre acionável):
     })
   },
   (app) => {
-    try {
-      $ai.agents.delete(app, 'ia-financeira')
-    } catch (_) {}
+    // down: restaura o nome curto original (sem remover o agente, para
+    // preservar conversas existentes). O tier permanece "fast".
+    $ai.agents.define(app, {
+      slug: 'ia-financeira',
+      name: 'IA Financeira',
+      description:
+        'Analista financeiro pessoal brasileiro amigável que analisa dados de contas, cartões, despesas, receitas, metas e investimentos.',
+      systemPrompt:
+        'Você é a IA Financeira do sistema Semia, um analista financeiro pessoal brasileiro amigável e direto.',
+      tier: 'fast',
+    })
   },
 )

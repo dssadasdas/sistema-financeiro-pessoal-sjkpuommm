@@ -6,7 +6,6 @@ import { askAiAgent, askAiAgentStream, consumeAiStream } from '@/lib/aiAdvisor'
 import {
   Sparkles,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   HelpCircle,
   Target,
@@ -16,7 +15,6 @@ import {
   ChevronDown,
   Wallet,
   PiggyBank,
-  Lightbulb,
   CheckCircle2,
   AlertCircle,
   Scissors,
@@ -24,6 +22,8 @@ import {
   Bot,
   Send,
   Loader2,
+  Plus,
+  RotateCcw,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -99,6 +99,9 @@ const CHAT_SUGGESTIONS = [
   'Como reduzir gastos com cartão?',
 ]
 
+const AUTO_ANALYSIS_MESSAGE =
+  'Faça uma análise completa da minha situação financeira atual. Analise receitas, despesas, saldo, contas a pagar, cartões, metas, orçamentos e investimentos. Dê um panorama geral e destaque pontos de atenção e oportunidades.'
+
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -106,6 +109,10 @@ interface ChatMessage {
   offline?: boolean
   pending?: boolean
 }
+
+// A partir de quanto tempo de inatividade (ms) no input, mostramos o
+// divisor "Novas mensagens" antes do campo de digitação.
+const NEW_MESSAGES_GAP_MS = 30_000
 
 export default function AiAdvisorPage() {
   const {
@@ -133,9 +140,38 @@ export default function AiAdvisorPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
+  const [showNewMessagesDivider, setShowNewMessagesDivider] = useState(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const conversationIdRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const lastActivityRef = useRef<number>(Date.now())
+
+  // Auto-análise (Análise do Momento) — dispara uma vez ao abrir a página,
+  // depois do carregamento dos dados. O cache é só o estado em memória:
+  // só refaz se a página for recarregada (remontagem do componente).
+  const autoAnalysisRanRef = useRef(false)
+  const [autoAnalysis, setAutoAnalysis] = useState<{
+    content: string
+    loading: boolean
+    error: boolean
+  }>({ content: '', loading: false, error: false })
+
+  const runAutoAnalysis = useCallback(async () => {
+    setAutoAnalysis({ content: '', loading: true, error: false })
+    try {
+      const { content } = await askAiAgent(AUTO_ANALYSIS_MESSAGE)
+      setAutoAnalysis({ content, loading: false, error: false })
+    } catch {
+      setAutoAnalysis({ content: '', loading: false, error: true })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || loadError) return
+    if (autoAnalysisRanRef.current) return
+    autoAnalysisRanRef.current = true
+    runAutoAnalysis()
+  }, [isLoading, loadError, runAutoAnalysis])
 
   const analytics = useMemo(() => {
     const currentMonthKey = new Date().toISOString().slice(0, 7)
@@ -331,6 +367,36 @@ export default function AiAdvisorPage() {
     [quickAnswers],
   )
 
+  const handleNewConversation = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+    conversationIdRef.current = null
+    setChatMessages([])
+    setChatInput('')
+    setChatLoading(false)
+    setShowNewMessagesDivider(false)
+    lastActivityRef.current = Date.now()
+  }, [])
+
+  const onChatInputChange = useCallback(
+    (value: string) => {
+      setChatInput(value)
+      // Divisor "Novas mensagens": só quando já há histórico e o usuário
+      // volta a digitar após um período de inatividade.
+      if (
+        value.trim().length > 0 &&
+        chatMessages.length > 0 &&
+        !showNewMessagesDivider &&
+        Date.now() - lastActivityRef.current > NEW_MESSAGES_GAP_MS
+      ) {
+        setShowNewMessagesDivider(true)
+      }
+    },
+    [chatMessages.length, showNewMessagesDivider],
+  )
+
   const sendChatMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
@@ -357,6 +423,8 @@ export default function AiAdvisorPage() {
       setChatMessages((prev) => [...prev, userMsg, pendingMsg])
       setChatInput('')
       setChatLoading(true)
+      setShowNewMessagesDivider(false)
+      lastActivityRef.current = Date.now()
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -391,6 +459,8 @@ export default function AiAdvisorPage() {
           controller.signal,
         )
 
+        lastActivityRef.current = Date.now()
+
         // Garante que saiu do estado pending mesmo se nenhum chunk veio
         setChatMessages((prev) =>
           prev.map((m) =>
@@ -420,6 +490,7 @@ export default function AiAdvisorPage() {
       } finally {
         if (abortRef.current === controller) abortRef.current = null
         setChatLoading(false)
+        lastActivityRef.current = Date.now()
       }
     },
     [chatLoading],
@@ -447,7 +518,12 @@ export default function AiAdvisorPage() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">IA Financeira</h2>
-            <Badge className="bg-emerald-500 text-white gap-1 text-[11px] font-bold py-0.5">
+            <Badge className="bg-emerald-500 text-white gap-1.5 text-[11px] font-bold py-0.5">
+              {/* Indicador "conectado" — bolinha verde com pulso */}
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200" />
+              </span>
               <Sparkles className="w-3 h-3 fill-current" /> IA Generativa
             </Badge>
           </div>
@@ -455,6 +531,113 @@ export default function AiAdvisorPage() {
             Análise inteligente em tempo real com IA generativa, baseada nos seus dados reais
           </p>
         </div>
+      </div>
+
+      {/* Análise do Momento (auto-análise ao abrir a página) */}
+      <AutoAnalysisCard
+        loading={autoAnalysis.loading}
+        error={autoAnalysis.error}
+        content={autoAnalysis.content}
+        onRetry={runAutoAnalysis}
+      />
+
+      {/* Chat livre com a IA (movido para cima, logo abaixo da análise automática) */}
+      <div>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+            <Bot className="w-4 h-4 text-emerald-600" />
+            Conversa com a IA Financeira
+            <Badge variant="outline" className="text-[10px] font-normal text-slate-500">
+              Chat livre
+            </Badge>
+          </h3>
+          <button
+            onClick={handleNewConversation}
+            className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-1.5 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nova conversa
+          </button>
+        </div>
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm overflow-hidden flex flex-col">
+          {/* Mensagens */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[420px] min-h-[200px] bg-slate-50/50 dark:bg-slate-900/20">
+            {chatMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center py-10 gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Olá! 👋 Sou a Semia, sua IA Financeira.
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                    Pergunte qualquer coisa sobre suas finanças — gastos, metas, investimentos,
+                    contas a pagar. Estou aqui para ajudar!
+                  </p>
+                </div>
+                {/* Sugestões clicáveis dentro da própria área de chat */}
+                <div className="flex flex-wrap justify-center gap-2 mt-2 max-w-md">
+                  {CHAT_SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => sendChatMessage(s)}
+                      disabled={chatLoading}
+                      className="text-xs px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-colors disabled:opacity-50"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((m) => <ChatBubble key={m.id} message={m} />)
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Divisor "Novas mensagens" — aparece quando o usuário volta a
+              digitar após um período, indicando o início de um novo bloco */}
+          {showNewMessagesDivider && (
+            <div className="px-4 py-2 flex items-center gap-2">
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+              <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                Novas mensagens
+              </span>
+              <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
+            </div>
+          )}
+
+          {/* Input */}
+          <form
+            onSubmit={(ev) => {
+              ev.preventDefault()
+              sendChatMessage(chatInput)
+            }}
+            className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => onChatInputChange(e.target.value)}
+              placeholder="Pergunte sobre suas finanças..."
+              disabled={chatLoading}
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border-0 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={!chatInput.trim() || chatLoading}
+              className="shrink-0 w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Enviar"
+            >
+              {chatLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </form>
+        </Card>
       </div>
 
       {/* Painel de análise: Saúde + Resumo do mês */}
@@ -826,87 +1009,6 @@ export default function AiAdvisorPage() {
         </Card>
       </div>
 
-      {/* Chat livre com a IA */}
-      <div>
-        <h3 className="font-bold text-base text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-          <Bot className="w-4 h-4 text-emerald-600" />
-          Conversa com a IA Financeira
-          <Badge variant="outline" className="text-[10px] font-normal text-slate-500">
-            Chat livre
-          </Badge>
-        </h3>
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm overflow-hidden flex flex-col">
-          {/* Mensagens */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[420px] min-h-[200px] bg-slate-50/50 dark:bg-slate-900/20">
-            {chatMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-10 gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Olá! 👋 Sou sua IA Financeira.
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                    Pergunte qualquer coisa sobre suas finanças — gastos, metas, investimentos,
-                    contas a pagar. Estou aqui para ajudar!
-                  </p>
-                </div>
-              </div>
-            ) : (
-              chatMessages.map((m) => <ChatBubble key={m.id} message={m} />)
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Sugestões */}
-          {chatMessages.length === 0 && (
-            <div className="px-4 pb-2 flex flex-wrap gap-2">
-              {CHAT_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendChatMessage(s)}
-                  disabled={chatLoading}
-                  className="text-xs px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-colors disabled:opacity-50"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input */}
-          <form
-            onSubmit={(ev) => {
-              ev.preventDefault()
-              sendChatMessage(chatInput)
-            }}
-            className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Pergunte sobre suas finanças..."
-              disabled={chatLoading}
-              className="flex-1 bg-slate-100 dark:bg-slate-800 border-0 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={!chatInput.trim() || chatLoading}
-              className="shrink-0 w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Enviar"
-            >
-              {chatLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </button>
-          </form>
-        </Card>
-      </div>
-
       {/* Rodapé */}
       <div className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
         <Sparkles className="w-3 h-3" />
@@ -918,6 +1020,71 @@ export default function AiAdvisorPage() {
 }
 
 // ---------- Subcomponentes ----------
+
+function AutoAnalysisCard({
+  loading,
+  error,
+  content,
+  onRetry,
+}: {
+  loading: boolean
+  error: boolean
+  content: string
+  onRetry: () => void
+}) {
+  return (
+    <Card className="rounded-2xl border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-sm overflow-hidden">
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            Análise do Momento
+          </h3>
+          <Badge className="bg-emerald-500 text-white text-[10px] font-bold gap-1 py-0.5">
+            <Bot className="w-3 h-3" /> Automática
+          </Badge>
+        </div>
+
+        {loading ? (
+          <AutoAnalysisSkeleton />
+        ) : error ? (
+          <div className="flex flex-col items-start gap-3 py-2">
+            <p className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+              Análise temporariamente indisponível.
+            </p>
+            <button
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-emerald-200 dark:border-emerald-800 rounded-xl px-3 py-1.5 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+            {content}
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+function AutoAnalysisSkeleton() {
+  return (
+    <div className="space-y-2.5 animate-pulse">
+      <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Analisando seus dados...
+      </div>
+      <div className="h-3 w-full rounded-full bg-emerald-100 dark:bg-emerald-900/40" />
+      <div className="h-3 w-11/12 rounded-full bg-emerald-100 dark:bg-emerald-900/40" />
+      <div className="h-3 w-4/5 rounded-full bg-emerald-100 dark:bg-emerald-900/40" />
+      <div className="h-3 w-3/4 rounded-full bg-emerald-100 dark:bg-emerald-900/40" />
+    </div>
+  )
+}
 
 function TypingIndicator() {
   return (
