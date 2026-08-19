@@ -66,17 +66,8 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'receita' | 'despesa' | 'ajuste'>('receita')
 
-  // Realtime: refresh data on any change to key collections
-  useRealtime('transactions', () => refreshAll())
-  useRealtime('accounts', () => refreshAll())
-  useRealtime('credit_cards', () => refreshAll())
-  useRealtime('invoices', () => refreshAll())
-  useRealtime('goals', () => refreshAll())
-  useRealtime('goal_contributions', () => refreshAll())
-  useRealtime('investments', () => refreshAll())
-  useRealtime('bills', () => refreshAll())
-  useRealtime('recurring_bills', () => refreshAll())
-  useRealtime('budgets', () => refreshAll())
+  // NOTE: realtime subscriptions are handled centrally by FinanceDataContext,
+  // so this page does not need its own subscriptions (avoids duplicate fetchAllData calls).
 
   const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long' })
   const savingsAmount = monthIncomeReceived - monthExpensePaid

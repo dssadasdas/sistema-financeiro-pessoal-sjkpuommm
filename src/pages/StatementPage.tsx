@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, formatMonthYear, CATEGORY_COLORS } from '@/lib/constants'
-import { useRealtime } from '@/hooks/use-realtime'
 import { LoadingState, ErrorState, EmptyState } from '@/components/States'
 import {
   Printer,
@@ -36,10 +35,7 @@ export default function StatementPage() {
   const [cardFilter, setCardFilter] = useState<string>('todos')
   const [categoryFilter, setCategoryFilter] = useState<string>('todos')
 
-  // Realtime: mantém o extrato sempre atualizado
-  useRealtime('transactions', () => refreshAll())
-  useRealtime('accounts', () => refreshAll())
-  useRealtime('credit_cards', () => refreshAll())
+  // Realtime é gerenciado centralmente pelo FinanceDataContext.
 
   const categories = useMemo(() => {
     const set = new Set<string>()

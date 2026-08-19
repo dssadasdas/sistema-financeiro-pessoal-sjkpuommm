@@ -215,19 +215,23 @@ export default function Layout() {
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile sticky header */}
-        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between">
-          <Link to="/inicio" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
+        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between pt-safe">
+          <Link
+            to="/inicio"
+            className="flex items-center gap-2 min-w-0"
+            aria-label="Ir para o início"
+          >
+            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white flex-shrink-0">
               <Wallet className="w-4.5 h-4.5" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
+            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white truncate">
               Finanças
             </span>
           </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="text-slate-600 dark:text-slate-300"
+            className="text-slate-600 dark:text-slate-300 touch-target flex-shrink-0"
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menu"
           >

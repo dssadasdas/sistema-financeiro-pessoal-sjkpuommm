@@ -367,7 +367,7 @@ export default function InvoiceImportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl rounded-2xl bg-white dark:bg-[#121A2B] max-h-[90vh] overflow-y-auto p-6">
+      <DialogContent className="max-w-3xl w-full rounded-2xl bg-white dark:bg-[#121A2B] p-4 sm:p-6 scrollbar-thin">
         <DialogHeader>
           <DialogTitle className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-emerald-600" />

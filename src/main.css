@@ -338,3 +338,84 @@
     animation: spotlight 2s ease forwards;
   }
 }
+
+/* ===========================================================
+   Mobile & accessibility polish (v0.0.9)
+   =========================================================== */
+
+@layer base {
+  /* Visible focus ring for keyboard navigation on interactive elements */
+  *:focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Keep native date/time pickers legible in dark mode */
+  .dark input[type='date']::-webkit-calendar-picker-indicator,
+  .dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+  .dark input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  /* Prevent horizontal overflow / layout shift on small screens */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Respect device safe areas (notch, home indicator) */
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+@layer components {
+  /* Ensure every dialog is usable on mobile: never taller than the viewport
+     and scrollable internally. Scoped with !important to win over per-instance
+     max-h utilities that were forgotten on several dialogs. */
+  [role='dialog'] {
+    max-height: calc(100dvh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+  @media (max-width: 640px) {
+    [role='dialog'] {
+      width: calc(100vw - 1.5rem) !important;
+      max-width: calc(100vw - 1.5rem) !important;
+    }
+  }
+
+  /* Generous, accessible touch target for icon-only buttons in lists/nav */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@layer utilities {
+  /* Safe-area padding helpers for fixed bars (bottom nav, top header) */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Subtle, theme-aware thin scrollbar for scrollable lists/dialogs */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.5);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

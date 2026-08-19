@@ -76,11 +76,6 @@ export default function TransactionsPage() {
   const [deleteConfirmTx, setDeleteConfirmTx] = useState<Transaction | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  // Realtime: atualiza lista ao vivo
-  useRealtime('transactions', () => refreshAll())
-  useRealtime('accounts', () => refreshAll())
-  useRealtime('credit_cards', () => refreshAll())
-
   const categories = useMemo(() => {
     const set = new Set<string>()
     transactions.forEach((t) => {
