@@ -77,12 +77,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
+    let unsubSub: (() => Promise<void>) | undefined
+
     const initAuth = async () => {
       try {
         if (pb.authStore.isValid && pb.authStore.model) {
           const authModel = pb.authStore.model as unknown as User
           setUser(authModel)
           await fetchSubscription(authModel.id)
+
+          // Realtime na collection subscriptions para refletir liberação manual
+          try {
+            const fn = await pb.collection('subscriptions').subscribe('*', () => {
+              if (authModel?.id) fetchSubscription(authModel.id)
+            })
+            unsubSub = fn
+          } catch (e) {
+            console.warn('Realtime subscriptions failed:', e)
+          }
         }
       } catch (err) {
         console.warn('Auth init failed:', err)
@@ -106,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       unsubscribe()
+      if (unsubSub) unsubSub().catch(() => {})
     }
   }, [fetchSubscription])
 

@@ -168,7 +168,7 @@ export default function PaywallPage() {
           <button
             onClick={() => {
               logout()
-              navigate('/entrar')
+              navigate('/login')
             }}
             className="text-slate-500 hover:text-red-500 underline"
           >

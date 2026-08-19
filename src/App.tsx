@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { FinanceDataProvider } from '@/contexts/FinanceDataContext'
 import Layout from '@/components/Layout'
+import { Wallet, Loader2 } from 'lucide-react'
 
 // Páginas Públicas
 import LandingPage from '@/pages/LandingPage'
@@ -33,29 +34,32 @@ import ReportsPage from '@/pages/ReportsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
 import SettingsPage from '@/pages/SettingsPage'
 
+// Full-screen loading spinner with logo
+function FullScreenLoader() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9]">
+      <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg mb-4">
+        <Wallet className="w-6 h-6" />
+      </div>
+      <Loader2 className="w-5 h-5 text-emerald-600 animate-spin" />
+    </div>
+  )
+}
+
 // Protected Route Guard
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, subscription } = useAuth()
+  const { user, isLoading, subscription } = useAuth()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9] dark:bg-[#0B111E]">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white font-black text-2xl shadow-lg animate-pulse mb-4">
-          R
-        </div>
-        <p className="text-sm font-semibold text-slate-500 animate-pulse">
-          Carregando Raiz Finanças...
-        </p>
-      </div>
-    )
+  if (isLoading) {
+    return <FullScreenLoader />
   }
 
   if (!user) {
     return <Navigate to="/login" replace />
   }
 
-  // Se assinatura estiver explicitamente bloqueada ou expirada e não estiver na rota de paywall
-  if (subscription && subscription.status === 'bloqueada') {
+  // Se assinatura estiver explicitamente bloqueada e não estiver na rota de paywall
+  if (subscription && subscription.status === 'bloqueada' && !subscription.admin_released) {
     return <Navigate to="/paywall" replace />
   }
 
@@ -64,9 +68,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 // Public Route Guard (redirects to /inicio if logged in)
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, isLoading } = useAuth()
 
-  if (loading) {
+  if (isLoading) {
     return null
   }
 
@@ -88,7 +92,14 @@ export default function App() {
               <Sonner />
               <Routes>
                 {/* Landing Page Comercial Aberta */}
-                <Route path="/" element={<LandingPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <PublicRoute>
+                      <LandingPage />
+                    </PublicRoute>
+                  }
+                />
 
                 {/* Autenticação */}
                 <Route

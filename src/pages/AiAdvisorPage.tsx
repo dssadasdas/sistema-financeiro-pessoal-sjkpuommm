@@ -98,8 +98,11 @@ export default function AiAdvisorPage() {
     const totalCash = accounts.reduce((acc, a) => acc + (a.current_balance || 0), 0)
 
     // 5. Investimentos
-    const totalInvested = investments.reduce((acc, i) => acc + (i.invested_value || 0), 0)
-    const totalInvestCurrent = investments.reduce((acc, i) => acc + (i.current_value || 0), 0)
+    const totalInvested = investments.reduce((acc, i) => acc + (i.applied_value || 0), 0)
+    const totalInvestCurrent = investments.reduce(
+      (acc, i) => acc + (i.current_total_value || i.applied_value || 0),
+      0,
+    )
     const investGain = totalInvestCurrent - totalInvested
     const investGainPct = totalInvested > 0 ? ((investGain / totalInvested) * 100).toFixed(1) : '0'
 

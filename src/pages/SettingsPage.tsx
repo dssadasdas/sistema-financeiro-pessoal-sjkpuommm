@@ -26,10 +26,11 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
+import pb from '@/lib/pocketbase/client'
 import { useTheme } from '@/contexts/ThemeContext'
 
 export default function SettingsPage() {
-  const { user, subscription, logout, updateProfile } = useAuth()
+  const { user, subscription, logout, refreshSubscription } = useAuth()
   const { rules, saveRule, deleteRule } = useFinance()
   const { theme, toggleTheme } = useTheme()
 
@@ -57,7 +58,11 @@ export default function SettingsPage() {
     setProfileSaving(true)
     setProfileMsg('')
     try {
-      await updateProfile({ name: name.trim() })
+      // Atualiza nome do usuário diretamente no PocketBase
+      if (user?.id) {
+        await pb.collection('users').update(user.id, { name: name.trim() })
+        await refreshSubscription()
+      }
       setProfileMsg('Perfil atualizado com sucesso!')
       setTimeout(() => setProfileMsg(''), 3000)
     } catch {
@@ -227,7 +232,7 @@ export default function SettingsPage() {
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
                   <span className="text-xs text-slate-400">Início da Assinatura</span>
                   <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
-                    {subscription?.start_date ? formatDate(subscription.start_date) : 'Hoje'}
+                    {subscription?.started_at ? formatDate(subscription.started_at) : 'Hoje'}
                   </div>
                   <span className="text-xs text-slate-400">Acesso ilimitado</span>
                 </div>
@@ -335,7 +340,7 @@ export default function SettingsPage() {
                       >
                         <div>
                           <span className="font-mono font-bold text-slate-900 dark:text-white uppercase block">
-                            "{r.pattern}"
+                            "{r.keyword}"
                           </span>
                           <span className="text-[11px] text-emerald-600 font-semibold">
                             → {r.category}
