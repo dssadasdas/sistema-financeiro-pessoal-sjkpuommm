@@ -366,7 +366,7 @@ routerAdd(
       }
 
       const systemPrompt =
-        'Você é a IA Financeira do sistema Raiz, um analista financeiro pessoal brasileiro amigável e direto.\n' +
+        'Você é a IA Financeira do sistema Semia, um analista financeiro pessoal brasileiro amigável e direto.\n' +
         'Diretrizes:\n' +
         '1. Responda sempre em português brasileiro (pt-BR), em linguagem natural, amigável e clara, com emojis ocasionais.\n' +
         '2. Use APENAS os dados reais fornecidos no contexto. Nunca invente valores, saldos ou transações.\n' +

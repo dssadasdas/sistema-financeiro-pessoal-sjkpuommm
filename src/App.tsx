@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { FinanceDataProvider } from '@/contexts/FinanceDataContext'
 import Layout from '@/components/Layout'
+import PageTitle from '@/components/PageTitle'
 import { Wallet, Loader2 } from 'lucide-react'
 
 // Páginas Públicas
@@ -90,6 +91,7 @@ export default function App() {
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <PageTitle />
               <Routes>
                 {/* Landing Page Comercial Aberta */}
                 <Route

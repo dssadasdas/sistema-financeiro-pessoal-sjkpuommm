@@ -39,6 +39,7 @@ export interface User {
   email: string
   name?: string
   avatar?: string
+  verified?: boolean
   created: string
   updated: string
 }

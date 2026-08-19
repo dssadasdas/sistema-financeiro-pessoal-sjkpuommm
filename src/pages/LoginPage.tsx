@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Wallet, Lock, Mail, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
+import { Wallet, Lock, Mail, Eye, EyeOff, Loader2, AlertCircle, KeyRound } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -15,8 +17,33 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { toast } = useToast()
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrors({ email: 'Informe seu e-mail para receber o link de recuperação.' })
+      return
+    }
+    setResetLoading(true)
+    try {
+      await pb.collection('users').requestPasswordReset(email)
+      toast({
+        title: 'E-mail enviado',
+        description: 'Se o e-mail existir, você receberá o link de recuperação.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Não foi possível enviar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setResetLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,7 +88,7 @@ export default function LoginPage() {
             <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center text-white shadow-lg">
               <Wallet className="w-6 h-6" />
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-white">Finanças</span>
+            <span className="font-extrabold text-2xl tracking-tight text-white">Semia</span>
           </Link>
         </div>
 
@@ -125,6 +152,22 @@ export default function LoginPage() {
                   </button>
                 </div>
                 {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+              </div>
+
+              <div className="flex justify-end -mt-2">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading}
+                  className="text-xs font-medium text-emerald-600 hover:underline inline-flex items-center gap-1 disabled:opacity-60"
+                >
+                  {resetLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <KeyRound className="w-3 h-3" />
+                  )}
+                  Esqueci minha senha
+                </button>
               </div>
 
               <Button

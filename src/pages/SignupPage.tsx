@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Wallet, Lock, Mail, Eye, EyeOff, Loader2, AlertCircle, User } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -18,6 +20,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const { signup } = useAuth()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +37,16 @@ export default function SignupPage() {
     setLoading(true)
     try {
       await signup(email, password, name)
+      // Solicita o e-mail de verificação (requer configuração SMTP no PocketBase)
+      try {
+        await pb.collection('users').requestVerification(email)
+      } catch (_) {
+        /* não bloqueia o cadastro se o SMTP não estiver configurado */
+      }
+      toast({
+        title: 'Conta criada!',
+        description: 'Enviamos um e-mail de verificação para confirmar seu endereço.',
+      })
       navigate('/inicio')
     } catch (err: unknown) {
       const fieldErrors = extractFieldErrors(err)
@@ -69,7 +82,7 @@ export default function SignupPage() {
             <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center text-white shadow-lg">
               <Wallet className="w-6 h-6" />
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-white">Finanças</span>
+            <span className="font-extrabold text-2xl tracking-tight text-white">Semia</span>
           </Link>
         </div>
 

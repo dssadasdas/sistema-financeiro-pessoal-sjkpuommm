@@ -23,6 +23,8 @@ import {
   ExternalLink,
   Clock,
   Settings as SettingsIcon,
+  MailCheck,
+  Send,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -44,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
-const LAST_SYNC_KEY = 'semeia_last_sync'
+const LAST_SYNC_KEY = 'semia_last_sync'
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime()
@@ -191,6 +193,29 @@ export default function SettingsPage() {
       })
     } finally {
       setSyncing(false)
+    }
+  }
+
+  /* ---------- Verificação de e-mail ---------- */
+  const [sendingVerification, setSendingVerification] = useState(false)
+
+  const handleSendVerification = async () => {
+    if (!user) return
+    setSendingVerification(true)
+    try {
+      await pb.collection('users').requestVerification(user.email)
+      toast({
+        title: 'E-mail enviado',
+        description: 'Verifique sua caixa de entrada e o spam para confirmar seu e-mail.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Não foi possível enviar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setSendingVerification(false)
     }
   }
 
@@ -341,6 +366,41 @@ export default function SettingsPage() {
                   )}
                   Salvar alterações
                 </Button>
+
+                {/* Verificação de e-mail */}
+                <div
+                  className={`mt-2 p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
+                    user.verified
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'
+                  }`}
+                >
+                  {user.verified ? (
+                    <MailCheck className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <Send className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    {user.verified ? (
+                      <span>E-mail verificado com sucesso.</span>
+                    ) : (
+                      <>
+                        <p className="font-medium">Seu e-mail ainda não foi verificado.</p>
+                        <button
+                          type="button"
+                          onClick={handleSendVerification}
+                          disabled={sendingVerification}
+                          className="mt-1 inline-flex items-center gap-1 font-semibold underline disabled:opacity-60"
+                        >
+                          {sendingVerification ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : null}
+                          Reenviar e-mail de verificação
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </form>
             </CardContent>
           </Card>
@@ -699,7 +759,7 @@ export default function SettingsPage() {
               </AlertDialog>
 
               <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-1">
-                Semeia v0.0.8
+                Semia v1.0.0
               </p>
             </CardContent>
           </Card>

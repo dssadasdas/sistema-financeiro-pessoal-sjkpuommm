@@ -29,10 +29,10 @@ export default function PaywallPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 font-black text-2xl">
-              R
+              S
             </div>
             <span className="font-extrabold text-3xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-              Raiz
+              Semia
             </span>
           </div>
 
@@ -43,7 +43,7 @@ export default function PaywallPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
             {isSubscriptionActive
               ? 'Seu acesso foi liberado com sucesso!'
-              : 'Assine o Raiz para liberar seu painel completo'}
+              : 'Assine o Semia para liberar seu painel completo'}
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             {isSubscriptionActive
@@ -128,7 +128,7 @@ export default function PaywallPage() {
                   <span className="text-slate-500 text-sm">/ano</span>
                 </div>
                 <span className="text-xs font-semibold text-emerald-600 block mt-1">
-                  Apenas R$ 9,99/mês (12 meses com valor de 10)
+                  Equivalente a apenas R$ 10,00/mês
                 </span>
                 <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
                   <li className="flex items-center gap-2.5">

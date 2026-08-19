@@ -178,7 +178,7 @@ export default function Layout() {
     if (item) return item.label
     if (location.pathname.startsWith('/cartoes/')) return 'Detalhe do Cartão'
     if (location.pathname.startsWith('/configuracoes')) return 'Configurações'
-    return 'Finanças'
+    return 'Semia'
   }
 
   return (
@@ -191,7 +191,7 @@ export default function Layout() {
             <Wallet className="w-5 h-5" />
           </div>
           <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-            Finanças
+            Semia
           </span>
         </div>
 
@@ -225,7 +225,7 @@ export default function Layout() {
               <Wallet className="w-4.5 h-4.5" />
             </div>
             <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white truncate">
-              Finanças
+              Semia
             </span>
           </Link>
           <Button
@@ -277,7 +277,7 @@ export default function Layout() {
                   <Wallet className="w-5 h-5" />
                 </div>
                 <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-                  Finanças
+                  Semia
                 </span>
               </div>
               <Button
