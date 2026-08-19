@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T03:03:49.122Z",
+  "generatedAt": "2026-08-19T19:38:36.774Z",
   "collections": [
     {
       "name": "users",
@@ -1207,9 +1207,50 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "provider",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["stripe", "mercadopago"]
+        },
+        {
+          "name": "provider_subscription_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "provider_customer_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_period_start",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "current_period_end",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cancel_at_period_end",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": ["CREATE INDEX idx_subscriptions_user ON subscriptions (user)"]
+      "indexes": [
+        "CREATE INDEX idx_subscriptions_user ON subscriptions (user)",
+        "CREATE UNIQUE INDEX `idx_subscriptions_provider_sub` ON `subscriptions` (provider, provider_subscription_id) WHERE provider_subscription_id != ''",
+        "CREATE INDEX `idx_subscriptions_customer` ON `subscriptions` (provider_customer_id)"
+      ]
     },
     {
       "name": "recurring_bills",

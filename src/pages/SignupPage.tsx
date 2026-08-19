@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,8 @@ export default function SignupPage() {
   const { signup } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const [params] = useSearchParams()
+  const preselectedPlan = params.get('plan') === 'anual' ? 'anual' : 'mensal'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +49,8 @@ export default function SignupPage() {
         title: 'Conta criada!',
         description: 'Enviamos um e-mail de verificação para confirmar seu endereço.',
       })
-      navigate('/inicio')
+      // Após o cadastro, leva direto para o paywall para escolher o plano.
+      navigate(`/paywall?plan=${preselectedPlan}`)
     } catch (err: unknown) {
       const fieldErrors = extractFieldErrors(err)
       if (Object.keys(fieldErrors).length > 0) {

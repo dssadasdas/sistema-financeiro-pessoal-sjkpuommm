@@ -15,6 +15,7 @@ import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
 import SignupPage from '@/pages/SignupPage'
 import PaywallPage from '@/pages/PaywallPage'
+import ThankYouPage from '@/pages/ThankYouPage'
 import NotFound from '@/pages/NotFound'
 
 // Páginas Autenticadas
@@ -131,6 +132,9 @@ export default function App() {
 
                 {/* Paywall */}
                 <Route path="/paywall" element={<PaywallPage />} />
+
+                {/* Obrigado (retorno pós-checkout) */}
+                <Route path="/obrigado" element={<ThankYouPage />} />
 
                 {/* App Shell Autenticado */}
                 <Route

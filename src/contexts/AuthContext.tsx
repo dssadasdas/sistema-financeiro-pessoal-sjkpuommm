@@ -2,6 +2,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 import { User, Subscription } from '@/types/finance'
+import {
+  startCheckout,
+  cancelStripeSubscription,
+  redirectToUrl,
+  type PaymentProvider,
+  type CheckoutPlan,
+} from '@/lib/payments'
 
 interface AuthContextType {
   user: User | null
@@ -19,6 +26,8 @@ interface AuthContextType {
   refreshUser: () => Promise<void>
   refreshSubscription: () => Promise<void>
   activateSubscriptionDemo: (plan: 'mensal' | 'anual') => Promise<void>
+  startSubscriptionCheckout: (provider: PaymentProvider, plan: CheckoutPlan) => Promise<void>
+  cancelSubscription: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -211,6 +220,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // Inicia checkout real no provedor escolhido (Stripe ou Mercado Pago).
+  // Redireciona o navegador para a URL do checkout externo.
+  const startSubscriptionCheckout = async (provider: PaymentProvider, plan: CheckoutPlan) => {
+    if (!user) throw new Error('Usuário não autenticado.')
+    const res = await startCheckout(provider, plan)
+    if (!res || !res.url) {
+      throw new Error('Não foi possível iniciar o checkout. Tente novamente.')
+    }
+    redirectToUrl(res.url)
+  }
+
+  // Cancela a assinatura ativa no provedor (atualmente Stripe). Para o
+  // Mercado Pago (pagamento único) não há assinatura recorrente para
+  // cancelar — o usuário simplesmente não renova.
+  const cancelSubscription = async () => {
+    if (!user || !subscription) return
+    // Só cancelamos no provedor se houver provider_subscription_id e provider
+    const provider = subscription.provider
+    if (provider === 'stripe' && subscription.provider_subscription_id) {
+      await cancelStripeSubscription()
+    } else {
+      // Sem provedor externo: marca localmente como cancelada no fim do ciclo
+      const now = new Date()
+      await pb.collection('subscriptions').update<Subscription>(subscription.id, {
+        cancel_at_period_end: true,
+        renewed_at: now.toISOString(),
+      })
+    }
+    await refreshSubscription()
+  }
+
   const isSubscriptionActive = Boolean(
     subscription && (subscription.status === 'ativa' || subscription.admin_released === true),
   )
@@ -233,6 +273,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshUser,
         refreshSubscription,
         activateSubscriptionDemo,
+        startSubscriptionCheckout,
+        cancelSubscription,
       }}
     >
       {children}

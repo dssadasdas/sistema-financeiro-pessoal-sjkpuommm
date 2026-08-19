@@ -283,7 +283,7 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <Link to="/registro" className="mt-8">
+              <Link to="/registro?plan=mensal" className="mt-8">
                 <Button className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-medium h-12">
                   Assinar Mensal
                 </Button>
@@ -328,7 +328,7 @@ export default function LandingPage() {
                   </li>
                 </ul>
               </div>
-              <Link to="/registro" className="mt-8">
+              <Link to="/registro?plan=anual" className="mt-8">
                 <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 shadow-lg shadow-emerald-600/30">
                   Assinar Anual
                 </Button>
@@ -339,6 +339,45 @@ export default function LandingPage() {
           <p className="mt-6 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
             <Lock className="w-3.5 h-3.5" /> Pagamento confirma o acesso completo ao painel.
           </p>
+
+          {/* Métodos de pagamento aceitos */}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Aceitamos cartão de crédito, Pix e boleto
+            </span>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <Badge
+                variant="outline"
+                className="bg-white dark:bg-[#121a2b] text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-normal"
+              >
+                <CreditCard className="w-3.5 h-3.5 mr-1" /> Cartão
+              </Badge>
+              <Badge
+                variant="outline"
+                className="bg-white dark:bg-[#121a2b] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-normal"
+              >
+                Pix
+              </Badge>
+              <Badge
+                variant="outline"
+                className="bg-white dark:bg-[#121a2b] text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-normal"
+              >
+                Boleto
+              </Badge>
+              <Badge
+                variant="outline"
+                className="bg-white dark:bg-[#121a2b] text-[#635BFF] dark:text-[#7d78ff] border-slate-300 dark:border-slate-700 font-normal"
+              >
+                Stripe
+              </Badge>
+              <Badge
+                variant="outline"
+                className="bg-white dark:bg-[#121a2b] text-[#00B1EA] dark:text-[#33c0f0] border-slate-300 dark:border-slate-700 font-normal"
+              >
+                Mercado Pago
+              </Badge>
+            </div>
+          </div>
         </div>
       </section>
 

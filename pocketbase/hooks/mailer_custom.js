@@ -1,57 +1,16 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Emails transacionais do Semia em pt-BR:
-//  - boas-vindas (após criar conta)
-//  - verificação de e-mail (sobrescreve o template padrão)
-//  - recuperação de senha (sobrescreve o template padrão)
-// Requer configuração SMTP ativa em Dashboard > Settings > Mail settings.
+// Emails transacionais do Semia em pt-BR — templates do Mailer nativo.
+//
+// O e-mail de boas-vindas foi movido para subscription_emails.js (via SendGrid,
+// com fallback para o Mailer nativo). Este arquivo mantém apenas a
+// personalização pt-BR dos templates de VERIFICAÇÃO DE E-MAIL e
+// RECUPERAÇÃO DE SENHA, que sobrescrevem os padrões do PocketBase.
+//
+// Requer configuração SMTP ativa em Dashboard > Settings > Mail settings OU
+// SendGrid configurado via subscription_emails.js (para boas-vindas).
 
 // ---------------------------------------------------------------------------
-// 1. E-mail de boas-vindas — disparado após a criação bem-sucedida do usuário.
-// ---------------------------------------------------------------------------
-onRecordAfterCreateSuccess((e) => {
-  try {
-    const record = e.record
-    const email = record.email ? record.email() : ''
-    if (!email) return
-
-    const senderAddress = $app.settings().meta.senderAddress || 'noreply@semia.app'
-    const senderName = $app.settings().meta.senderName || 'Semia'
-    const name = record.getString('name') || email.split('@')[0]
-
-    const html =
-      '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">' +
-      '<div style="background:linear-gradient(135deg,#059669,#14b8a6);padding:24px;border-radius:16px 16px 0 0;text-align:center">' +
-      '<h1 style="color:#fff;margin:0;font-size:22px">Bem-vindo ao Semia 👋</h1>' +
-      '</div>' +
-      '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
-      '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
-      name +
-      '</strong>!</p>' +
-      '<p style="font-size:15px;line-height:1.6">Sua conta no Semia foi criada com sucesso. Agora você tem em um só lugar o controle de receitas, despesas, cartões de crédito, contas a pagar, metas, orçamentos e investimentos — com a ajuda da nossa IA financeira.</p>' +
-      '<p style="font-size:15px;line-height:1.6">Para garantir a segurança da sua conta, confirme seu endereço de e-mail no painel de Configurações.</p>' +
-      '<div style="text-align:center;margin:28px 0">' +
-      '<a href="' +
-      ($os.getenv('SITE_URL') || '') +
-      '/inicio" style="display:inline-block;background:#059669;color:#fff;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:12px">Acessar meu painel</a>' +
-      '</div>' +
-      '<p style="font-size:13px;color:#64748b;margin-top:24px">Se você não criou essa conta, pode ignorar este e-mail com segurança.</p>' +
-      '</div></div>'
-
-    const message = new MailerMessage({
-      from: { address: senderAddress, name: senderName },
-      to: [{ address: email }],
-      subject: 'Bem-vindo ao Semia!',
-      html: html,
-    })
-
-    $app.newMailClient().send(message)
-  } catch (err) {
-    console.log('Erro ao enviar e-mail de boas-vindas:', err)
-  }
-}, 'users')
-
-// ---------------------------------------------------------------------------
-// 2. Verificação de e-mail — sobrescreve o template padrão em pt-BR.
+// 1. Verificação de e-mail — sobrescreve o template padrão em pt-BR.
 // ---------------------------------------------------------------------------
 onMailerRecordVerificationSend((e) => {
   const name = e.record.getString('name') || e.record.email()
@@ -80,7 +39,7 @@ onMailerRecordVerificationSend((e) => {
 })
 
 // ---------------------------------------------------------------------------
-// 3. Recuperação de senha — sobrescreve o template padrão em pt-BR.
+// 2. Recuperação de senha — sobrescreve o template padrão em pt-BR.
 // ---------------------------------------------------------------------------
 onMailerRecordPasswordResetSend((e) => {
   const name = e.record.getString('name') || e.record.email()

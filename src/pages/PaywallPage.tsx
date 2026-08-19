@@ -1,25 +1,90 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Lock, ShieldCheck, ArrowRight, Sparkles } from 'lucide-react'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
+import {
+  CheckCircle2,
+  Lock,
+  ShieldCheck,
+  ArrowRight,
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  CreditCard,
+} from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import type { PaymentProvider } from '@/lib/payments'
 
 export default function PaywallPage() {
-  const { user, subscription, activateSubscriptionDemo, isSubscriptionActive, logout } = useAuth()
-  const [loadingPlan, setLoadingPlan] = useState<'mensal' | 'anual' | null>(null)
+  const {
+    user,
+    subscription,
+    isSubscriptionActive,
+    logout,
+    startSubscriptionCheckout,
+    refreshSubscription,
+  } = useAuth()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { toast } = useToast()
 
-  const handleSubscribe = async (plan: 'mensal' | 'anual') => {
-    setLoadingPlan(plan)
+  // Plano e provedor selecionados
+  const [selectedPlan, setSelectedPlan] = useState<'mensal' | 'anual'>('anual')
+  const [provider, setProvider] = useState<PaymentProvider>('stripe')
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // Reflete parâmetros da URL (?plan=anual|mensal, ?provider=stripe|mercadopago)
+  // e estados de retorno (?canceled, ?pending, ?failed) que redirecionam para /obrigado
+  useEffect(() => {
+    const planParam = searchParams.get('plan')
+    if (planParam === 'mensal' || planParam === 'anual') {
+      setSelectedPlan(planParam)
+    }
+    const provParam = searchParams.get('provider')
+    if (provParam === 'mercadopago' || provParam === 'stripe') {
+      setProvider(provParam)
+    }
+    // Estados de retorno do provedor -> manda para a página de processamento
+    if (searchParams.get('canceled') === '1') {
+      navigate('/obrigado?canceled=1&provider=' + (provParam || 'stripe'), { replace: true })
+    } else if (searchParams.get('pending') === '1') {
+      navigate(
+        '/obrigado?pending=1&provider=' +
+          (provParam || 'mercadopago') +
+          (searchParams.get('payment_id') ? '&payment_id=' + searchParams.get('payment_id') : ''),
+        { replace: true },
+      )
+    } else if (searchParams.get('failed') === '1') {
+      navigate('/obrigado?failed=1&provider=' + (provParam || 'mercadopago'), { replace: true })
+    } else if (searchParams.get('success') === '1') {
+      navigate('/obrigado?provider=' + (provParam || 'stripe'), { replace: true })
+    }
+  }, [searchParams, navigate])
+
+  const handleSubscribe = async () => {
+    setErrorMsg('')
+    setLoading(true)
     try {
-      await activateSubscriptionDemo(plan)
-      navigate('/inicio')
-    } catch (err) {
-      console.error(err)
+      // Mapeia "mensal"/"anual" (locale do app) -> "monthly"/"annual" (API)
+      const apiPlan = selectedPlan === 'anual' ? 'annual' : 'monthly'
+      await startSubscriptionCheckout(provider, apiPlan)
+      // O redirecionamento para o provedor acontece dentro de startSubscriptionCheckout.
+      // Se não redirecionou (erro de config), o throw abaixo captura.
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível iniciar o checkout.'
+      setErrorMsg(msg)
+      toast({
+        title: 'Erro ao iniciar pagamento',
+        description: msg,
+        variant: 'destructive',
+      })
     } finally {
-      setLoadingPlan(null)
+      setLoading(false)
     }
   }
 
@@ -72,92 +137,216 @@ export default function PaywallPage() {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Mensal */}
-            <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 sm:p-8 flex flex-col justify-between bg-white dark:bg-[#121A2B] shadow-lg">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Plano Mensal</h3>
-                <p className="text-xs text-slate-500 mt-1">Flexibilidade mês a mês</p>
-                <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
-                    R$ 11,99
-                  </span>
-                  <span className="text-slate-500 text-sm">/mês</span>
-                </div>
-                <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Todas as contas e bancos
-                    ilimitados
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Cartões de crédito e
-                    importação de faturas
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Metas, Orçamento e
-                    Previsão
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> IA Financeira integrada
-                  </li>
-                </ul>
-              </div>
-              <Button
-                disabled={loadingPlan !== null}
-                onClick={() => handleSubscribe('mensal')}
-                className="w-full mt-8 h-12 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-medium"
+          <>
+            {/* Seletor de plano */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {/* Mensal */}
+              <Card
+                className={`rounded-2xl p-6 sm:p-8 flex flex-col justify-between bg-white dark:bg-[#121A2B] shadow-lg transition-all cursor-pointer ${
+                  selectedPlan === 'mensal'
+                    ? 'border-2 border-slate-900 dark:border-slate-100'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+                onClick={() => setSelectedPlan('mensal')}
               >
-                {loadingPlan === 'mensal' ? 'Ativando...' : 'Assinar Mensal (R$ 11,99)'}
-              </Button>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                      Plano Mensal
+                    </h3>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPlan === 'mensal'
+                          ? 'border-slate-900 dark:border-slate-100'
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {selectedPlan === 'mensal' && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-slate-900 dark:bg-slate-100" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Flexibilidade mês a mês</p>
+                  <div className="mt-6 flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
+                      R$ 11,99
+                    </span>
+                    <span className="text-slate-500 text-sm">/mês</span>
+                  </div>
+                  <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Todas as contas e bancos
+                      ilimitados
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Cartões de crédito e
+                      importação de faturas
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Metas, Orçamento e
+                      Previsão
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> IA Financeira integrada
+                    </li>
+                  </ul>
+                </div>
+              </Card>
+
+              {/* Anual (Destaque) */}
+              <Card
+                className={`rounded-2xl p-6 sm:p-8 flex flex-col justify-between relative transition-all cursor-pointer ${
+                  selectedPlan === 'anual'
+                    ? 'border-2 border-emerald-500 bg-emerald-50/30 dark:bg-[#121A2B] shadow-xl'
+                    : 'border-2 border-emerald-500/40 bg-emerald-50/30 dark:bg-[#121A2B] hover:border-emerald-500'
+                }`}
+                onClick={() => setSelectedPlan('anual')}
+              >
+                <div className="absolute -top-3.5 right-6">
+                  <Badge className="bg-emerald-600 text-white font-bold text-xs py-1 px-3 shadow-md flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Economize 2 meses
+                  </Badge>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                      Plano Anual
+                    </h3>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPlan === 'anual'
+                          ? 'border-emerald-600'
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      {selectedPlan === 'anual' && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">Mais econômico e vantajoso</p>
+                  <div className="mt-6 flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
+                      R$ 119,99
+                    </span>
+                    <span className="text-slate-500 text-sm">/ano</span>
+                  </div>
+                  <span className="text-xs font-semibold text-emerald-600 block mt-1">
+                    Equivalente a apenas R$ 10,00/mês
+                  </span>
+                  <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />{' '}
+                      <strong>Todos os recursos ilimitados</strong>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Acesso liberado no
+                      celular e computador
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> 2 meses totalmente
+                      gratuitos
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Suporte prioritário
+                      dedicado
+                    </li>
+                  </ul>
+                </div>
+              </Card>
+            </div>
+
+            {/* Seletor de provedor de pagamento */}
+            <Card className="mt-6 max-w-3xl mx-auto rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-lg">
+              <CardContent className="p-6">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
+                  Forma de pagamento
+                </p>
+                <RadioGroup
+                  value={provider}
+                  onValueChange={(v) => setProvider(v as PaymentProvider)}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                >
+                  <Label
+                    htmlFor="prov-stripe"
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      provider === 'stripe'
+                        ? 'border-[#635BFF] bg-[#635BFF]/5 dark:bg-[#635BFF]/10'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <RadioGroupItem id="prov-stripe" value="stripe" />
+                    <div className="flex-1">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Cartão de crédito
+                      </span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">
+                        Stripe · parcelamento via Stripe
+                      </span>
+                    </div>
+                    <CreditCard className="w-5 h-5 text-[#635BFF]" />
+                  </Label>
+                  <Label
+                    htmlFor="prov-mercadopago"
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      provider === 'mercadopago'
+                        ? 'border-[#00B1EA] bg-[#00B1EA]/5 dark:bg-[#00B1EA]/10'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <RadioGroupItem id="prov-mercadopago" value="mercadopago" />
+                    <div className="flex-1">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Pix / Boleto / Cartão
+                      </span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">
+                        Mercado Pago · checkout Pro
+                      </span>
+                    </div>
+                    <span className="text-[#00B1EA] font-bold text-sm">MP</span>
+                  </Label>
+                </RadioGroup>
+              </CardContent>
             </Card>
 
-            {/* Anual (Destaque) */}
-            <Card className="rounded-2xl border-2 border-emerald-500 p-6 sm:p-8 flex flex-col justify-between relative bg-emerald-50/30 dark:bg-[#121A2B] shadow-xl">
-              <div className="absolute -top-3.5 right-6">
-                <Badge className="bg-emerald-600 text-white font-bold text-xs py-1 px-3 shadow-md flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" /> Economize 2 meses
-                </Badge>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Plano Anual</h3>
-                <p className="text-xs text-slate-500 mt-1">Mais econômico e vantajoso</p>
-                <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-slate-900 dark:text-white">
-                    R$ 119,99
-                  </span>
-                  <span className="text-slate-500 text-sm">/ano</span>
+            {/* Mensagem de erro */}
+            {errorMsg && (
+              <div className="mt-4 max-w-3xl mx-auto p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-start gap-2.5 text-xs text-red-600 dark:text-red-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold mb-0.5">Não foi possível iniciar o pagamento</p>
+                  <span>{errorMsg}</span>
                 </div>
-                <span className="text-xs font-semibold text-emerald-600 block mt-1">
-                  Equivalente a apenas R$ 10,00/mês
-                </span>
-                <ul className="mt-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />{' '}
-                    <strong>Todos os recursos ilimitados</strong>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Acesso liberado no celular
-                    e computador
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> 2 meses totalmente
-                    gratuitos
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Suporte prioritário
-                    dedicado
-                  </li>
-                </ul>
               </div>
+            )}
+
+            {/* Botão de checkout real */}
+            <div className="mt-6 max-w-3xl mx-auto">
               <Button
-                disabled={loadingPlan !== null}
-                onClick={() => handleSubscribe('anual')}
-                className="w-full mt-8 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30"
+                onClick={handleSubscribe}
+                disabled={loading}
+                className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-lg shadow-emerald-600/30"
               >
-                {loadingPlan === 'anual' ? 'Ativando...' : 'Assinar Anual (R$ 119,99)'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  <>
+                    Assinar {selectedPlan === 'anual' ? 'Anual' : 'Mensal'} —{' '}
+                    {selectedPlan === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'}
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
               </Button>
-            </Card>
-          </div>
+              <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                Você será redirecionado para o checkout seguro do{' '}
+                {provider === 'mercadopago' ? 'Mercado Pago' : 'Stripe'}. Após o pagamento, seu
+                acesso será liberado automaticamente.
+              </p>
+            </div>
+          </>
         )}
 
         <div className="mt-8 text-center flex flex-col sm:flex-row items-center justify-center gap-4 text-xs text-slate-500">
@@ -165,15 +354,21 @@ export default function PaywallPage() {
             <Lock className="w-3.5 h-3.5" /> Pagamento seguro e liberação imediata
           </span>
           <span>•</span>
-          <button
-            onClick={() => {
-              logout()
-              navigate('/login')
-            }}
-            className="text-slate-500 hover:text-red-500 underline"
-          >
-            Sair da conta
-          </button>
+          {user ? (
+            <button
+              onClick={() => {
+                logout()
+                navigate('/login')
+              }}
+              className="text-slate-500 hover:text-red-500 underline"
+            >
+              Sair da conta
+            </button>
+          ) : (
+            <Link to="/login" className="text-slate-500 hover:text-emerald-600 underline">
+              Já tenho conta
+            </Link>
+          )}
         </div>
       </div>
     </div>

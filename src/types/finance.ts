@@ -33,6 +33,7 @@ export type RecurringFrequency = 'mensal' | 'semanal' | 'trimestral' | 'anual'
 export type InvestmentType = 'bitcoin' | 'ethereum' | 'acao' | 'fii' | 'renda_fixa' | 'cdi100'
 export type PlanType = 'mensal' | 'anual'
 export type SubscriptionStatus = 'ativa' | 'bloqueada'
+export type SubscriptionProvider = 'stripe' | 'mercadopago'
 
 export interface User {
   id: string
@@ -306,6 +307,12 @@ export interface Subscription {
   renewed_at?: string
   expires_at?: string
   admin_released?: boolean
+  provider?: SubscriptionProvider
+  provider_subscription_id?: string
+  provider_customer_id?: string
+  current_period_start?: string
+  current_period_end?: string
+  cancel_at_period_end?: boolean
   created: string
   updated: string
 }

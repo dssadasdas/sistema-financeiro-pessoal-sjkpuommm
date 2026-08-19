@@ -76,7 +76,15 @@ function formatDateBR(iso?: string): string {
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { user, subscription, isLoading, logout, refreshUser, refreshSubscription } = useAuth()
+  const {
+    user,
+    subscription,
+    isLoading,
+    logout,
+    refreshUser,
+    refreshSubscription,
+    cancelSubscription,
+  } = useAuth()
   const { refreshAll, isLoading: financeLoading } = useFinance()
   const { theme, toggleTheme } = useTheme()
 
@@ -220,10 +228,37 @@ export default function SettingsPage() {
   }
 
   /* ---------- Assinatura ---------- */
+  const [canceling, setCanceling] = useState(false)
   const planLabel = subscription?.plan === 'anual' ? 'Anual' : 'Mensal'
   const planPrice = subscription?.plan === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'
   const isActive = subscription?.status === 'ativa'
   const renewalDate = subscription?.expires_at || subscription?.renewed_at
+  const cancelAtEnd = subscription?.cancel_at_period_end === true
+  const providerLabel =
+    subscription?.provider === 'stripe'
+      ? 'Stripe'
+      : subscription?.provider === 'mercadopago'
+        ? 'Mercado Pago'
+        : '—'
+
+  const handleCancelSubscription = async () => {
+    setCanceling(true)
+    try {
+      await cancelSubscription()
+      toast({
+        title: 'Assinatura cancelada',
+        description: 'Sua assinatura foi cancelada e permanecerá ativa até o fim do ciclo já pago.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Não foi possível cancelar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setCanceling(false)
+    }
+  }
 
   /* ---------- Conta / Excluir ---------- */
   const handleLogout = () => {
@@ -648,12 +683,14 @@ export default function SettingsPage() {
                 </div>
                 <Badge
                   className={`text-xs px-3 py-1 font-bold ${
-                    isActive
-                      ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30'
-                      : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-500/30'
+                    !isActive
+                      ? 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-500/30'
+                      : cancelAtEnd
+                        ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/30'
+                        : 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30'
                   }`}
                 >
-                  {isActive ? 'Ativa' : 'Expirada'}
+                  {!isActive ? 'Expirada' : cancelAtEnd ? 'Cancelada' : 'Ativa'}
                 </Badge>
               </div>
             </CardHeader>
@@ -667,7 +704,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
                   <span className="text-xs text-slate-400 dark:text-slate-500">
-                    {isActive ? 'Renovação' : 'Expira em'}
+                    {isActive ? (cancelAtEnd ? 'Expira em' : 'Próxima renovação') : 'Expira em'}
                   </span>
                   <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
                     {formatDateBR(renewalDate)}
@@ -675,41 +712,89 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
+              {/* Forma de pagamento (provedor) */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    Forma de pagamento
+                  </span>
+                  <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {providerLabel}
+                  </div>
+                </div>
+                <CreditCard className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+              </div>
+
+              {/* Aviso de cancelamento programado */}
+              {isActive && cancelAtEnd && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Sua assinatura está cancelada e permanecerá ativa até{' '}
+                    <strong>{formatDateBR(renewalDate)}</strong>. Após essa data, o acesso será
+                    bloqueado.
+                  </span>
+                </div>
+              )}
+
+              {/* Botão: reativar / ver planos / cancelar */}
+              {!isActive ? (
+                <Button
+                  onClick={() => navigate('/paywall')}
+                  className="w-full rounded-xl font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Reativar assinatura
+                </Button>
+              ) : cancelAtEnd ? (
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
-                    variant="outline"
-                    className="w-full rounded-xl font-semibold gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    onClick={() => navigate('/paywall')}
+                    className="w-full rounded-xl font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
-                    <ExternalLink className="w-4 h-4" />
-                    Gerenciar assinatura
+                    Reativar assinatura
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-slate-900 dark:text-white">
-                      Gerenciar assinatura
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-                      Você está no plano <strong>{planLabel}</strong> ({planPrice}).
-                      {isActive
-                        ? ' Sua assinatura está ativa. Para alterar o plano, cancelar ou atualizar forma de pagamento, acesse a página de planos.'
-                        : ' Sua assinatura está expirada. Reative agora para liberar todos os recursos.'}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
-                      Fechar
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => navigate('/')}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                </div>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={canceling}
+                      className="w-full rounded-xl font-semibold gap-1.5 border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                     >
-                      Ver planos
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      {canceling ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4" />
+                      )}
+                      Cancelar assinatura
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-slate-900 dark:text-white">
+                        Cancelar assinatura?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
+                        Sua assinatura será cancelada, mas você continuará com acesso até o fim do
+                        ciclo já pago (<strong>{formatDateBR(renewalDate)}</strong>). Após essa
+                        data, o acesso ao painel será bloqueado. Você pode reativar quando quiser.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                        Manter assinatura
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancelSubscription}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Sim, cancelar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </CardContent>
           </Card>
 
