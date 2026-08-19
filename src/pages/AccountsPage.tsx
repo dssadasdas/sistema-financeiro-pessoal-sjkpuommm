@@ -1,17 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency, BANK_CONFIGS } from '@/lib/constants'
-import { Account, BankName, AccountType } from '@/types/finance'
+import { formatCurrency, formatDate } from '@/lib/constants'
+import { Account } from '@/types/finance'
 import {
-  Building2,
   Plus,
+  Landmark,
+  Wallet,
+  TrendingUp,
+  PiggyBank,
+  ArrowRightLeft,
   Edit2,
   Trash2,
-  Lock,
-  SlidersHorizontal,
-  Wallet,
-  AlertCircle,
+  Loader2,
+  AlertTriangle,
+  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -42,129 +45,222 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { LoadingState, ErrorState, EmptyState } from '@/components/States'
 
-const BANKS_LIST: BankName[] = [
-  'Nubank',
-  'Caixa',
-  'Itaú',
-  'Bradesco',
-  'Santander',
-  'Banco do Brasil',
-  'Inter',
-  'C6',
-  'Sicoob',
-  'PicPay',
-  'Mercado Pago',
-  'Neon',
-  'Banco CSF/Atacadão',
-  'Outro',
-]
+const ACCOUNT_TYPES = ['Conta corrente', 'Conta poupança', 'Carteira', 'Outro'] as const
+
+type AccountType = (typeof ACCOUNT_TYPES)[number]
+
+const ACCOUNT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'Conta corrente': Landmark,
+  'Conta poupança': PiggyBank,
+  Outro: TrendingUp,
+  Carteira: Wallet,
+}
+
+interface AccountForm {
+  name: string
+  type: AccountType
+  opening_balance: string
+}
+
+const initialForm: AccountForm = {
+  name: '',
+  type: 'Conta corrente',
+  opening_balance: '',
+}
 
 export default function AccountsPage() {
-  const { accounts, createAccount, updateAccount, deleteAccount, adjustAccountBalance } =
-    useFinance()
+  const {
+    accounts,
+    transactions,
+    createAccount,
+    updateAccount,
+    deleteAccount,
+    createTransaction,
+    isLoading,
+    loadError,
+    refreshAll,
+  } = useFinance()
   const { hideValues } = useAuth()
 
-  const [accountModalOpen, setAccountModalOpen] = useState(false)
-  const [accountToEdit, setAccountToEdit] = useState<Account | null>(null)
-  const [adjustModalOpen, setAdjustModalOpen] = useState(false)
-  const [accountToAdjust, setAccountToAdjust] = useState<Account | null>(null)
-  const [deleteConfirmAccount, setDeleteConfirmAccount] = useState<Account | null>(null)
-
-  // Form states para conta
-  const [name, setName] = useState('')
-  const [type, setType] = useState<AccountType>('Conta corrente')
-  const [bank, setBank] = useState<BankName>('Nubank')
-  const [openingBalance, setOpeningBalance] = useState('')
-  const [error, setError] = useState('')
+  // Modal Novo / Editar Conta
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<AccountForm>(initialForm)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
-  // Form states para ajuste
-  const [newBalance, setNewBalance] = useState('')
+  // Modal Ajuste de Saldo
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false)
+  const [adjustingAccount, setAdjustingAccount] = useState<Account | null>(null)
+  const [adjustValue, setAdjustValue] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
+  const [adjustLoading, setAdjustLoading] = useState(false)
+
+  // Confirmação de Exclusão
+  const [deleteAccountTarget, setDeleteAccountTarget] = useState<Account | null>(null)
+  const [deleteBlocked, setDeleteBlocked] = useState(false)
+
+  // Conta selecionada para detalhes (extrato)
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null)
+
+  // Soma total patrimonial
+  const totalBalance = useMemo(
+    () => accounts.reduce((acc, a) => acc + (a.current_balance || 0), 0),
+    [accounts],
+  )
 
   const handleOpenCreate = () => {
-    setAccountToEdit(null)
-    setName('')
-    setType('Conta corrente')
-    setBank('Nubank')
-    setOpeningBalance('0.00')
+    setEditingId(null)
+    setForm(initialForm)
     setError('')
-    setAccountModalOpen(true)
+    setFieldErrors({})
+    setModalOpen(true)
   }
 
   const handleOpenEdit = (acc: Account) => {
-    setAccountToEdit(acc)
-    setName(acc.name)
-    setType(acc.type)
-    setBank(acc.bank)
-    setOpeningBalance(String(acc.opening_balance || 0))
+    setEditingId(acc.id)
+    setForm({
+      name: acc.name,
+      type: (ACCOUNT_TYPES.includes(acc.type as AccountType)
+        ? acc.type
+        : 'Conta corrente') as AccountType,
+      opening_balance: String(acc.opening_balance || 0),
+    })
     setError('')
-    setAccountModalOpen(true)
-  }
-
-  const handleSaveAccount = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      const config = BANK_CONFIGS[bank] || BANK_CONFIGS['Outro']
-      const payload: Partial<Account> = {
-        name: name.trim(),
-        type,
-        bank,
-        opening_balance: parseFloat(openingBalance.replace(',', '.')) || 0,
-        color: config.cardBg,
-      }
-
-      if (accountToEdit) {
-        await updateAccount(accountToEdit.id, payload)
-      } else {
-        await createAccount(payload)
-      }
-      setAccountModalOpen(false)
-    } catch (err: unknown) {
-      const errorObj = err as { message?: string }
-      setError(errorObj?.message || 'Erro ao salvar conta.')
-    } finally {
-      setLoading(false)
-    }
+    setFieldErrors({})
+    setModalOpen(true)
   }
 
   const handleOpenAdjust = (acc: Account) => {
-    setAccountToAdjust(acc)
-    setNewBalance(String(acc.current_balance ?? 0))
-    setAdjustNote('Ajuste de Saldo')
+    setAdjustingAccount(acc)
+    setAdjustValue('')
+    setAdjustNote('')
+    setError('')
     setAdjustModalOpen(true)
   }
 
-  const handleSaveAdjust = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!accountToAdjust) return
-    const num = parseFloat(newBalance.replace(',', '.'))
-    if (isNaN(num)) return
-
+    setError('')
+    setFieldErrors({})
     setLoading(true)
     try {
-      await adjustAccountBalance(accountToAdjust.id, num, adjustNote)
-      setAdjustModalOpen(false)
+      const payload: Partial<Account> = {
+        name: form.name.trim(),
+        type: form.type,
+        opening_balance: parseFloat(form.opening_balance.replace(',', '.')) || 0,
+      }
+
+      if (editingId) {
+        await updateAccount(editingId, {
+          name: payload.name,
+          type: payload.type,
+        })
+      } else {
+        await createAccount(payload)
+      }
+      setModalOpen(false)
     } catch (err: unknown) {
-      const errorObj = err as { message?: string }
-      alert(errorObj?.message || 'Erro ao ajustar saldo.')
+      const errorObj = err as { message?: string; data?: Record<string, { message: string }> }
+      setError(errorObj?.message || 'Erro ao salvar conta.')
+      if (errorObj?.data) {
+        const fe: Record<string, string> = {}
+        for (const [k, v] of Object.entries(errorObj.data)) {
+          fe[k] = v.message
+        }
+        setFieldErrors(fe)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleAdjust = async () => {
+    if (!adjustingAccount) return
+    setAdjustLoading(true)
+    setError('')
+    try {
+      const value = parseFloat(adjustValue.replace(',', '.'))
+      if (isNaN(value) || value === 0) {
+        setError('Informe um valor de ajuste válido (positivo ou negativo).')
+        setAdjustLoading(false)
+        return
+      }
+      await createTransaction({
+        description: `Ajuste de Saldo: ${adjustNote || 'Sem justificativa'}`,
+        value: Math.abs(value),
+        category: 'Ajuste de Saldo',
+        payment_method: 'Transferência',
+        status: 'realizado',
+        type: value < 0 ? 'despesa' : 'receita',
+        account: adjustingAccount.id,
+        source: 'ajuste',
+        date: new Date().toISOString(),
+      })
+      setAdjustModalOpen(false)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      setError(errorObj?.message || 'Erro ao registrar ajuste.')
+    } finally {
+      setAdjustLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteAccountTarget) return
+    setLoading(true)
+    setDeleteBlocked(false)
+    try {
+      await deleteAccount(deleteAccountTarget.id)
+      setDeleteAccountTarget(null)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      const msg = errorObj?.message || ''
+      if (
+        msg.includes('movimentações') ||
+        msg.includes('transaç') ||
+        msg.includes('linked') ||
+        msg.includes('cannot')
+      ) {
+        setDeleteBlocked(true)
+      } else {
+        setError(msg || 'Erro ao excluir conta.')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Transações da conta expandida
+  const expandedTransactions = useMemo(() => {
+    if (!expandedAccount) return []
+    return transactions.filter((t) => t.account === expandedAccount).slice(0, 8)
+  }, [expandedAccount, transactions])
+
+  const handleToggleExpand = useCallback((accId: string) => {
+    setExpandedAccount((prev) => (prev === accId ? null : accId))
+  }, [])
+
+  if (isLoading) {
+    return <LoadingState message="Carregando contas..." />
+  }
+  if (loadError) {
+    return <ErrorState message="Não foi possível carregar suas contas." onRetry={refreshAll} />
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Bancos e Contas</h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Contas Bancárias</h2>
           <p className="text-xs sm:text-sm text-slate-500">
-            Gerencie suas contas bancárias, carteiras e saldos automáticos
+            Saldo total patrimonial:{' '}
+            <span className="font-bold text-emerald-600">
+              {formatCurrency(totalBalance, hideValues)}
+            </span>
           </p>
         </div>
         <Button
@@ -175,125 +271,160 @@ export default function AccountsPage() {
         </Button>
       </div>
 
-      {/* Grid de Cards de Contas */}
       {accounts.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800">
-          <p className="text-slate-500 text-sm">Nenhuma conta cadastrada.</p>
-          <Button onClick={handleOpenCreate} variant="outline" className="mt-4 rounded-xl">
-            Adicionar Primeira Conta
-          </Button>
-        </div>
+        <EmptyState
+          icon={Landmark}
+          title="Nenhuma conta cadastrada"
+          description="Cadastre sua primeira conta bancária, carteira ou poupança para acompanhar seu saldo patrimonial."
+          actionLabel="Adicionar Primeira Conta"
+          onAction={handleOpenCreate}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {accounts.map((acc) => {
-            const config = BANK_CONFIGS[acc.bank] || BANK_CONFIGS['Outro']
-
+            const Icon = ACCOUNT_TYPE_ICONS[acc.type as AccountType] || Landmark
+            const isExpanded = expandedAccount === acc.id
+            const positive = (acc.current_balance || 0) >= 0
             return (
               <Card
                 key={acc.id}
-                className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden bg-white dark:bg-[#121A2B] flex flex-col justify-between"
+                className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm hover:shadow-md transition-all overflow-hidden"
               >
-                <div>
-                  {/* Top Header Card */}
-                  <div
-                    className={`p-4 text-white bg-gradient-to-r ${config.bgGradient} flex items-center justify-between`}
-                  >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center font-bold text-sm text-white">
-                        {config.logoText}
+                      <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+                        <Icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-base leading-tight">{acc.name}</h3>
-                        <span className="text-xs text-white/80">{acc.type}</span>
+                        <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                          {acc.name}
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-medium mt-0.5 px-1.5 py-0"
+                        >
+                          {acc.type}
+                        </Badge>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
                         onClick={() => handleOpenEdit(acc)}
-                        className="p-1.5 rounded-lg bg-black/15 hover:bg-black/25 text-white transition-colors"
                         title="Editar Conta"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        onClick={() => {
+                          setDeleteBlocked(false)
+                          setDeleteAccountTarget(acc)
+                        }}
+                        title="Excluir Conta"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
 
-                      {/* Botão de Excluir com Proteção */}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                disabled={acc.has_transactions}
-                                onClick={() => setDeleteConfirmAccount(acc)}
-                                className="h-7 w-7 text-white/80 hover:text-white hover:bg-black/25 disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                {acc.has_transactions ? (
-                                  <Lock className="w-3.5 h-3.5" />
-                                ) : (
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                )}
-                              </Button>
+                  <div className="py-3 border-t border-b border-slate-100 dark:border-slate-800 my-2">
+                    <span className="text-[11px] text-slate-400 uppercase font-semibold">
+                      Saldo Atual
+                    </span>
+                    <div
+                      className={`text-2xl font-black tabular-nums ${
+                        positive ? 'text-emerald-600' : 'text-red-600'
+                      }`}
+                    >
+                      {formatCurrency(acc.current_balance, hideValues)}
+                    </div>
+                    <span className="text-[10px] text-slate-400">
+                      Saldo inicial: {formatCurrency(acc.opening_balance, hideValues)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenAdjust(acc)}
+                      className="rounded-lg text-xs font-semibold gap-1"
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5" /> Ajustar Saldo
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleExpand(acc.id)}
+                      className="rounded-lg text-xs font-semibold text-emerald-600 gap-1"
+                    >
+                      {isExpanded ? 'Ocultar' : 'Detalhes'}
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 transition-transform ${
+                          isExpanded ? 'rotate-90' : ''
+                        }`}
+                      />
+                    </Button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                        Últimas Movimentações
+                      </span>
+                      {expandedTransactions.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-2">
+                          Nenhuma movimentação vinculada a esta conta.
+                        </p>
+                      ) : (
+                        expandedTransactions.map((t) => (
+                          <div
+                            key={t.id}
+                            className="flex items-center justify-between text-xs py-1"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                  t.type === 'receita' ? 'bg-emerald-500' : 'bg-red-500'
+                                }`}
+                              />
+                              <span className="truncate text-slate-600 dark:text-slate-300">
+                                {t.description}
+                              </span>
+                            </div>
+                            <span
+                              className={`font-bold tabular-nums flex-shrink-0 ${
+                                t.type === 'receita' ? 'text-emerald-600' : 'text-red-600'
+                              }`}
+                            >
+                              {t.type === 'receita' ? '+' : '-'}
+                              {formatCurrency(t.value, hideValues)}
                             </span>
-                          </TooltipTrigger>
-                          {acc.has_transactions && (
-                            <TooltipContent className="max-w-xs text-xs p-2 bg-slate-900 text-white rounded-xl">
-                              Esta conta possui movimentações vinculadas e não pode ser excluída
-                              para não quebrar o histórico.
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </TooltipProvider>
+                          </div>
+                        ))
+                      )}
                     </div>
-                  </div>
-
-                  {/* Body Saldos */}
-                  <div className="p-5 space-y-3">
-                    <div>
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                        Saldo Atual
-                      </span>
-                      <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-0.5">
-                        {formatCurrency(acc.current_balance, hideValues)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800 text-slate-500">
-                      <span>Saldo Previsto (c/ pendentes):</span>
-                      <span className="font-bold tabular-nums text-slate-700 dark:text-slate-300">
-                        {formatCurrency(acc.projected_balance, hideValues)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Card Actions */}
-                <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">
-                    Inicial: {formatCurrency(acc.opening_balance, hideValues)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleOpenAdjust(acc)}
-                    className="h-8 text-xs rounded-xl font-medium gap-1 text-slate-700 dark:text-slate-200 hover:text-emerald-600"
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5" /> Ajustar Saldo
-                  </Button>
-                </div>
+                  )}
+                </CardContent>
               </Card>
             )
           })}
         </div>
       )}
 
-      {/* Modal Nova / Editar Conta */}
-      <Dialog open={accountModalOpen} onOpenChange={setAccountModalOpen}>
+      {/* Modal Novo / Editar Conta */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md rounded-2xl bg-white dark:bg-[#121A2B]">
           <DialogHeader>
             <DialogTitle className="font-bold text-lg text-slate-900 dark:text-white">
-              {accountToEdit ? 'Editar Conta Bancária' : 'Nova Conta Bancária'}
+              {editingId ? 'Editar Conta' : 'Nova Conta Bancária'}
             </DialogTitle>
           </DialogHeader>
 
@@ -303,68 +434,74 @@ export default function AccountsPage() {
             </div>
           )}
 
-          <form onSubmit={handleSaveAccount} className="space-y-4 pt-2">
-            <div className="space-y-1">
+          <form onSubmit={handleSave} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
               <Label htmlFor="acc-name">Nome da Conta *</Label>
               <Input
                 id="acc-name"
-                placeholder="Ex: Nubank Principal, Itaú Reserva"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Conta Corrente Nubank, Carteira Geral"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
                 className="h-10 rounded-xl"
               />
+              {fieldErrors.name && (
+                <span className="text-[11px] text-red-500">{fieldErrors.name}</span>
+              )}
             </div>
 
-            <div className="space-y-1">
-              <Label>Banco Emissor</Label>
-              <Select value={bank} onValueChange={(v) => setBank(v as BankName)}>
-                <SelectTrigger className="h-10 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-56">
-                  {BANKS_LIST.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Tipo de Conta</Label>
-              <Select value={type} onValueChange={(v) => setType(v as AccountType)}>
+            <div className="space-y-1.5">
+              <Label htmlFor="acc-type">Tipo de Conta *</Label>
+              <Select
+                value={form.type}
+                onValueChange={(v) => setForm({ ...form, type: v as AccountType })}
+              >
                 <SelectTrigger className="h-10 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Conta corrente">Conta corrente</SelectItem>
-                  <SelectItem value="Conta poupança">Conta poupança</SelectItem>
-                  <SelectItem value="Carteira">Carteira / Dinheiro Físico</SelectItem>
-                  <SelectItem value="Outro">Outro</SelectItem>
+                  {ACCOUNT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {fieldErrors.type && (
+                <span className="text-[11px] text-red-500">{fieldErrors.type}</span>
+              )}
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="acc-init">Saldo Inicial (R$)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="acc-balance">
+                Saldo Inicial (R$){' '}
+                {editingId && <span className="text-slate-400">(não editável)</span>}
+              </Label>
               <Input
-                id="acc-init"
+                id="acc-balance"
                 type="number"
                 step="0.01"
                 placeholder="0,00"
-                value={openingBalance}
-                onChange={(e) => setOpeningBalance(e.target.value)}
-                className="h-10 rounded-xl font-bold"
+                value={form.opening_balance}
+                onChange={(e) => setForm({ ...form, opening_balance: e.target.value })}
+                disabled={!!editingId}
+                className="h-10 rounded-xl font-bold disabled:opacity-50"
               />
+              {fieldErrors.opening_balance && (
+                <span className="text-[11px] text-red-500">{fieldErrors.opening_balance}</span>
+              )}
+              {editingId && (
+                <span className="text-[11px] text-slate-400">
+                  Para alterar o saldo, use o botão «Ajustar Saldo».
+                </span>
+              )}
             </div>
 
             <DialogFooter className="pt-3 gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setAccountModalOpen(false)}
+                onClick={() => setModalOpen(false)}
                 className="rounded-xl"
               >
                 Cancelar
@@ -372,57 +509,79 @@ export default function AccountsPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
               >
-                {loading ? 'Salvando...' : 'Salvar Conta'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
+                  </>
+                ) : editingId ? (
+                  'Salvar Alterações'
+                ) : (
+                  'Criar Conta'
+                )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Ajustar Saldo */}
+      {/* Modal Ajuste de Saldo */}
       <Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
         <DialogContent className="max-w-md rounded-2xl bg-white dark:bg-[#121A2B]">
           <DialogHeader>
-            <DialogTitle className="font-bold text-lg text-slate-900 dark:text-white">
-              Ajustar Saldo: {accountToAdjust?.name}
+            <DialogTitle className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 text-emerald-600" />
+              Ajustar Saldo · {adjustingAccount?.name}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSaveAdjust} className="space-y-4 pt-2">
-            <p className="text-xs text-slate-500">
-              O sistema criará automaticamente uma transação de ajuste para que o saldo atual da
-              conta passe a ser exatamente o novo valor informado.
-            </p>
+          {error && (
+            <div className="p-3 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+              {error}
+            </div>
+          )}
 
-            <div className="space-y-1">
-              <Label htmlFor="adj-val">Novo Saldo Real da Conta (R$) *</Label>
-              <Input
-                id="adj-val"
-                type="number"
-                step="0.01"
-                value={newBalance}
-                onChange={(e) => setNewBalance(e.target.value)}
-                required
-                className="h-11 rounded-xl text-lg font-bold text-emerald-600"
-              />
+          <div className="space-y-4 pt-2">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 text-xs flex justify-between">
+              <span className="text-slate-500">Saldo Atual:</span>
+              <span className="font-bold text-slate-900 dark:text-white tabular-nums">
+                {formatCurrency(adjustingAccount?.current_balance || 0, hideValues)}
+              </span>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="adj-note">Motivo / Nota do Ajuste</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="adjust-value">
+                Valor do Ajuste (R$) *{' '}
+                <span className="text-slate-400">(positivo ou negativo)</span>
+              </Label>
               <Input
-                id="adj-note"
-                placeholder="Ex: Conciliação bancária mensal"
+                id="adjust-value"
+                type="number"
+                step="0.01"
+                placeholder="Ex: -50,00 ou 150,00"
+                value={adjustValue}
+                onChange={(e) => setAdjustValue(e.target.value)}
+                className="h-10 rounded-xl font-bold"
+              />
+              <p className="text-[11px] text-slate-400">
+                Use negativo (-) para reduzir o saldo, positivo (+) para aumentá-lo.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="adjust-note">Justificativa *</Label>
+              <Input
+                id="adjust-note"
+                placeholder="Ex: Correção de diferença de câmbio, taxa esquecida..."
                 value={adjustNote}
                 onChange={(e) => setAdjustNote(e.target.value)}
                 className="h-10 rounded-xl"
               />
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="pt-2 gap-2">
               <Button
-                type="button"
                 variant="outline"
                 onClick={() => setAdjustModalOpen(false)}
                 className="rounded-xl"
@@ -430,49 +589,84 @@ export default function AccountsPage() {
                 Cancelar
               </Button>
               <Button
-                type="submit"
-                disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                onClick={handleAdjust}
+                disabled={adjustLoading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
               >
-                {loading ? 'Ajustando...' : 'Confirmar Ajuste'}
+                {adjustLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Registrando...
+                  </>
+                ) : (
+                  'Registrar Ajuste'
+                )}
               </Button>
             </DialogFooter>
-          </form>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Confirmação de Exclusão de Conta Sem Movimentações */}
+      {/* Confirmação de Exclusão */}
       <AlertDialog
-        open={deleteConfirmAccount !== null}
-        onOpenChange={(open) => !open && setDeleteConfirmAccount(null)}
+        open={deleteAccountTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteAccountTarget(null)
+            setDeleteBlocked(false)
+          }
+        }}
       >
         <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Conta Bancária?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir a conta "<strong>{deleteConfirmAccount?.name}</strong>
-              "? Como ela não possui movimentações, a exclusão é segura.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (deleteConfirmAccount) {
-                  try {
-                    await deleteAccount(deleteConfirmAccount.id)
-                  } catch (e: unknown) {
-                    const err = e as { message?: string }
-                    alert(err?.message || 'Erro ao excluir conta.')
-                  }
-                  setDeleteConfirmAccount(null)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {deleteBlocked ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="w-5 h-5" /> Exclusão bloqueada
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta conta possui movimentações vinculadas e não pode ser excluída. Para
+                  removê-la, primeiro exclua ou migre as transações vinculadas a ela.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction
+                  onClick={() => {
+                    setDeleteAccountTarget(null)
+                    setDeleteBlocked(false)
+                  }}
+                  className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                >
+                  Entendi
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Conta Bancária?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir a conta "
+                  <strong>{deleteAccountTarget?.name}</strong>"? Esta ação não pode ser desfeita.
+                  Contas com transações vinculadas serão bloqueadas.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {error && (
+                <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+                  {error}
+                </div>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
+                >
+                  {loading ? 'Excluindo...' : 'Excluir Conta'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>

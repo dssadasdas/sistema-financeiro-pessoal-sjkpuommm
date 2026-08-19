@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/constants'
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  Landmark,
   CreditCard,
   Receipt,
   Repeat,
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/inicio', icon: LayoutDashboard },
   { label: 'Transações', path: '/transacoes', icon: ArrowLeftRight },
   { label: 'Extrato', path: '/extrato', icon: Receipt },
+  { label: 'Contas Bancárias', path: '/contas', icon: Landmark },
   { label: 'Cartões de Crédito', path: '/cartoes', icon: CreditCard },
   { label: 'Contas a Pagar', path: '/contas-e-boletos', icon: Receipt },
   { label: 'Recorrências', path: '/recorrentes', icon: Repeat },
@@ -294,15 +296,15 @@ export default function Layout() {
         </NavLink>
 
         <NavLink
-          to="/transacoes"
+          to="/contas"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
+            `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
             }`
           }
         >
-          <ArrowLeftRight className="w-5 h-5 mb-0.5" />
-          <span>Transações</span>
+          <Landmark className="w-5 h-5 mb-0.5" />
+          <span>Contas</span>
         </NavLink>
 
         {/* Central + button */}

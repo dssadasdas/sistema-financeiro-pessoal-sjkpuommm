@@ -1,25 +1,21 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, BANK_CONFIGS } from '@/lib/constants'
-import { CreditCard, BankName, CardBrand } from '@/types/finance'
+import { CreditCard as CreditCardType, BankName, CardBrand } from '@/types/finance'
+type CreditCard = CreditCardType
 import {
-  CreditCard as CreditCardIcon,
   Plus,
   Eye,
   EyeOff,
   ChevronRight,
-  Sparkles,
-  Calendar,
-  Layers,
   Edit2,
   Trash2,
+  Loader2,
+  CreditCard as CreditCardIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
   DialogContent,
@@ -46,6 +42,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Progress } from '@/components/ui/progress'
+import { LoadingState, ErrorState, EmptyState } from '@/components/States'
+import { loadCardHiddenStates, setCardHiddenState } from '@/lib/invoiceParser'
 
 const BANKS_LIST: BankName[] = [
   'Nubank',
@@ -65,19 +64,34 @@ const BANKS_LIST: BankName[] = [
 ]
 
 export default function CardsPage() {
-  const { creditCards, createCreditCard, updateCreditCard, deleteCreditCard } = useFinance()
+  const {
+    creditCards,
+    createCreditCard,
+    updateCreditCard,
+    deleteCreditCard,
+    isLoading,
+    loadError,
+    refreshAll,
+  } = useFinance()
   const { hideValues: globalHideValues } = useAuth()
   const navigate = useNavigate()
 
-  // Olho independente por cartão (estado local de sessão)
-  const [hiddenCardIds, setHiddenCardIds] = useState<Record<string, boolean>>({})
+  // Olho independente por cartão (persiste em localStorage)
+  const [hiddenCardIds, setHiddenCardIds] = useState<Record<string, boolean>>(() =>
+    loadCardHiddenStates(),
+  )
+
+  useEffect(() => {
+    setHiddenCardIds(loadCardHiddenStates())
+  }, [])
 
   const toggleCardEye = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setHiddenCardIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }))
+    setHiddenCardIds((prev) => {
+      const next = { ...prev, [id]: !prev[id] }
+      setCardHiddenState(id, !!next[id])
+      return next
+    })
   }
 
   // Modal Novo / Editar Cartão
@@ -151,9 +165,177 @@ export default function CardsPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!deleteConfirmCard) return
+    setLoading(true)
+    try {
+      await deleteCreditCard(deleteConfirmCard.id)
+      setDeleteConfirmCard(null)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      alert(errorObj?.message || 'Erro ao excluir cartão.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const content = useMemo(() => {
+    if (isLoading) {
+      return <LoadingState message="Carregando cartões..." />
+    }
+    if (loadError) {
+      return <ErrorState message="Não foi possível carregar seus cartões." onRetry={refreshAll} />
+    }
+    if (creditCards.length === 0) {
+      return (
+        <EmptyState
+          icon={CreditCardIcon}
+          title="Nenhum cartão cadastrado"
+          description="Cadastre seu primeiro cartão de crédito para acompanhar faturas, limites e compras."
+          actionLabel="Adicionar Primeiro Cartão"
+          onAction={handleOpenCreate}
+        />
+      )
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {creditCards.map((card) => {
+          const config = BANK_CONFIGS[card.bank] || BANK_CONFIGS['Outro']
+          const isMasked = !!hiddenCardIds[card.id] || globalHideValues
+
+          return (
+            <div
+              key={card.id}
+              onClick={() => navigate(`/cartoes/${card.id}`)}
+              className="group cursor-pointer rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col justify-between"
+            >
+              {/* Cartão físico estilizado */}
+              <div
+                className={`p-6 text-white bg-gradient-to-tr ${config.bgGradient} relative overflow-hidden flex flex-col justify-between h-48 shadow-inner`}
+              >
+                <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none" />
+
+                <div className="flex items-center justify-between z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-lg tracking-wider drop-shadow-sm">
+                      {config.logoText}
+                    </span>
+                    <span className="text-xs text-white/75 font-medium px-2 py-0.5 rounded bg-black/20">
+                      {card.brand || 'Crédito'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => toggleCardEye(card.id, e)}
+                      className="p-1.5 rounded-lg bg-black/20 hover:bg-black/35 text-white transition-colors"
+                      title={isMasked ? 'Revelar dados deste cartão' : 'Ocultar dados deste cartão'}
+                    >
+                      {isMasked ? (
+                        <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={(e) => handleOpenEdit(card, e)}
+                      className="p-1.5 rounded-lg bg-black/20 hover:bg-black/35 text-white transition-colors"
+                      title="Editar Cartão"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteConfirmCard(card)
+                      }}
+                      className="p-1.5 rounded-lg bg-black/20 hover:bg-black/35 text-white transition-colors"
+                      title="Excluir Cartão"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="z-10 my-auto">
+                  <div className="w-9 h-7 rounded-md bg-amber-300/80 border border-amber-400/50 shadow-inner mb-2 flex items-center justify-center">
+                    <div className="w-6 h-4 border border-amber-600/40 rounded-xs" />
+                  </div>
+                  <div className="font-mono text-sm sm:text-base tracking-widest text-white/95 font-semibold">
+                    {isMasked
+                      ? '•••• •••• •••• ••••'
+                      : `•••• •••• •••• ${card.last_four || '0000'}`}
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between z-10 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase text-white/70 block leading-none">
+                      Titular
+                    </span>
+                    <span className="font-bold tracking-wide">{card.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase text-white/70 block leading-none">
+                      Fech / Venc
+                    </span>
+                    <span className="font-bold font-mono">
+                      {card.closing_day} / {card.due_day}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Métricas */}
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[11px] text-slate-400 uppercase font-semibold">
+                      Fatura Atual
+                    </span>
+                    <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
+                      {formatCurrency(card.current_invoice_total, isMasked)}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-400 uppercase font-semibold">
+                      Disponível
+                    </span>
+                    <div className="text-lg font-black text-emerald-600 tabular-nums">
+                      {formatCurrency(card.available_limit, isMasked)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Uso do Limite Total ({formatCurrency(card.limit, isMasked)})</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      {card.used_percentage}%
+                    </span>
+                  </div>
+                  <Progress value={card.used_percentage} className="h-2 rounded-full" />
+                </div>
+              </div>
+
+              <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-emerald-600 group-hover:text-emerald-700">
+                <span>Ver Fatura & Compras</span>
+                <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditCards, isLoading, loadError, hiddenCardIds, globalHideValues])
+
   return (
     <div className="space-y-6">
-      {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Cartões de Crédito</h2>
@@ -169,146 +351,7 @@ export default function CardsPage() {
         </Button>
       </div>
 
-      {/* Grid de Cartões Estilizados */}
-      {creditCards.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800">
-          <p className="text-slate-500 text-sm">Nenhum cartão de crédito cadastrado.</p>
-          <Button onClick={handleOpenCreate} variant="outline" className="mt-4 rounded-xl">
-            Adicionar Primeiro Cartão
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {creditCards.map((card) => {
-            const config = BANK_CONFIGS[card.bank] || BANK_CONFIGS['Outro']
-            const isMasked = hiddenCardIds[card.id] || globalHideValues
-
-            return (
-              <div
-                key={card.id}
-                onClick={() => navigate(`/cartoes/${card.id}`)}
-                className="group cursor-pointer rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col justify-between"
-              >
-                {/* Visual Estilizado do Cartão Físico no Topo */}
-                <div
-                  className={`p-6 text-white bg-gradient-to-tr ${config.bgGradient} relative overflow-hidden flex flex-col justify-between h-48 shadow-inner`}
-                >
-                  {/* Círculos decorativos sutis */}
-                  <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none" />
-
-                  {/* Topo do cartão: Logo Banco + Botão Olho + Ações */}
-                  <div className="flex items-center justify-between z-10">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-lg tracking-wider drop-shadow-sm">
-                        {config.logoText}
-                      </span>
-                      <span className="text-xs text-white/75 font-medium px-2 py-0.5 rounded bg-black/20">
-                        {card.brand || 'Crédito'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {/* Botão de Olho Independente por Cartão */}
-                      <button
-                        onClick={(e) => toggleCardEye(card.id, e)}
-                        className="p-1.5 rounded-lg bg-black/20 hover:bg-black/35 text-white transition-colors"
-                        title={
-                          isMasked ? 'Revelar dados deste cartão' : 'Ocultar dados deste cartão'
-                        }
-                      >
-                        {isMasked ? (
-                          <EyeOff className="w-3.5 h-3.5" />
-                        ) : (
-                          <Eye className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      <button
-                        onClick={(e) => handleOpenEdit(card, e)}
-                        className="p-1.5 rounded-lg bg-black/20 hover:bg-black/35 text-white transition-colors"
-                        title="Editar Cartão"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Centro do Cartão: Chip + Número Mascarado */}
-                  <div className="z-10 my-auto">
-                    <div className="w-9 h-7 rounded-md bg-amber-300/80 border border-amber-400/50 shadow-inner mb-2 flex items-center justify-center">
-                      <div className="w-6 h-4 border border-amber-600/40 rounded-xs" />
-                    </div>
-                    <div className="font-mono text-sm sm:text-base tracking-widest text-white/95 font-semibold">
-                      {isMasked
-                        ? '•••• •••• •••• ••••'
-                        : `•••• •••• •••• ${card.last_four || '0000'}`}
-                    </div>
-                  </div>
-
-                  {/* Base do Cartão: Nome + Fechamento/Vencimento */}
-                  <div className="flex items-end justify-between z-10 text-xs">
-                    <div>
-                      <span className="text-[10px] uppercase text-white/70 block leading-none">
-                        Titular
-                      </span>
-                      <span className="font-bold tracking-wide">{card.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase text-white/70 block leading-none">
-                        Fech / Venc
-                      </span>
-                      <span className="font-bold font-mono">
-                        {card.closing_day} / {card.due_day}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Corpo de Métricas */}
-                <div className="p-5 space-y-4">
-                  {/* Fatura Atual & Limite Disponível */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-[11px] text-slate-400 uppercase font-semibold">
-                        Fatura Atual
-                      </span>
-                      <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
-                        {formatCurrency(card.current_invoice_total, isMasked)}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-[11px] text-slate-400 uppercase font-semibold">
-                        Disponível
-                      </span>
-                      <div className="text-lg font-black text-emerald-600 tabular-nums">
-                        {formatCurrency(card.available_limit, isMasked)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Barra de Progresso do Limite Utilizado */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>Uso do Limite Total ({formatCurrency(card.limit, isMasked)})</span>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">
-                        {card.used_percentage}%
-                      </span>
-                    </div>
-                    <Progress value={card.used_percentage} className="h-2 rounded-full" />
-                  </div>
-                </div>
-
-                {/* Footer do Card */}
-                <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-emerald-600 group-hover:text-emerald-700">
-                  <span>Ver Fatura & Compras</span>
-                  <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {content}
 
       {/* Modal Novo / Editar Cartão */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
@@ -330,7 +373,7 @@ export default function CardsPage() {
               <Label htmlFor="card-name">Nome do Cartão *</Label>
               <Input
                 id="card-name"
-                placeholder="Ex: Nubank Ultravioleta, Black Itaú"
+                placeholder="Ex: Nubank Gold, Black Itaú"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -362,12 +405,12 @@ export default function CardsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Mastercard">Mastercard</SelectItem>
                     <SelectItem value="Visa">Visa</SelectItem>
+                    <SelectItem value="Mastercard">Mastercard</SelectItem>
                     <SelectItem value="Elo">Elo</SelectItem>
                     <SelectItem value="Amex">American Express</SelectItem>
                     <SelectItem value="Hipercard">Hipercard</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
+                    <SelectItem value="Outro">Outra</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -417,7 +460,7 @@ export default function CardsPage() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="card-last4">Últimos 4 Dígitos</Label>
+              <Label htmlFor="card-last4">Final do Cartão (4 dígitos)</Label>
               <Input
                 id="card-last4"
                 maxLength={4}
@@ -441,14 +484,45 @@ export default function CardsPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
               >
-                {loading ? 'Salvando...' : 'Salvar Cartão'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Salvando...
+                  </>
+                ) : (
+                  'Salvar Cartão'
+                )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de Exclusão */}
+      <AlertDialog
+        open={deleteConfirmCard !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmCard(null)}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Cartão de Crédito?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cartão "<strong>{deleteConfirmCard?.name}</strong>"?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
+            >
+              {loading ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

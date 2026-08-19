@@ -2,19 +2,24 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrency, formatDate, BANK_CONFIGS, CATEGORY_COLORS } from '@/lib/constants'
+import {
+  formatCurrency,
+  formatDate,
+  formatMonthYear,
+  BANK_CONFIGS,
+  CATEGORY_COLORS,
+} from '@/lib/constants'
 import { CreditCard, Invoice, InvoiceItem } from '@/types/finance'
 import {
   ArrowLeft,
   CreditCard as CreditCardIcon,
-  UploadCloud,
-  CheckCircle2,
   Trash2,
   Calendar,
   Layers,
-  Sparkles,
   DollarSign,
   AlertCircle,
+  Loader2,
+  TrendingUp,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,13 +39,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { LoadingState, ErrorState, EmptyState } from '@/components/States'
 import InvoiceImportModal from '@/components/modals/InvoiceImportModal'
 import pb from '@/lib/pocketbase/client'
+
+interface FutureInstallment {
+  description: string
+  category?: string
+  installment: string
+  value: number
+  month: string
+}
 
 export default function CardDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { creditCards, accounts, invoices, payInvoice, refreshAll } = useFinance()
+  const { creditCards, accounts, invoices, payInvoice, isLoading, loadError, refreshAll } =
+    useFinance()
   const { hideValues } = useAuth()
 
   const card = creditCards.find((c) => c.id === id)
@@ -55,13 +70,16 @@ export default function CardDetailPage() {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([])
   const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null)
   const [loadingItems, setLoadingItems] = useState(true)
+  const [itemsError, setItemsError] = useState(false)
 
   // Busca faturas do cartão
   const cardInvoices = invoices.filter((i) => i.credit_card === id)
-  const currentOpenInvoice = cardInvoices.find((i) => i.status === 'aberta') || cardInvoices[0]
+  const currentOpenInvoice =
+    cardInvoices.find((i) => i.status === 'aberta') || cardInvoices[0] || null
 
   const loadInvoiceItems = useCallback(async (invId: string) => {
     setLoadingItems(true)
+    setItemsError(false)
     try {
       const items = await pb.collection('invoice_items').getFullList<InvoiceItem>({
         filter: `invoice = "${invId}"`,
@@ -70,6 +88,7 @@ export default function CardDetailPage() {
       setInvoiceItems(items)
     } catch (err) {
       console.warn('Erro ao buscar itens da fatura:', err)
+      setItemsError(true)
     } finally {
       setLoadingItems(false)
     }
@@ -80,18 +99,61 @@ export default function CardDetailPage() {
       setActiveInvoice(currentOpenInvoice)
       loadInvoiceItems(currentOpenInvoice.id)
     } else {
+      setActiveInvoice(null)
+      setInvoiceItems([])
       setLoadingItems(false)
     }
   }, [currentOpenInvoice, loadInvoiceItems])
 
+  // Previsão de próximas faturas para compras parceladas
+  const futureInstallments: FutureInstallment[] = React.useMemo(() => {
+    if (!invoiceItems || invoiceItems.length === 0) return []
+    const out: FutureInstallment[] = []
+    const baseRef = activeInvoice?.reference || new Date().toISOString().slice(0, 7)
+    const [baseY, baseM] = baseRef.split('-').map((n) => parseInt(n, 10))
+
+    for (const it of invoiceItems) {
+      if (!it.installments) continue
+      const m = it.installments.match(/^(\d+)\s*\/\s*(\d+)$/)
+      if (!m) continue
+      const current = parseInt(m[1], 10)
+      const total = parseInt(m[2], 10)
+      if (total <= 1 || current >= total) continue
+      for (let i = current + 1; i <= total; i++) {
+        const monthOffset = i - current
+        const d = new Date(baseY, baseM - 1 + monthOffset, 1)
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        out.push({
+          description: it.description,
+          category: it.category,
+          installment: `${i}/${total}`,
+          value: Number(it.value) || 0,
+          month: monthStr,
+        })
+      }
+    }
+    return out.sort((a, b) => (a.month < b.month ? -1 : 1))
+  }, [invoiceItems, activeInvoice])
+
+  if (isLoading) {
+    return <LoadingState message="Carregando cartão..." />
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState message="Não foi possível carregar os dados do cartão." onRetry={refreshAll} />
+    )
+  }
+
   if (!card) {
     return (
-      <div className="p-8 text-center space-y-4">
-        <p className="text-slate-500">Cartão de crédito não encontrado.</p>
-        <Button onClick={() => navigate('/cartoes')} variant="outline">
-          Voltar para Cartões
-        </Button>
-      </div>
+      <EmptyState
+        icon={CreditCardIcon}
+        title="Cartão não encontrado"
+        description="O cartão que você procura não existe ou foi removido."
+        actionLabel="Voltar para Cartões"
+        onAction={() => navigate('/cartoes')}
+      />
     )
   }
 
@@ -105,7 +167,9 @@ export default function CardDetailPage() {
       await payInvoice(activeInvoice.id, selectedPayAccount)
       setPayModalOpen(false)
       await refreshAll()
-      await loadInvoiceItems(activeInvoice.id)
+      if (activeInvoice) {
+        await loadInvoiceItems(activeInvoice.id)
+      }
     } catch (err: unknown) {
       const errorObj = err as { message?: string }
       setPayError(errorObj?.message || 'Erro ao processar pagamento da fatura.')
@@ -114,7 +178,7 @@ export default function CardDetailPage() {
     }
   }
 
-  // Limpar apenas importados
+  // Limpar apenas lançamentos importados (itens + transações)
   const handleClearImported = async () => {
     if (!activeInvoice) return
     const confirm = window.confirm(
@@ -123,6 +187,7 @@ export default function CardDetailPage() {
     if (!confirm) return
 
     try {
+      const authUser = pb.authStore.model
       const importedItems = invoiceItems.filter((it) => it.is_imported)
       for (const item of importedItems) {
         await pb
@@ -130,10 +195,24 @@ export default function CardDetailPage() {
           .delete(item.id)
           .catch(() => {})
       }
+      // Remove transações importadas deste cartão no mês da fatura
+      if (authUser && activeInvoice.reference) {
+        const ref = activeInvoice.reference
+        const oldTxns = await pb.collection('transactions').getFullList({
+          filter: `user = "${authUser.id}" && credit_card = "${card.id}" && source = "importado" && date >= "${ref}-01 00:00:00.000Z"`,
+        })
+        for (const oldTx of oldTxns) {
+          await pb
+            .collection('transactions')
+            .delete(oldTx.id)
+            .catch(() => {})
+        }
+      }
       await refreshAll()
       await loadInvoiceItems(activeInvoice.id)
     } catch (err) {
       console.error(err)
+      alert('Erro ao limpar importação.')
     }
   }
 
@@ -203,15 +282,17 @@ export default function CardDetailPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <Badge
-                  className={`text-xs font-bold ${
-                    activeInvoice?.status === 'paga'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                  }`}
-                >
-                  {activeInvoice?.status === 'paga' ? 'Fatura Paga' : 'Fatura Aberta'}
-                </Badge>
+                {activeInvoice && (
+                  <Badge
+                    className={`text-xs font-bold ${
+                      activeInvoice.status === 'paga'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                    }`}
+                  >
+                    {activeInvoice.status === 'paga' ? 'Fatura Paga' : 'Fatura Aberta'}
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -231,20 +312,22 @@ export default function CardDetailPage() {
               <div>
                 <span className="text-slate-400">Vencimento:</span>
                 <div className="font-bold text-slate-700 dark:text-slate-300">
-                  {formatDate(activeInvoice?.due_date) || `Dia ${card.due_day}`}
+                  {activeInvoice?.due_date
+                    ? formatDate(activeInvoice.due_date)
+                    : `Dia ${card.due_day}`}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Botões Importar Fatura / Pagar Fatura / Limpar */}
+          {/* Botões */}
           <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Button
                 onClick={() => setImportModalOpen(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-sm"
               >
-                <Sparkles className="w-4 h-4" /> Importar Fatura (IA)
+                <TrendingUp className="w-4 h-4" /> Importar Fatura
               </Button>
 
               {invoiceItems.some((it) => it.is_imported) && (
@@ -258,7 +341,7 @@ export default function CardDetailPage() {
               )}
             </div>
 
-            {activeInvoice?.status !== 'paga' && (
+            {activeInvoice?.status !== 'paga' && activeInvoice && (
               <Button
                 onClick={() => {
                   setSelectedPayAccount(accounts[0]?.id || '')
@@ -278,16 +361,24 @@ export default function CardDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
             <Layers className="w-5 h-5 text-purple-600" />
-            Compras da Fatura Atual ({invoiceItems.length})
+            Compras da Fatura {activeInvoice ? `(${formatMonthYear(activeInvoice.reference)})` : ''}
+            <span className="text-xs font-normal text-slate-400">({invoiceItems.length})</span>
           </h3>
         </div>
 
         {loadingItems ? (
-          <div className="p-8 text-center text-xs text-slate-400">Carregando compras...</div>
+          <LoadingState message="Carregando compras..." />
+        ) : itemsError ? (
+          <ErrorState
+            message="Não foi possível carregar as compras."
+            onRetry={() => activeInvoice && loadInvoiceItems(activeInvoice.id)}
+          />
         ) : invoiceItems.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 text-xs">
-            Nenhuma compra lançada ou importada nesta fatura. Use o botão "Importar Fatura" acima.
-          </div>
+          <EmptyState
+            icon={Layers}
+            title="Nenhuma compra nesta fatura"
+            description="Use o botão «Importar Fatura» para extrair compras de um arquivo, ou adicione lançamentos manuais."
+          />
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
             {invoiceItems.map((item) => (
@@ -343,6 +434,40 @@ export default function CardDetailPage() {
         )}
       </Card>
 
+      {/* Previsão de Próximas Faturas (parcelas futuras) */}
+      {futureInstallments.length > 0 && (
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 shadow-sm bg-white dark:bg-[#121A2B]">
+          <h3 className="font-bold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            Previsão de Próximas Faturas (Parcelas)
+          </h3>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {futureInstallments.map((fi, idx) => (
+              <div key={idx} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded">
+                    {fi.installment}
+                  </span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
+                    {fi.description}
+                  </span>
+                  {fi.category && (
+                    <span className="text-[10px] text-slate-400">· {fi.category}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <span className="text-slate-400">{formatMonthYear(fi.month)}</span>
+                  <span className="font-bold tabular-nums text-slate-900 dark:text-white">
+                    {formatCurrency(fi.value, hideValues)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Histórico de Faturas Passadas */}
       {cardInvoices.length > 0 && (
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-6 shadow-sm bg-white dark:bg-[#121A2B]">
@@ -367,7 +492,7 @@ export default function CardDetailPage() {
               >
                 <div>
                   <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                    Fatura {inv.reference}
+                    {formatMonthYear(inv.reference)}
                   </span>
                   <span className="text-[10px] text-slate-400 block">
                     Venc: {formatDate(inv.due_date)}
@@ -385,7 +510,7 @@ export default function CardDetailPage() {
                         : 'text-amber-600 border-amber-300'
                     }`}
                   >
-                    {inv.status}
+                    {inv.status === 'paga' ? 'paga' : 'aberta'}
                   </Badge>
                 </div>
               </div>
@@ -403,6 +528,18 @@ export default function CardDetailPage() {
           await refreshAll()
           if (activeInvoice) {
             await loadInvoiceItems(activeInvoice.id)
+          } else {
+            // Recarrega para a fatura atual após importar
+            const ref = new Date().toISOString().slice(0, 7)
+            try {
+              const res = await pb
+                .collection('invoices')
+                .getFirstListItem<Invoice>(`credit_card = "${card.id}" && reference = "${ref}"`)
+              setActiveInvoice(res)
+              await loadInvoiceItems(res.id)
+            } catch (_) {
+              await refreshAll()
+            }
           }
         }}
       />
@@ -432,8 +569,8 @@ export default function CardDetailPage() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-1">
-                Uma única despesa será criada na conta bancária selecionada sem duplicar seus
-                lançamentos.
+                Uma única despesa será criada na conta bancária selecionada e a fatura marcada como
+                paga, sem duplicar lançamentos.
               </p>
             </div>
 
@@ -453,6 +590,12 @@ export default function CardDetailPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {accounts.length === 0 && (
+                <p className="text-[11px] text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Cadastre uma conta bancária na aba «Contas»
+                  antes de pagar a fatura.
+                </p>
+              )}
             </div>
 
             <DialogFooter className="pt-2 gap-2">
@@ -466,9 +609,15 @@ export default function CardDetailPage() {
               <Button
                 onClick={handlePayInvoice}
                 disabled={payLoading || !selectedPayAccount}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold gap-1.5"
               >
-                {payLoading ? 'Processando...' : 'Confirmar Pagamento'}
+                {payLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Processando...
+                  </>
+                ) : (
+                  'Confirmar Pagamento'
+                )}
               </Button>
             </DialogFooter>
           </div>
