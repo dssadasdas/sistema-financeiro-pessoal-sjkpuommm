@@ -183,7 +183,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0b1120] text-slate-900 dark:text-slate-100 flex">
-      {/* Sidebar Desktop */}
+      {/* Sidebar Desktop (apenas 1024px+) */}
       <aside className="hidden lg:flex flex-col w-[264px] flex-shrink-0 h-screen sticky top-0 bg-white dark:bg-[#0f1626] border-r border-slate-200 dark:border-slate-800">
         {/* Logo */}
         <div className="h-16 px-5 flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800">
@@ -214,8 +214,8 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Mobile sticky header */}
-        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between pt-safe">
+        {/* Topbar mobile + tablet (abaixo de 1024px): logo + hamburger que abre drawer */}
+        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 md:px-5 flex items-center justify-between pt-safe">
           <Link
             to="/inicio"
             className="flex items-center gap-2 min-w-0"
@@ -239,7 +239,7 @@ export default function Layout() {
           </Button>
         </header>
 
-        {/* Desktop slim topbar */}
+        {/* Desktop slim topbar (apenas 1024px+) */}
         <header className="hidden lg:flex sticky top-0 z-20 h-16 bg-white/90 dark:bg-[#0f1626]/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-8 items-center justify-between">
           <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
             {currentTitle()}
@@ -252,13 +252,13 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Content */}
-        <main className="flex-1 w-full max-w-[1280px] mx-auto p-4 lg:p-6 pb-28 lg:pb-8">
+        {/* Content - padding 16px mobile, 20px tablet (768-1023), 24px desktop */}
+        <main className="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-5 lg:p-6 pb-28 lg:pb-8">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile drawer with scrim + 280ms ease-out */}
+      {/* Drawer mobile + tablet (abaixo de 1024px) com scrim + 280ms ease-out */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div
@@ -310,7 +310,7 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Mobile bottom navigation */}
+      {/* Bottom navigation mobile + tablet (abaixo de 1024px): 5 ícones (Início, Contas, +, Cartões, Investimentos) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 px-2 h-16 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-none">
         <NavLink
           to="/inicio"

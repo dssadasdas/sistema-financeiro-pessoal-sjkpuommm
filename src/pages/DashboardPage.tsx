@@ -323,7 +323,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Grid de 4 Cards: Receitas, Despesas, A Receber, A Pagar */}
+      {/* Grid de 4 Cards: Receitas, Despesas, A Receber, A Pagar (2 colunas no mobile/tablet, 4 no desktop) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Receitas Recebidas */}
         <Card
