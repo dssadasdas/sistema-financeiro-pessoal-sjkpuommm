@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
+import type { RecordModel } from 'pocketbase'
 import { User, Subscription } from '@/types/finance'
 
 interface AuthContextType {
@@ -15,6 +16,7 @@ interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>
   signup: (email: string, pass: string, name: string) => Promise<void>
   logout: () => void
+  refreshUser: () => Promise<void>
   refreshSubscription: () => Promise<void>
   activateSubscriptionDemo: (plan: 'mensal' | 'anual') => Promise<void>
 }
@@ -73,6 +75,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshSubscription = async () => {
     if (user?.id) {
       await fetchSubscription(user.id)
+    }
+  }
+
+  const refreshUser = async () => {
+    if (!user?.id) return
+    try {
+      const updated = await pb.collection('users').getOne<User>(user.id)
+      setUser(updated)
+      // Mantém o authStore em sincronia com o registro atualizado.
+      // O PocketBase exige um RecordModel; usamos cast pois `updated` é o
+      // registro retornado pela collection users.
+      pb.authStore.save(pb.authStore.token, updated as unknown as RecordModel)
+    } catch (err) {
+      console.warn('Erro ao recarregar usuário:', err)
     }
   }
 
@@ -214,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
+        refreshUser,
         refreshSubscription,
         activateSubscriptionDemo,
       }}

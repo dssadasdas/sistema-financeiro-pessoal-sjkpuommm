@@ -1,425 +1,760 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFinance } from '@/contexts/FinanceDataContext'
-import { formatCurrency, formatDate } from '@/lib/constants'
+import { useTheme } from '@/contexts/ThemeContext'
+import pb from '@/lib/pocketbase/client'
+import { getErrorMessage, extractFieldErrors } from '@/lib/pocketbase/errors'
+import { User as UserIcon } from '@/types/finance'
 import {
   User,
   Shield,
   CreditCard,
-  Sparkles,
-  Bell,
+  RefreshCw,
   CheckCircle2,
   AlertTriangle,
   LogOut,
   Save,
   Trash2,
-  Plus,
   Moon,
   Sun,
   Lock,
-  Smartphone,
+  Loader2,
+  ExternalLink,
+  Clock,
+  Settings as SettingsIcon,
 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
-import pb from '@/lib/pocketbase/client'
-import { useTheme } from '@/contexts/ThemeContext'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+
+const LAST_SYNC_KEY = 'semeia_last_sync'
+
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime()
+  const diff = Date.now() - then
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'agora mesmo'
+  if (min === 1) return 'há 1 minuto'
+  if (min < 60) return `há ${min} minutos`
+  const h = Math.floor(min / 60)
+  if (h === 1) return 'há 1 hora'
+  if (h < 24) return `há ${h} horas`
+  const d = Math.floor(h / 24)
+  return `há ${d} dia${d > 1 ? 's' : ''}`
+}
+
+function formatDateBR(iso?: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
 
 export default function SettingsPage() {
-  const { user, subscription, logout, refreshSubscription } = useAuth()
-  const { rules, saveRule, deleteRule } = useFinance()
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const { user, subscription, isLoading, logout, refreshUser, refreshSubscription } = useAuth()
+  const { refreshAll, isLoading: financeLoading } = useFinance()
   const { theme, toggleTheme } = useTheme()
 
-  // Profile form state
-  const [name, setName] = useState(user?.name || '')
+  /* ---------- Perfil ---------- */
+  const [name, setName] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMsg, setProfileMsg] = useState('')
 
-  // New rule state
-  const [newPattern, setNewPattern] = useState('')
-  const [newCategory, setNewCategory] = useState('Alimentação')
-  const [ruleSaving, setRuleSaving] = useState(false)
-
-  // Demo notification toggles
-  const [emailAlerts, setEmailAlerts] = useState(true)
-  const [pushAlerts, setPushAlerts] = useState(true)
-  const [dueDaysAlert, setDueDaysAlert] = useState('3')
-
-  const isSubActive = subscription?.status === 'ativa'
-  const planType = subscription?.plan || 'mensal'
-  const planPrice = planType === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'
+  useEffect(() => {
+    if (user?.name) setName(user.name)
+  }, [user?.name])
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     setProfileSaving(true)
-    setProfileMsg('')
     try {
-      // Atualiza nome do usuário diretamente no PocketBase
-      if (user?.id) {
-        await pb.collection('users').update(user.id, { name: name.trim() })
-        await refreshSubscription()
-      }
-      setProfileMsg('Perfil atualizado com sucesso!')
-      setTimeout(() => setProfileMsg(''), 3000)
-    } catch {
-      setProfileMsg('Erro ao atualizar perfil.')
+      await pb.collection('users').update<UserIcon>(user.id, { name })
+      await refreshUser()
+      toast({ title: 'Perfil atualizado', description: 'Suas alterações foram salvas.' })
+    } catch (err) {
+      toast({
+        title: 'Erro ao salvar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     } finally {
       setProfileSaving(false)
     }
   }
 
-  const handleAddRule = async (e: React.FormEvent) => {
+  /* ---------- Segurança ---------- */
+  const [currentPass, setCurrentPass] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [confirmPass, setConfirmPass] = useState('')
+  const [passSaving, setPassSaving] = useState(false)
+  const [passErrors, setPassErrors] = useState<Record<string, string>>({})
+  const [passSuccess, setPassSuccess] = useState(false)
+
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPattern.trim()) return
-    setRuleSaving(true)
+    if (!user) return
+    setPassErrors({})
+    setPassSuccess(false)
+
+    const errs: Record<string, string> = {}
+    if (!currentPass) errs.currentPass = 'Informe sua senha atual.'
+    if (newPass.length < 8) errs.newPass = 'A nova senha deve ter no mínimo 8 caracteres.'
+    if (newPass !== confirmPass) errs.confirmPass = 'As senhas não conferem.'
+    if (Object.keys(errs).length) {
+      setPassErrors(errs)
+      return
+    }
+
+    setPassSaving(true)
     try {
-      await saveRule(newPattern.trim(), newCategory)
-      setNewPattern('')
+      // Re-autentica validando a senha atual antes de trocar.
+      await pb.collection('users').authWithPassword(user.email, currentPass)
+      await pb.collection('users').update(user.id, {
+        password: newPass,
+        passwordConfirm: confirmPass,
+      })
+      setPassSuccess(true)
+      setCurrentPass('')
+      setNewPass('')
+      setConfirmPass('')
+      toast({ title: 'Senha alterada', description: 'Sua senha foi atualizada com sucesso.' })
     } catch (err) {
-      console.error(err)
+      const fieldErrs = extractFieldErrors(err)
+      const next: Record<string, string> = {}
+      // PocketBase devolve "newPassword" / "oldPassword" em alguns fluxos; tratamos ambos.
+      if (fieldErrs.password || fieldErrs.newPassword || fieldErrs.passwordConfirm) {
+        next.newPass = fieldErrs.password || fieldErrs.newPassword || fieldErrs.passwordConfirm
+      }
+      // Erro 401 na authWithPassword -> senha atual incorreta.
+      if (
+        !next.currentPass &&
+        (getErrorMessage(err).toLowerCase().includes('invalid login') ||
+          getErrorMessage(err).toLowerCase().includes('incorrect') ||
+          getErrorMessage(err).toLowerCase().includes('senha'))
+      ) {
+        next.currentPass = 'Senha atual incorreta.'
+      }
+      if (Object.keys(next).length === 0) {
+        next.currentPass = getErrorMessage(err)
+      }
+      setPassErrors(next)
     } finally {
-      setRuleSaving(false)
+      setPassSaving(false)
     }
   }
 
+  /* ---------- Sincronização ---------- */
+  const [lastSync, setLastSync] = useState<string>('')
+  const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(LAST_SYNC_KEY)
+    if (stored) setLastSync(stored)
+  }, [])
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try {
+      await Promise.all([refreshAll(), refreshSubscription()])
+      const nowIso = new Date().toISOString()
+      localStorage.setItem(LAST_SYNC_KEY, nowIso)
+      setLastSync(nowIso)
+      toast({ title: 'Dados sincronizados', description: 'Tudo atualizado.' })
+    } catch (err) {
+      toast({
+        title: 'Falha ao sincronizar',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  /* ---------- Assinatura ---------- */
+  const planLabel = subscription?.plan === 'anual' ? 'Anual' : 'Mensal'
+  const planPrice = subscription?.plan === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'
+  const isActive = subscription?.status === 'ativa'
+  const renewalDate = subscription?.expires_at || subscription?.renewed_at
+
+  /* ---------- Conta / Excluir ---------- */
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!user) return
+    try {
+      await pb.collection('users').delete(user.id)
+      logout()
+      navigate('/')
+    } catch (err) {
+      toast({
+        title: 'Não foi possível excluir a conta',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    }
+  }
+
+  /* ---------- Loading / erro ---------- */
+  const showSkeleton = isLoading && !user
+
+  const headerTitle = useMemo(() => 'Configurações', [])
+
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Top Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Configurações</h2>
-        <p className="text-xs sm:text-sm text-slate-500">
-          Gerencie sua conta, plano de assinatura, preferências e regras inteligentes
-        </p>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+          <SettingsIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{headerTitle}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Gerencie seu perfil, aparência, segurança e assinatura.
+          </p>
+        </div>
       </div>
 
-      <Tabs defaultValue="perfil" className="w-full space-y-6">
-        <TabsList className="grid grid-cols-4 w-full sm:w-[520px] rounded-2xl p-1 bg-slate-100 dark:bg-slate-800">
-          <TabsTrigger value="perfil" className="rounded-xl text-xs sm:text-sm font-semibold">
-            Perfil
-          </TabsTrigger>
-          <TabsTrigger value="assinatura" className="rounded-xl text-xs sm:text-sm font-semibold">
-            Assinatura
-          </TabsTrigger>
-          <TabsTrigger value="regras" className="rounded-xl text-xs sm:text-sm font-semibold">
-            Regras IA
-          </TabsTrigger>
-          <TabsTrigger value="preferencias" className="rounded-xl text-xs sm:text-sm font-semibold">
-            Preferências
-          </TabsTrigger>
-        </TabsList>
-
-        {/* 1. ABA PERFIL */}
-        <TabsContent value="perfil" className="space-y-6">
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm">
+      {showSkeleton ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card
+              key={i}
+              className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b]"
+            >
+              <CardHeader>
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-3 w-56 mt-2" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : !user ? (
+        <Card className="rounded-2xl border-red-200 dark:border-red-900/50 bg-white dark:bg-[#121a2b]">
+          <CardContent className="p-8 text-center">
+            <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
+              Não foi possível carregar seus dados de perfil.
+            </p>
+            <Button variant="outline" onClick={() => window.location.reload()} className="mt-3">
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ================= Perfil ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5 text-emerald-600" />
-                Dados Pessoais
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <User className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                Perfil
               </CardTitle>
-              <CardDescription>
-                Atualize suas informações de identificação no sistema Raiz
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Suas informações pessoais.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSaveProfile} className="space-y-4 max-w-lg">
-                {profileMsg && (
-                  <div
-                    className={`p-3 rounded-xl text-xs font-semibold ${
-                      profileMsg.includes('sucesso')
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        : 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300'
-                    }`}
-                  >
-                    {profileMsg}
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-lg border border-emerald-500/30 flex-shrink-0">
+                    {name ? name.slice(0, 1).toUpperCase() : 'U'}
                   </div>
-                )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                      {name || 'Usuário'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="user-name">Nome Completo</Label>
+                  <Label htmlFor="name" className="text-slate-700 dark:text-slate-300">
+                    Nome
+                  </Label>
                   <Input
-                    id="user-name"
+                    id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    required
-                    className="h-10 rounded-xl"
+                    className="h-10 rounded-xl bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700"
+                    placeholder="Seu nome"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="user-email">Email Cadastrado</Label>
-                  <Input
-                    id="user-email"
-                    value={user?.email || ''}
-                    disabled
-                    className="h-10 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-500 cursor-not-allowed"
-                  />
-                  <p className="text-[11px] text-slate-400">
-                    O email é sua chave única de acesso e login.
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    disabled={profileSaving}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
-                  >
-                    <Save className="w-4 h-4" />
-                    {profileSaving ? 'Salvando...' : 'Salvar Alterações'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-red-200 dark:border-red-900/40 bg-white dark:bg-[#121A2B] shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base text-red-600 flex items-center gap-2">
-                <LogOut className="w-4 h-4" />
-                Encerrar Sessão
-              </CardTitle>
-              <CardDescription>
-                Desconectar com segurança desta máquina ou dispositivo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="destructive" onClick={logout} className="rounded-xl font-semibold">
-                Sair da Conta
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 2. ABA ASSINATURA */}
-        <TabsContent value="assinatura" className="space-y-6">
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-emerald-600" />
-                    Plano de Assinatura Raiz
-                  </CardTitle>
-                  <CardDescription>
-                    Status do seu plano SaaS e informações de renovação
-                  </CardDescription>
-                </div>
-                <Badge
-                  className={`text-xs px-3 py-1 font-bold ${
-                    isSubActive
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                      : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
-                  }`}
-                >
-                  {isSubActive ? '✓ Assinatura Ativa' : 'Bloqueada'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                  <span className="text-xs text-slate-400">Plano Atual</span>
-                  <div className="text-lg font-bold text-slate-900 dark:text-white capitalize mt-1">
-                    Plano {planType}
-                  </div>
-                  <span className="text-xs text-emerald-600 font-semibold">{planPrice}</span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                  <span className="text-xs text-slate-400">Início da Assinatura</span>
-                  <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
-                    {subscription?.started_at ? formatDate(subscription.started_at) : 'Hoje'}
-                  </div>
-                  <span className="text-xs text-slate-400">Acesso ilimitado</span>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                  <span className="text-xs text-slate-400">Próxima Renovação</span>
-                  <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
-                    {subscription?.expires_at ? formatDate(subscription.expires_at) : 'Em 30 dias'}
-                  </div>
-                  <span className="text-xs text-emerald-600 font-semibold">
-                    Renovação Automática
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-bold text-sm text-emerald-950 dark:text-emerald-200">
-                    Todos os recursos premium inclusos
-                  </h4>
-                  <p className="text-xs text-emerald-800 dark:text-emerald-400 mt-0.5">
-                    Importação de faturas PDF/OCR, IA Financeira, metas, projeções, multi-contas e
-                    orçamentos ilimitados.
-                  </p>
-                </div>
-                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                  R$ 11,99/mês ou R$ 119,99/ano
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* 3. ABA REGRAS IA */}
-        <TabsContent value="regras" className="space-y-6">
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-600" />
-                Regras de Categorização Automática
-              </CardTitle>
-              <CardDescription>
-                O sistema usa estas palavras-chave para classificar automaticamente suas transações
-                e faturas importadas
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Adicionar Regra */}
-              <form
-                onSubmit={handleAddRule}
-                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-end gap-3"
-              >
-                <div className="space-y-1 flex-1 w-full sm:w-auto">
-                  <Label htmlFor="rule-pattern" className="text-xs">
-                    Palavra-chave (match)
+                  <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">
+                    E-mail
                   </Label>
                   <Input
-                    id="rule-pattern"
-                    placeholder="Ex: IFOOD, UBER, SHELL, DROGASIL"
-                    value={newPattern}
-                    onChange={(e) => setNewPattern(e.target.value)}
-                    required
-                    className="h-10 rounded-xl uppercase"
+                    id="email"
+                    value={user.email}
+                    readOnly
+                    className="h-10 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800"
                   />
-                </div>
-
-                <div className="space-y-1 w-full sm:w-56">
-                  <Label htmlFor="rule-cat" className="text-xs">
-                    Categoria Destino
-                  </Label>
-                  <Input
-                    id="rule-cat"
-                    placeholder="Ex: Alimentação, Transporte"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    required
-                    className="h-10 rounded-xl"
-                  />
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                    O e-mail não pode ser alterado.
+                  </p>
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={ruleSaving}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 h-10 w-full sm:w-auto"
+                  disabled={profileSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
                 >
-                  <Plus className="w-4 h-4" /> Adicionar Regra
+                  {profileSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Salvar alterações
                 </Button>
               </form>
-
-              {/* Lista de regras cadastradas */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-500 block">
-                  Regras Ativas ({rules.length})
-                </span>
-                {rules.length === 0 ? (
-                  <div className="p-8 text-center rounded-xl bg-slate-50 dark:bg-slate-900/30 text-xs text-slate-400">
-                    Nenhuma regra personalizada cadastrada ainda.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {rules.map((r) => (
-                      <div
-                        key={r.id}
-                        className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs group"
-                      >
-                        <div>
-                          <span className="font-mono font-bold text-slate-900 dark:text-white uppercase block">
-                            "{r.keyword}"
-                          </span>
-                          <span className="text-[11px] text-emerald-600 font-semibold">
-                            → {r.category}
-                          </span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteRule(r.id)}
-                          className="h-7 w-7 text-slate-400 hover:text-red-600"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* 4. ABA PREFERÊNCIAS */}
-        <TabsContent value="preferencias" className="space-y-6">
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm">
+          {/* ================= Aparência ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="w-5 h-5 text-emerald-600" />
-                Aparência e Notificações
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <Sun className="w-5 h-5 text-amber-500" />
+                Aparência
               </CardTitle>
-              <CardDescription>
-                Ajuste temas, notificações de contas e modo de privacidade
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Escolha entre tema claro e escuro.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center">
                     {theme === 'dark' ? (
-                      <Moon className="w-4 h-4 text-purple-400" />
+                      <Moon className="w-5 h-5 text-indigo-300" />
                     ) : (
-                      <Sun className="w-4 h-4 text-amber-500" />
+                      <Sun className="w-5 h-5 text-amber-500" />
                     )}
-                    Modo Escuro (Dark Mode)
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Alternar entre o visual claro e o tema escuro de alto contraste
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      {theme === 'dark' ? 'Tema Escuro' : 'Tema Claro'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {theme === 'dark' ? 'Ativo agora' : 'Ativo agora'}
+                    </p>
+                  </div>
                 </div>
-                <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+                <Switch
+                  checked={theme === 'dark'}
+                  onCheckedChange={toggleTheme}
+                  aria-label="Alternar tema"
+                />
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-sm text-slate-900 dark:text-white">
-                    Notificações de Boletos por Email
+              {/* Preview visual */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => theme !== 'light' && toggleTheme()}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    theme === 'light'
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="w-full h-12 rounded-lg bg-white border border-slate-200 flex items-center justify-center mb-2">
+                    <Sun className="w-5 h-5 text-amber-500" />
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Receba lembretes quando houver contas a vencer nos próximos dias
-                  </p>
-                </div>
-                <Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
-                <div className="space-y-0.5">
-                  <div className="font-bold text-sm text-slate-900 dark:text-white">
-                    Alertas de Faturas de Cartões
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Claro
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => theme !== 'dark' && toggleTheme()}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    theme === 'dark'
+                      ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="w-full h-12 rounded-lg bg-[#0b1120] border border-slate-800 flex items-center justify-center mb-2">
+                    <Moon className="w-5 h-5 text-indigo-300" />
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Avisar no fechamento da fatura com o total estimado
-                  </p>
-                </div>
-                <Switch checked={pushAlerts} onCheckedChange={setPushAlerts} />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Escuro
+                  </span>
+                </button>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+
+          {/* ================= Segurança ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <Shield className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                Segurança
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Altere sua senha de acesso.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSavePassword} className="space-y-4">
+                {passSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>Senha alterada com sucesso!</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentPass" className="text-slate-700 dark:text-slate-300">
+                    Senha atual
+                  </Label>
+                  <Input
+                    id="currentPass"
+                    type="password"
+                    value={currentPass}
+                    onChange={(e) => setCurrentPass(e.target.value)}
+                    className={`h-10 rounded-xl bg-white dark:bg-slate-900/60 ${
+                      passErrors.currentPass
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                    placeholder="••••••••"
+                  />
+                  {passErrors.currentPass && (
+                    <p className="text-xs text-red-500">{passErrors.currentPass}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPass" className="text-slate-700 dark:text-slate-300">
+                    Nova senha
+                  </Label>
+                  <Input
+                    id="newPass"
+                    type="password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    className={`h-10 rounded-xl bg-white dark:bg-slate-900/60 ${
+                      passErrors.newPass
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                  {passErrors.newPass ? (
+                    <p className="text-xs text-red-500">{passErrors.newPass}</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                      Mínimo de 8 caracteres.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPass" className="text-slate-700 dark:text-slate-300">
+                    Confirmar nova senha
+                  </Label>
+                  <Input
+                    id="confirmPass"
+                    type="password"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    className={`h-10 rounded-xl bg-white dark:bg-slate-900/60 ${
+                      passErrors.confirmPass
+                        ? 'border-red-500 focus-visible:ring-red-500'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                    placeholder="Repita a nova senha"
+                  />
+                  {passErrors.confirmPass && (
+                    <p className="text-xs text-red-500">{passErrors.confirmPass}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={passSaving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                >
+                  {passSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
+                  Alterar senha
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* ================= Sincronização ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <RefreshCw className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                Sincronização
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Atualize manualmente os dados do painel.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    syncing
+                      ? 'bg-amber-100 dark:bg-amber-500/15'
+                      : 'bg-emerald-100 dark:bg-emerald-500/15'
+                  }`}
+                >
+                  {syncing ? (
+                    <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {syncing ? 'Sincronizando...' : 'Sincronizado'}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {lastSync ? `Última sincronização: ${timeAgo(lastSync)}` : 'Sem registros'}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleSync}
+                disabled={syncing || financeLoading}
+                variant="outline"
+                className="rounded-xl font-semibold gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                Sincronizar agora
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* ================= Assinatura ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                    <CreditCard className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    Assinatura
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 dark:text-slate-400">
+                    Detalhes do seu plano.
+                  </CardDescription>
+                </div>
+                <Badge
+                  className={`text-xs px-3 py-1 font-bold ${
+                    isActive
+                      ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30'
+                      : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-500/30'
+                  }`}
+                >
+                  {isActive ? 'Ativa' : 'Expirada'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Plano atual</span>
+                  <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {planLabel} — {planPrice}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    {isActive ? 'Renovação' : 'Expira em'}
+                  </span>
+                  <div className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {formatDateBR(renewalDate)}
+                  </div>
+                </div>
+              </div>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl font-semibold gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Gerenciar assinatura
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-slate-900 dark:text-white">
+                      Gerenciar assinatura
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
+                      Você está no plano <strong>{planLabel}</strong> ({planPrice}).
+                      {isActive
+                        ? ' Sua assinatura está ativa. Para alterar o plano, cancelar ou atualizar forma de pagamento, acesse a página de planos.'
+                        : ' Sua assinatura está expirada. Reative agora para liberar todos os recursos.'}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                      Fechar
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => navigate('/')}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      Ver planos
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+
+          {/* ================= Conta ================= */}
+          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                <LogOut className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                Conta
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Encerre sua sessão no dispositivo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl font-semibold gap-1.5 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair da conta
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-slate-900 dark:text-white">
+                      Sair da conta?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
+                      Você precisará informar e-mail e senha para entrar novamente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLogout}
+                      className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white"
+                    >
+                      Sair
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-1">
+                Semeia v0.0.8
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* ================= Ações (excluir conta) ================= */}
+          <Card className="rounded-2xl border-red-200 dark:border-red-900/40 bg-white dark:bg-[#121a2b] shadow-sm lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base text-red-600 dark:text-red-400 flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
+                Excluir minha conta
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Esta ação é irreversível. Todos os seus dados serão permanentemente removidos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="rounded-xl font-semibold gap-1.5 bg-red-600 hover:bg-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Excluir minha conta
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-red-200 dark:border-red-900/50">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      Tem certeza? Esta ação é irreversível.
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-600 dark:text-slate-300">
+                      Ao confirmar, sua conta e todos os dados associados (transações, contas,
+                      cartões, metas, investimentos...) serão excluídos permanentemente. Esta ação
+                      não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Sim, excluir tudo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

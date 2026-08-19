@@ -2,11 +2,13 @@ import { Link } from 'react-router-dom'
 
 const NotFound = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9] dark:bg-[#0b1120] px-4">
       <div className="text-center">
-        <h1 className="text-6xl font-black text-emerald-600 mb-2">404</h1>
-        <p className="text-xl text-slate-700 font-semibold mb-1">Página não encontrada</p>
-        <p className="text-sm text-slate-500 mb-6">
+        <h1 className="text-6xl font-black text-emerald-600 dark:text-emerald-400 mb-2">404</h1>
+        <p className="text-xl text-slate-700 dark:text-slate-200 font-semibold mb-1">
+          Página não encontrada
+        </p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
           A página que você procura não existe ou foi movida.
         </p>
         <Link

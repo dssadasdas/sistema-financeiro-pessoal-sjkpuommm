@@ -142,10 +142,13 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-slate-100 text-center">
-              <p className="text-sm text-slate-500">
+            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Não tem uma conta?{' '}
-                <Link to="/registro" className="font-semibold text-emerald-600 hover:underline">
+                <Link
+                  to="/registro"
+                  className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
                   Cadastre-se
                 </Link>
               </p>

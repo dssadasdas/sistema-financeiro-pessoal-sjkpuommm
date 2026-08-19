@@ -50,6 +50,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { LoadingState, ErrorState, EmptyState } from '@/components/States'
+import { useChartTheme } from '@/hooks/use-chart-theme'
 
 // CDI anual estimado (taxa SELIC/CDI aproximada)
 const CDI_ANNUAL_RATE = 0.1099
@@ -143,6 +144,7 @@ export default function InvestmentsPage() {
     refreshCryptoQuotes,
   } = useFinance()
   const { hideValues } = useAuth()
+  const chart = useChartTheme()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [invToEdit, setInvToEdit] = useState<Investment | null>(null)
@@ -621,8 +623,7 @@ export default function InvestmentsPage() {
                             <Tooltip
                               formatter={(v: number) => [formatCurrency(v, hideValues), 'Valor']}
                               contentStyle={{
-                                borderRadius: 12,
-                                border: '1px solid #e2e8f0',
+                                ...chart.tooltipStyle,
                                 fontSize: 11,
                               }}
                             />

@@ -19,6 +19,25 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
+    /* App-specific surface tokens (light) */
+    --app-bg: #f6f7f9;
+    --app-surface: #ffffff;
+    --app-surface-muted: #f8fafc;
+    --app-border: #e2e8f0;
+    --app-border-soft: #f1f5f9;
+    --app-text: #0f172a;
+    --app-text-muted: #64748b;
+    --app-text-soft: #94a3b8;
+    --app-sidebar-bg: #ffffff;
+    --app-sidebar-border: #e2e8f0;
+
+    /* Chart colors */
+    --chart-grid: #e2e8f0;
+    --chart-axis: #94a3b8;
+    --chart-tooltip-bg: #ffffff;
+    --chart-tooltip-border: #e2e8f0;
+    --chart-tooltip-text: #0f172a;
+
     --primary: 222.2 84% 4.9%;
     --primary-foreground: 210 40% 98%;
 
@@ -65,14 +84,33 @@
 
   .dark {
     /* Change the colors to match the design system consistent with the dark mode */
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 32% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 32% 11%;
     --popover-foreground: 210 40% 98%;
+
+    /* App-specific surface tokens (dark) */
+    --app-bg: #0b1120;
+    --app-surface: #121a2b;
+    --app-surface-muted: #0f1626;
+    --app-border: #1e293b;
+    --app-border-soft: #1b2638;
+    --app-text: #f1f5f9;
+    --app-text-muted: #94a3b8;
+    --app-text-soft: #64748b;
+    --app-sidebar-bg: #0f1626;
+    --app-sidebar-border: #1e293b;
+
+    /* Chart colors */
+    --chart-grid: #1e293b;
+    --chart-axis: #64748b;
+    --chart-tooltip-bg: #121a2b;
+    --chart-tooltip-border: #1e293b;
+    --chart-tooltip-text: #f1f5f9;
 
     --primary: 210 40% 98%;
     --primary-foreground: 222.2 84% 4.9%;
@@ -112,6 +150,18 @@
   section[aria-label='Notifications alt+T'] {
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  /* Smooth color transition when toggling light/dark theme */
+  html {
+    transition-property: background-color, border-color, color;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+  }
+  body {
+    transition-property: background-color, border-color, color;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
   }
 }
 

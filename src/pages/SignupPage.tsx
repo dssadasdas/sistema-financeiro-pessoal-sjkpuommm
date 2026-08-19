@@ -73,13 +73,14 @@ export default function SignupPage() {
           </Link>
         </div>
 
-        <Card className="rounded-3xl border-white/40 shadow-2xl bg-white">
+        <Card className="rounded-3xl border-white/40 dark:border-slate-800 shadow-2xl bg-white dark:bg-[#121a2b]">
           <CardContent className="p-7">
-            <h1 className="text-2xl font-bold text-slate-900 text-center">Criar sua conta</h1>
-            <p className="text-sm text-slate-500 text-center mt-1.5 mb-6">
-              Comece a organizar suas finanças em poucos segundos.
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">
+              Criar sua conta
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1.5 mb-6">
+              Comece a organizar suas finanças em poucos minutos.
             </p>
-
             {generalError && (
               <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-600">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />

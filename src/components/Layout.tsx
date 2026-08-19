@@ -60,14 +60,16 @@ const navItems: NavItem[] = [
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
 ]
 
+function isActivePath(pathname: string, path: string) {
+  return pathname === path || (path !== '/inicio' && pathname.startsWith(path + '/'))
+}
+
 function SidebarNav({ onNavigate, pathname }: { onNavigate?: () => void; pathname: string }) {
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon
-        const isActive =
-          pathname === item.path ||
-          (item.path !== '/inicio' && pathname.startsWith(item.path + '/'))
+        const isActive = isActivePath(pathname, item.path)
         return (
           <NavLink
             key={item.path}
@@ -75,13 +77,15 @@ function SidebarNav({ onNavigate, pathname }: { onNavigate?: () => void; pathnam
             onClick={onNavigate}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Icon
               className={`w-[18px] h-[18px] flex-shrink-0 ${
-                isActive ? 'text-emerald-600' : 'text-slate-400'
+                isActive
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-400 dark:text-slate-500'
               }`}
               fill={isActive ? 'currentColor' : 'none'}
             />
@@ -97,38 +101,50 @@ function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout
   const { theme, toggleTheme } = useTheme()
   const { hideValues, toggleHideValues } = useAuth()
   return (
-    <div className="px-3 py-3 border-t border-slate-100 space-y-1">
+    <div className="px-3 py-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
       <div className="flex items-center gap-1 px-1 pb-1">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleHideValues}
-          className="h-9 w-9 text-slate-500 hover:text-emerald-600"
+          className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
           title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
         >
           {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </Button>
+      </div>
+
+      {/* Configurações + toggle de tema lado a lado */}
+      <div className="flex items-center gap-1">
+        <NavLink
+          to="/configuracoes"
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            `flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+            }`
+          }
+        >
+          <Settings className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500" />
+          <span>Configurações</span>
+        </NavLink>
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="h-9 w-9 text-slate-500 hover:text-amber-500"
-          title="Alternar tema"
+          className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400"
+          title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
       </div>
-      <NavLink
-        to="/configuracoes"
-        onClick={onNavigate}
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-      >
-        <Settings className="w-[18px] h-[18px] text-slate-400" />
-        <span>Configurações</span>
-      </NavLink>
+
       <button
         onClick={logout}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors"
       >
         <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
         <span>Sair</span>
@@ -158,34 +174,35 @@ export default function Layout() {
   }
 
   const currentTitle = () => {
-    const item = navItems.find(
-      (n) => location.pathname === n.path || location.pathname.startsWith(n.path + '/'),
-    )
+    const item = navItems.find((n) => isActivePath(location.pathname, n.path))
     if (item) return item.label
     if (location.pathname.startsWith('/cartoes/')) return 'Detalhe do Cartão'
+    if (location.pathname.startsWith('/configuracoes')) return 'Configurações'
     return 'Finanças'
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] text-slate-900 flex">
+    <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0b1120] text-slate-900 dark:text-slate-100 flex">
       {/* Sidebar Desktop */}
-      <aside className="hidden lg:flex flex-col w-[264px] flex-shrink-0 h-screen sticky top-0 bg-white border-r border-slate-200">
+      <aside className="hidden lg:flex flex-col w-[264px] flex-shrink-0 h-screen sticky top-0 bg-white dark:bg-[#0f1626] border-r border-slate-200 dark:border-slate-800">
         {/* Logo */}
-        <div className="h-16 px-5 flex items-center gap-2.5 border-b border-slate-100">
+        <div className="h-16 px-5 flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800">
           <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm">
             <Wallet className="w-5 h-5" />
           </div>
-          <span className="font-extrabold text-lg tracking-tight text-slate-900">Finanças</span>
+          <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
+            Finanças
+          </span>
         </div>
 
         {/* Greeting */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
             {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
           </div>
           <div className="min-w-0">
-            <p className="text-xs text-slate-400">Olá,</p>
-            <p className="text-sm font-semibold text-slate-800 truncate">
+            <p className="text-xs text-slate-400 dark:text-slate-500">Olá,</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
               {user?.name || 'Usuário'}
             </p>
           </div>
@@ -198,17 +215,19 @@ export default function Layout() {
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile sticky header */}
-        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between">
+        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between">
           <Link to="/inicio" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
               <Wallet className="w-4.5 h-4.5" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight text-slate-900">Finanças</span>
+            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
+              Finanças
+            </span>
           </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="text-slate-600"
+            className="text-slate-600 dark:text-slate-300"
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menu"
           >
@@ -217,11 +236,13 @@ export default function Layout() {
         </header>
 
         {/* Desktop slim topbar */}
-        <header className="hidden lg:flex sticky top-0 z-20 h-16 bg-white/90 backdrop-blur border-b border-slate-200 px-8 items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight text-slate-900">{currentTitle()}</h1>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium">
-            <span className="text-slate-500">Saldo geral:</span>
-            <span className="font-bold text-emerald-600 tabular-nums">
+        <header className="hidden lg:flex sticky top-0 z-20 h-16 bg-white/90 dark:bg-[#0f1626]/90 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-8 items-center justify-between">
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            {currentTitle()}
+          </h1>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-medium">
+            <span className="text-slate-500 dark:text-slate-400">Saldo geral:</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
               {formatCurrency(totalCurrentBalance, hideValues)}
             </span>
           </div>
@@ -237,28 +258,28 @@ export default function Layout() {
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div
-            className="absolute inset-0 bg-black/40 animate-fade-in"
+            className="absolute inset-0 bg-black/40 dark:bg-black/60 animate-fade-in"
             onClick={() => setDrawerOpen(false)}
           />
           <div
-            className="absolute left-0 top-0 h-full w-[280px] max-w-[85vw] bg-white shadow-2xl flex flex-col"
+            className="absolute left-0 top-0 h-full w-[280px] max-w-[85vw] bg-white dark:bg-[#0f1626] shadow-2xl flex flex-col"
             style={{
               animation: 'drawer-in 280ms ease-out',
             }}
           >
-            <div className="h-16 px-5 flex items-center justify-between border-b border-slate-100">
+            <div className="h-16 px-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white">
                   <Wallet className="w-5 h-5" />
                 </div>
-                <span className="font-extrabold text-lg tracking-tight text-slate-900">
+                <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
                   Finanças
                 </span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-slate-500"
+                className="text-slate-500 dark:text-slate-400"
                 onClick={() => setDrawerOpen(false)}
                 aria-label="Fechar menu"
               >
@@ -266,13 +287,13 @@ export default function Layout() {
               </Button>
             </div>
 
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
                 {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-slate-400">Olá,</p>
-                <p className="text-sm font-semibold text-slate-800 truncate">
+                <p className="text-xs text-slate-400 dark:text-slate-500">Olá,</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
                   {user?.name || 'Usuário'}
                 </p>
               </div>
@@ -286,12 +307,14 @@ export default function Layout() {
       )}
 
       {/* Mobile bottom navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-2 h-16 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 px-2 h-16 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-none">
         <NavLink
           to="/inicio"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
-              isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
+              isActive
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400'
             }`
           }
         >
@@ -303,7 +326,9 @@ export default function Layout() {
           to="/contas"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
-              isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
+              isActive
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400'
             }`
           }
         >
@@ -316,7 +341,7 @@ export default function Layout() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 ring-4 ring-white"
+                className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 ring-4 ring-white dark:ring-[#0f1626]"
                 aria-label="Adicionar"
               >
                 <Plus className="w-6 h-6 stroke-[2.5]" />
@@ -349,7 +374,9 @@ export default function Layout() {
           to="/cartoes"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
-              isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
+              isActive
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400'
             }`
           }
         >
@@ -361,7 +388,9 @@ export default function Layout() {
           to="/investimentos"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
-              isActive ? 'text-emerald-600 font-bold' : 'text-slate-500'
+              isActive
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400'
             }`
           }
         >

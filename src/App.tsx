@@ -37,7 +37,7 @@ import SettingsPage from '@/pages/SettingsPage'
 // Full-screen loading spinner with logo
 function FullScreenLoader() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9]">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9] dark:bg-[#0b1120]">
       <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg mb-4">
         <Wallet className="w-6 h-6" />
       </div>

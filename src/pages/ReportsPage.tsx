@@ -15,6 +15,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { LoadingState, ErrorState } from '@/components/States'
+import { useChartTheme } from '@/hooks/use-chart-theme'
 import {
   PieChart,
   Pie,
@@ -49,6 +50,7 @@ const MONTHS_PT_SHORT = [
 export default function ReportsPage() {
   const { transactions, bills, isLoading, loadError, refreshAll } = useFinance()
   const { hideValues } = useAuth()
+  const chart = useChartTheme()
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
@@ -438,7 +440,7 @@ export default function ReportsPage() {
                         `${formatCurrency(v, hideValues)} (${item?.payload?.percentage || 0}%)`,
                         '',
                       ]}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                      contentStyle={chart.tooltipStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -479,22 +481,22 @@ export default function ReportsPage() {
           <div className="w-full h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={last6MonthsData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.gridStroke} vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  tick={{ fontSize: 11, fill: chart.axisStroke }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
+                  tick={{ fontSize: 11, fill: chart.axisStroke }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v) => (hideValues ? '•••' : `R$${(v / 1000).toFixed(0)}k`)}
                 />
                 <Tooltip
                   formatter={(v: number) => formatCurrency(v, hideValues)}
-                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                  contentStyle={chart.tooltipStyle}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
                 <Bar dataKey="income" name="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -516,22 +518,22 @@ export default function ReportsPage() {
         <div className="w-full h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={last12MonthsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.gridStroke} vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tick={{ fontSize: 11, fill: chart.axisStroke }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tick={{ fontSize: 11, fill: chart.axisStroke }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) => (hideValues ? '•••' : `R$${(v / 1000).toFixed(0)}k`)}
               />
               <Tooltip
                 formatter={(v: number) => formatCurrency(v, hideValues)}
-                contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                contentStyle={chart.tooltipStyle}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
               <Line

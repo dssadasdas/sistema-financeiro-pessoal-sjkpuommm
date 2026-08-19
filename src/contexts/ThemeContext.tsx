@@ -19,12 +19,16 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undef
 export function ThemeProvider({
   children,
   defaultTheme = 'light',
-  storageKey = 'raiz-ui-theme',
+  storageKey = 'semeia-theme',
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem(storageKey) as Theme | null
-    if (saved) return saved
+    try {
+      const saved = localStorage.getItem(storageKey) as Theme | null
+      if (saved === 'dark' || saved === 'light') return saved
+    } catch {
+      /* storage indisponível */
+    }
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : defaultTheme
   })
 
@@ -32,7 +36,12 @@ export function ThemeProvider({
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
     root.classList.add(theme)
-    localStorage.setItem(storageKey, theme)
+    root.style.colorScheme = theme
+    try {
+      localStorage.setItem(storageKey, theme)
+    } catch {
+      /* storage indisponível */
+    }
   }, [theme, storageKey])
 
   const toggleTheme = () => {
