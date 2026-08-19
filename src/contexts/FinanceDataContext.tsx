@@ -296,7 +296,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       (t) =>
         t.credit_card === card.id &&
         t.type === 'despesa' &&
-        (!t.source || t.source === 'manual' || t.source === 'importado' || t.source === 'parcela'),
+        (!t.source || t.source === 'manual' || t.source === 'importado'),
     )
     const txnsTotal = cardTxns.reduce((acc, curr) => acc + Number(curr.value || 0), 0)
 
