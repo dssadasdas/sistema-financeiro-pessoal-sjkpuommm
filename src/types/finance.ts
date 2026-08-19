@@ -209,6 +209,9 @@ export interface Goal {
   user: string
   name: string
   target_value: number
+  target_date?: string
+  category?: string
+  description?: string
   color?: string
   icon?: string
   created: string
@@ -217,6 +220,7 @@ export interface Goal {
   accumulated?: number
   percentage?: number
   remaining?: number
+  contributions?: GoalContribution[]
 }
 
 export interface GoalContribution {

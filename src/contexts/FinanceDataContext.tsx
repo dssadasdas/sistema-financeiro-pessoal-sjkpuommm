@@ -365,7 +365,9 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // 5. Goals with accumulated
   const goalsWithAccumulated: Goal[] = goals.map((g) => {
-    const contribs = goalContributions.filter((c) => c.goal === g.id)
+    const contribs = goalContributions
+      .filter((c) => c.goal === g.id)
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
     const accumulated = contribs.reduce((acc, c) => acc + Number(c.value || 0), 0)
     const target = Number(g.target_value || 0)
     const remaining = Math.max(0, target - accumulated)
@@ -376,6 +378,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       accumulated,
       percentage,
       remaining,
+      contributions: contribs,
     }
   })
 
