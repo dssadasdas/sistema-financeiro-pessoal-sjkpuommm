@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T02:07:19.273Z",
+  "generatedAt": "2026-08-19T02:24:32.803Z",
   "collections": [
     {
       "name": "users",
@@ -1348,6 +1348,61 @@
       "indexes": [
         "CREATE INDEX idx_recurring_bills_user ON recurring_bills (user)",
         "CREATE INDEX idx_recurring_bills_active_next ON recurring_bills (active, next_date)"
+      ]
+    },
+    {
+      "name": "ai_advisor_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != \"\" && user = @request.auth.id",
+        "view": "@request.auth.id != \"\" && user = @request.auth.id",
+        "create": "@request.auth.id != \"\" && user = @request.auth.id",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "question",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "offline",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_ai_advisor_user_created ON ai_advisor_requests (user, created DESC)"
       ]
     }
   ]

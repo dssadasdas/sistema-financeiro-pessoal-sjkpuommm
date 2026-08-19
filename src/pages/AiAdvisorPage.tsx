@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/constants'
+import { askAiAdvisor, buildAiContext } from '@/lib/aiAdvisor'
 import {
   Sparkles,
   TrendingUp,
@@ -12,7 +13,6 @@ import {
   Calendar,
   ShieldCheck,
   Flame,
-  ArrowRight,
   ChevronDown,
   Wallet,
   PiggyBank,
@@ -21,6 +21,9 @@ import {
   AlertCircle,
   Scissors,
   BarChart3,
+  Bot,
+  Send,
+  Loader2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -83,6 +86,27 @@ const QUICK_QUESTIONS: Array<{
   },
 ]
 
+const QUICK_QUESTION_TEXT: Record<QuickQuestionId, string> = {
+  cortar: 'Onde posso cortar gastos? Analise minhas categorias e sugira cortes.',
+  mes: 'Como está meu mês financeiro? Faça um resumo.',
+  vencer: 'O que vai vencer? Liste contas vencidas e próximas.',
+  investimentos: 'Como estão meus investimentos? Analise patrimônio e rentabilidade.',
+}
+
+const CHAT_SUGGESTIONS = [
+  'Qual meu maior gasto supérfluo?',
+  'Vale a pena investir mais?',
+  'Como reduzir gastos com cartão?',
+]
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  offline?: boolean
+  pending?: boolean
+}
+
 export default function AiAdvisorPage() {
   const {
     transactions,
@@ -91,15 +115,26 @@ export default function AiAdvisorPage() {
     bills,
     budgets,
     investments,
+    goals,
     totalInvested,
     totalInvestmentsResult,
     isLoading,
     loadError,
     refreshAll,
   } = useFinance()
-  const { user, hideValues } = useAuth()
+  const { hideValues } = useAuth()
 
   const [expandedQuestion, setExpandedQuestion] = useState<QuickQuestionId | null>(null)
+  const [quickAnswers, setQuickAnswers] = useState<
+    Record<string, { content: string; offline: boolean }>
+  >({})
+  const [quickLoading, setQuickLoading] = useState<QuickQuestionId | null>(null)
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
 
   const analytics = useMemo(() => {
     const currentMonthKey = new Date().toISOString().slice(0, 7)
@@ -191,7 +226,6 @@ export default function AiAdvisorPage() {
 
     // 9. Sugestão de economia (gastos recorrentes médios)
     const recurringSuggestion = (() => {
-      // média de despesa dos últimos 3 meses
       const now = new Date()
       let total3m = 0
       for (let i = 0; i < 3; i++) {
@@ -205,7 +239,6 @@ export default function AiAdvisorPage() {
           .reduce((acc, t) => acc + Number(t.value || 0), 0)
       }
       const avgMonthly = total3m / 3
-      // sugere investir 10% da média se houver sobra
       const suggested = Math.max(0, Math.round((avgMonthly * 0.1) / 50) * 50)
       return { avgMonthly, suggested }
     })()
@@ -262,281 +295,114 @@ export default function AiAdvisorPage() {
     totalInvestmentsResult,
   ])
 
-  // Respostas das perguntas rápidas
-  const getAnswer = (id: QuickQuestionId): React.ReactNode => {
-    if (id === 'cortar') {
-      if (analytics.sortedCats.length === 0) {
-        return (
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Você ainda não registrou despesas suficientes este mês. Registre seus lançamentos para
-            identificarmos oportunidades de corte.
-          </p>
-        )
+  const aiContext = useMemo(
+    () =>
+      buildAiContext({
+        transactions,
+        accounts,
+        creditCards,
+        bills,
+        budgets,
+        goals,
+        investments,
+        totalInvested,
+        totalInvestmentsResult,
+      }),
+    [
+      transactions,
+      accounts,
+      creditCards,
+      bills,
+      budgets,
+      goals,
+      investments,
+      totalInvested,
+      totalInvestmentsResult,
+    ],
+  )
+
+  // Auto-scroll chat para o fim
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const handleQuickQuestion = useCallback(
+    async (id: QuickQuestionId) => {
+      // Se já tem resposta, apenas recolhe/abre sem refazer a chamada
+      if (quickAnswers[id]) {
+        setExpandedQuestion((cur) => (cur === id ? null : id))
+        return
       }
-      const rising = analytics.categoryTrend.rising.slice(0, 3)
-      return (
-        <div className="space-y-3 text-sm">
-          <p className="text-slate-600 dark:text-slate-300">
-            Analisamos suas categorias de gasto dos últimos 3 meses. Sua maior despesa atual é{' '}
-            <strong className="text-slate-900 dark:text-white">{analytics.topCategory?.[0]}</strong>{' '}
-            ({formatCurrency(analytics.topCategory?.[1] || 0, hideValues)}).
-          </p>
-          {rising.length > 0 ? (
-            <>
-              <p className="text-slate-600 dark:text-slate-300 font-medium">
-                Categorias com tendência de alta (últimos 3 meses):
-              </p>
-              <div className="space-y-2">
-                {rising.map((r) => (
-                  <div
-                    key={r.category}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white text-sm">
-                        {r.category}
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        {formatCurrency(r.values[0], hideValues)} →{' '}
-                        {formatCurrency(r.values[2], hideValues)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 font-bold">
-                        <TrendingUp className="w-3 h-3 mr-0.5" />+{r.pct.toFixed(0)}%
-                      </Badge>
-                      <div className="text-[11px] text-slate-500 mt-1">
-                        Corte 15%:{' '}
-                        <strong className="text-emerald-600">
-                          {formatCurrency(r.values[2] * 0.15, hideValues)}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-slate-600 dark:text-slate-300">
-              Nenhuma categoria apresenta tendência de alta significativa nos últimos 3 meses. Bom
-              sinal!
-            </p>
-          )}
-          <p className="text-xs text-slate-500 flex items-start gap-1.5">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-            Dica: definir um teto mensal na aba Orçamento para as categorias acima evita
-            extrapolações.
-          </p>
-        </div>
-      )
-    }
-
-    if (id === 'mes') {
-      const ratio =
-        analytics.totalIncome > 0 ? (analytics.totalExpenses / analytics.totalIncome) * 100 : 0
-      return (
-        <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
-              <div className="text-[11px] text-slate-500">Receitas</div>
-              <div className="font-black text-emerald-600 tabular-nums">
-                +{formatCurrency(analytics.totalIncome, hideValues)}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30">
-              <div className="text-[11px] text-slate-500">Despesas</div>
-              <div className="font-black text-orange-600 tabular-nums">
-                −{formatCurrency(analytics.totalExpenses, hideValues)}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50">
-              <div className="text-[11px] text-slate-500">Saldo</div>
-              <div
-                className={cn(
-                  'font-black tabular-nums',
-                  analytics.netSavings >= 0 ? 'text-emerald-600' : 'text-red-600',
-                )}
-              >
-                {analytics.netSavings >= 0 ? '+' : ''}
-                {formatCurrency(analytics.netSavings, hideValues)}
-              </div>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50">
-              <div className="text-[11px] text-slate-500">Economia</div>
-              <div className="font-black text-slate-900 dark:text-white">
-                {analytics.savingsRate}%
-              </div>
-            </div>
-          </div>
-          <p className="text-slate-600 dark:text-slate-300">
-            Você está gastando{' '}
-            <strong className={ratio > 100 ? 'text-red-600' : 'text-slate-900 dark:text-white'}>
-              {ratio.toFixed(0)}%
-            </strong>{' '}
-            da sua renda.{' '}
-            {analytics.netSavings >= 0
-              ? '🎉 Excelente! Você está fechando o mês no azul e gerando poupança.'
-              : '⚠️ Atenção: suas despesas superaram as receitas. Recomendo conter novos gastos.'}
-          </p>
-          {analytics.sortedCats.length > 0 && (
-            <div>
-              <p className="text-slate-600 dark:text-slate-300 font-medium mb-1.5">
-                Gastos por categoria (top 5):
-              </p>
-              <div className="space-y-1">
-                {analytics.sortedCats.slice(0, 5).map(([cat, val]) => (
-                  <div key={cat} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600 dark:text-slate-300">{cat}</span>
-                    <span className="font-bold text-slate-900 dark:text-white tabular-nums">
-                      {formatCurrency(val, hideValues)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )
-    }
-
-    if (id === 'vencer') {
-      if (analytics.upcomingBills.length === 0 && analytics.overdueBills.length === 0) {
-        return (
-          <div className="flex items-center gap-2 text-sm text-emerald-600">
-            <CheckCircle2 className="w-4 h-4" />
-            Todas as suas contas cadastradas estão em dia! Nenhuma pendência no momento.
-          </div>
-        )
+      setExpandedQuestion(id)
+      setQuickLoading(id)
+      try {
+        const result = await askAiAdvisor(QUICK_QUESTION_TEXT[id], aiContext, 'quick')
+        setQuickAnswers((prev) => ({
+          ...prev,
+          [id]: { content: result.content, offline: result.offline },
+        }))
+      } catch {
+        setQuickAnswers((prev) => ({
+          ...prev,
+          [id]: {
+            content: 'Não foi possível obter a análise agora. Tente novamente em instantes.',
+            offline: true,
+          },
+        }))
+      } finally {
+        setQuickLoading(null)
       }
-      return (
-        <div className="space-y-3 text-sm">
-          {analytics.overdueBills.length > 0 && (
-            <div>
-              <p className="text-red-600 font-bold flex items-center gap-1.5 mb-1.5">
-                <AlertTriangle className="w-4 h-4" />
-                {analytics.overdueBills.length} conta(s) vencida(s):
-              </p>
-              <div className="space-y-1.5">
-                {analytics.overdueBills.slice(0, 5).map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-950/30"
-                  >
-                    <div>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {b.description}
-                      </span>
-                      <span className="text-[11px] text-slate-500 ml-1">
-                        venceu em {formatDate(b.due_date)}
-                      </span>
-                    </div>
-                    <span className="font-bold text-red-600 tabular-nums">
-                      {formatCurrency(b.value, hideValues)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <p className="text-slate-600 dark:text-slate-300 font-medium mb-1.5">
-              Próximos compromissos:
-            </p>
-            <div className="space-y-1.5">
-              {analytics.upcomingBills.slice(0, 5).map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50"
-                >
-                  <div>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {b.description}
-                    </span>
-                    <span className="text-[11px] text-slate-500 ml-1">
-                      {formatDate(b.due_date)}
-                    </span>
-                  </div>
-                  <span className="font-bold text-slate-900 dark:text-white tabular-nums">
-                    {formatCurrency(b.value, hideValues)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="text-xs text-slate-500">
-            Total pendente:{' '}
-            <strong>{formatCurrency(analytics.totalBillsPending, hideValues)}</strong> • Saldo em
-            contas: <strong>{formatCurrency(analytics.totalCash, hideValues)}</strong>
-          </p>
-        </div>
-      )
-    }
+    },
+    [aiContext, quickAnswers],
+  )
 
-    // investimentos
-    if (investments.length === 0) {
-      return (
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Você ainda não cadastrou investimentos. Vá até a aba "Investimentos" para registrar CDB,
-          CDI 100%, Ações, FIIs ou Criptomoedas.
-        </p>
-      )
-    }
-    const types = new Set(investments.map((i) => i.type))
-    const diversificationTip = types.size < 3 && investments.length < 4
-    return (
-      <div className="space-y-3 text-sm">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50">
-            <div className="text-[11px] text-slate-500">Total aplicado</div>
-            <div className="font-black text-slate-900 dark:text-white tabular-nums">
-              {formatCurrency(analytics.totalInvested, hideValues)}
-            </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30">
-            <div className="text-[11px] text-slate-500">Patrimônio atual</div>
-            <div className="font-black text-emerald-600 tabular-nums">
-              {formatCurrency(analytics.totalInvestCurrent, hideValues)}
-            </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/50">
-            <div className="text-[11px] text-slate-500">Rentabilidade</div>
-            <div
-              className={cn(
-                'font-black tabular-nums',
-                analytics.investGain >= 0 ? 'text-emerald-600' : 'text-red-600',
-              )}
-            >
-              {analytics.investGain >= 0 ? '+' : ''}
-              {analytics.investGainPct.toFixed(1)}%
-            </div>
-          </div>
-        </div>
-        <div>
-          <p className="text-slate-600 dark:text-slate-300 font-medium mb-1.5">Sua carteira:</p>
-          <div className="space-y-1">
-            {investments.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-300">
-                  {inv.name}{' '}
-                  <span className="text-[10px] uppercase text-slate-400">({inv.type})</span>
-                </span>
-                <span className="font-bold text-slate-900 dark:text-white tabular-nums">
-                  {formatCurrency(inv.current_total_value || inv.applied_value, hideValues)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {diversificationTip && (
-          <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl">
-            <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-            Sua carteira está concentrada em poucos ativos. Considere diversificar entre renda fixa,
-            variável e cripto para reduzir riscos.
-          </div>
-        )}
-      </div>
-    )
-  }
+  const sendChatMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed || chatLoading) return
+      const userMsg: ChatMessage = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+      }
+      const pendingId = `a-${Date.now()}`
+      const pendingMsg: ChatMessage = {
+        id: pendingId,
+        role: 'assistant',
+        content: '',
+        pending: true,
+      }
+      setChatMessages((prev) => [...prev, userMsg, pendingMsg])
+      setChatInput('')
+      setChatLoading(true)
+      try {
+        const result = await askAiAdvisor(trimmed, aiContext, 'chat')
+        setChatMessages((prev) =>
+          prev.map((m) =>
+            m.id === pendingId
+              ? { ...m, content: result.content, offline: result.offline, pending: false }
+              : m,
+          ),
+        )
+      } catch {
+        setChatMessages((prev) =>
+          prev.map((m) =>
+            m.id === pendingId
+              ? {
+                  ...m,
+                  content: 'Não foi possível obter a análise agora. Tente novamente em instantes.',
+                  offline: true,
+                  pending: false,
+                }
+              : m,
+          ),
+        )
+      } finally {
+        setChatLoading(false)
+      }
+    },
+    [aiContext, chatLoading],
+  )
 
   if (isLoading) {
     return <LoadingState message="Analisando seus dados financeiros..." />
@@ -561,11 +427,11 @@ export default function AiAdvisorPage() {
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">IA Financeira</h2>
             <Badge className="bg-emerald-500 text-white gap-1 text-[11px] font-bold py-0.5">
-              <Sparkles className="w-3 h-3 fill-current" /> Análise Inteligente
+              <Sparkles className="w-3 h-3 fill-current" /> IA Generativa
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-500">
-            Diagnóstico completo em tempo real e insights acionáveis baseados nos seus dados
+            Análise inteligente em tempo real com IA generativa, baseada nos seus dados reais
           </p>
         </div>
       </div>
@@ -769,24 +635,30 @@ export default function AiAdvisorPage() {
         </Card>
       </div>
 
-      {/* Perguntas rápidas */}
+      {/* Perguntas rápidas (IA generativa) */}
       <div>
         <h3 className="font-bold text-base text-slate-900 dark:text-white mb-3 flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-emerald-600" />
           Perguntas Rápidas
+          <Badge variant="outline" className="text-[10px] font-normal text-slate-500">
+            IA generativa
+          </Badge>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {QUICK_QUESTIONS.map((q) => {
             const Icon = q.icon
             const isOpen = expandedQuestion === q.id
+            const isLoadingThis = quickLoading === q.id
+            const answer = quickAnswers[q.id]
             return (
               <Card
                 key={q.id}
                 className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm overflow-hidden"
               >
                 <button
-                  onClick={() => setExpandedQuestion(isOpen ? null : q.id)}
-                  className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors"
+                  onClick={() => handleQuickQuestion(q.id)}
+                  disabled={!!quickLoading}
+                  className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors disabled:opacity-60"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -796,16 +668,26 @@ export default function AiAdvisorPage() {
                       {q.question}
                     </span>
                   </div>
-                  <ChevronDown
-                    className={cn(
-                      'w-4 h-4 text-slate-400 transition-transform',
-                      isOpen && 'rotate-180',
-                    )}
-                  />
+                  {isLoadingThis ? (
+                    <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                  ) : (
+                    <ChevronDown
+                      className={cn(
+                        'w-4 h-4 text-slate-400 transition-transform',
+                        isOpen && 'rotate-180',
+                      )}
+                    />
+                  )}
                 </button>
                 {isOpen && (
                   <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    {getAnswer(q.id)}
+                    {isLoadingThis ? (
+                      <TypingIndicator />
+                    ) : answer ? (
+                      <AiAnswer content={answer.content} offline={answer.offline} />
+                    ) : (
+                      <p className="text-sm text-slate-500">Sem resposta.</p>
+                    )}
                   </div>
                 )}
               </Card>
@@ -923,11 +805,165 @@ export default function AiAdvisorPage() {
         </Card>
       </div>
 
+      {/* Chat livre com a IA */}
+      <div>
+        <h3 className="font-bold text-base text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+          <Bot className="w-4 h-4 text-emerald-600" />
+          Conversa com a IA Financeira
+          <Badge variant="outline" className="text-[10px] font-normal text-slate-500">
+            Chat livre
+          </Badge>
+        </h3>
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm overflow-hidden flex flex-col">
+          {/* Mensagens */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[420px] min-h-[200px] bg-slate-50/50 dark:bg-slate-900/20">
+            {chatMessages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center py-10 gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Olá! 👋 Sou sua IA Financeira.
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                    Pergunte qualquer coisa sobre suas finanças — gastos, metas, investimentos,
+                    contas a pagar. Estou aqui para ajudar!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((m) => <ChatBubble key={m.id} message={m} />)
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Sugestões */}
+          {chatMessages.length === 0 && (
+            <div className="px-4 pb-2 flex flex-wrap gap-2">
+              {CHAT_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => sendChatMessage(s)}
+                  disabled={chatLoading}
+                  className="text-xs px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-800 transition-colors disabled:opacity-50"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <form
+            onSubmit={(ev) => {
+              ev.preventDefault()
+              sendChatMessage(chatInput)
+            }}
+            className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Pergunte sobre suas finanças..."
+              disabled={chatLoading}
+              className="flex-1 bg-slate-100 dark:bg-slate-800 border-0 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={!chatInput.trim() || chatLoading}
+              className="shrink-0 w-10 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Enviar"
+            >
+              {chatLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          </form>
+        </Card>
+      </div>
+
       {/* Rodapé */}
       <div className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
         <Sparkles className="w-3 h-3" />
-        Análise programática baseada nos seus dados reais de{' '}
+        Análise com IA generativa baseada nos seus dados reais de{' '}
         {formatMonthYear(analytics.currentMonthKey)}.
+      </div>
+    </div>
+  )
+}
+
+// ---------- Subcomponentes ----------
+
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-slate-500">
+      <Bot className="w-4 h-4 text-emerald-600" />
+      <span className="font-medium">Pensando</span>
+      <span className="inline-flex gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" />
+      </span>
+    </div>
+  )
+}
+
+function AiAnswer({ content, offline }: { content: string; offline?: boolean }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
+        {content}
+      </div>
+      {offline && (
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+          <AlertCircle className="w-3 h-3" />
+          Análise offline — IA indisponível no momento
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ChatBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user'
+  if (message.pending) {
+    return (
+      <div className="flex items-start gap-2 justify-start">
+        <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+          <Bot className="w-4 h-4 text-emerald-600" />
+        </div>
+        <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3.5 py-2.5">
+          <TypingIndicator />
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className={cn('flex items-start gap-2', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && (
+        <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center shrink-0">
+          <Bot className="w-4 h-4 text-emerald-600" />
+        </div>
+      )}
+      <div
+        className={cn(
+          'max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed',
+          isUser
+            ? 'rounded-tr-sm bg-emerald-600 text-white'
+            : 'rounded-tl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200',
+        )}
+      >
+        {message.content}
+        {message.offline && !isUser && (
+          <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-700">
+            <AlertCircle className="w-3 h-3" />
+            Análise offline — IA indisponível no momento
+          </div>
+        )}
       </div>
     </div>
   )
