@@ -1,0 +1,167 @@
+import React from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from '@/components/ui/toaster'
+import { Toaster as Sonner } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { FinanceDataProvider } from '@/contexts/FinanceDataContext'
+import Layout from '@/components/Layout'
+
+// Páginas Públicas
+import LandingPage from '@/pages/LandingPage'
+import LoginPage from '@/pages/LoginPage'
+import SignupPage from '@/pages/SignupPage'
+import PaywallPage from '@/pages/PaywallPage'
+import NotFound from '@/pages/NotFound'
+
+// Páginas Autenticadas
+import DashboardPage from '@/pages/DashboardPage'
+import TransactionsPage from '@/pages/TransactionsPage'
+import StatementPage from '@/pages/StatementPage'
+import AccountsPage from '@/pages/AccountsPage'
+import CardsPage from '@/pages/CardsPage'
+import CardDetailPage from '@/pages/CardDetailPage'
+import BillsPage from '@/pages/BillsPage'
+import RecurrencesPage from '@/pages/RecurrencesPage'
+import InstallmentsPage from '@/pages/InstallmentsPage'
+import BudgetPage from '@/pages/BudgetPage'
+import GoalsPage from '@/pages/GoalsPage'
+import ForecastPage from '@/pages/ForecastPage'
+import InvestmentsPage from '@/pages/InvestmentsPage'
+import ReportsPage from '@/pages/ReportsPage'
+import AiAdvisorPage from '@/pages/AiAdvisorPage'
+import SettingsPage from '@/pages/SettingsPage'
+
+// Protected Route Guard
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, subscription } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9] dark:bg-[#0B111E]">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white font-black text-2xl shadow-lg animate-pulse mb-4">
+          R
+        </div>
+        <p className="text-sm font-semibold text-slate-500 animate-pulse">
+          Carregando Raiz Finanças...
+        </p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Se assinatura estiver explicitamente bloqueada ou expirada e não estiver na rota de paywall
+  if (subscription && subscription.status === 'bloqueada') {
+    return <Navigate to="/paywall" replace />
+  }
+
+  return <>{children}</>
+}
+
+// Public Route Guard (redirects to /inicio if logged in)
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return null
+  }
+
+  if (user) {
+    return <Navigate to="/inicio" replace />
+  }
+
+  return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <FinanceDataProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                {/* Landing Page Comercial Aberta */}
+                <Route path="/" element={<LandingPage />} />
+
+                {/* Autenticação */}
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/cadastro"
+                  element={
+                    <PublicRoute>
+                      <SignupPage />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/registro"
+                  element={
+                    <PublicRoute>
+                      <SignupPage />
+                    </PublicRoute>
+                  }
+                />
+
+                {/* Paywall */}
+                <Route path="/paywall" element={<PaywallPage />} />
+
+                {/* App Shell Autenticado */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/inicio" element={<DashboardPage />} />
+                  <Route path="/dashboard" element={<Navigate to="/inicio" replace />} />
+                  <Route path="/lancamentos" element={<TransactionsPage />} />
+                  <Route path="/transacoes" element={<Navigate to="/lancamentos" replace />} />
+                  <Route path="/extrato" element={<StatementPage />} />
+                  <Route path="/contas" element={<AccountsPage />} />
+                  <Route path="/cartoes" element={<CardsPage />} />
+                  <Route path="/cartoes/:id" element={<CardDetailPage />} />
+                  <Route path="/faturas" element={<CardsPage />} />
+                  <Route path="/contas-e-boletos" element={<BillsPage />} />
+                  <Route
+                    path="/contas-a-pagar"
+                    element={<Navigate to="/contas-e-boletos" replace />}
+                  />
+                  <Route path="/recorrentes" element={<RecurrencesPage />} />
+                  <Route path="/recorrencias" element={<Navigate to="/recorrentes" replace />} />
+                  <Route path="/parcelamentos" element={<InstallmentsPage />} />
+                  <Route path="/orcamento" element={<BudgetPage />} />
+                  <Route path="/orcamentos" element={<Navigate to="/orcamento" replace />} />
+                  <Route path="/metas" element={<GoalsPage />} />
+                  <Route path="/previsao" element={<ForecastPage />} />
+                  <Route path="/investimentos" element={<InvestmentsPage />} />
+                  <Route path="/relatorios" element={<ReportsPage />} />
+                  <Route path="/ia-financeira" element={<AiAdvisorPage />} />
+                  <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
+                  <Route path="/configuracoes" element={<SettingsPage />} />
+                </Route>
+
+                {/* 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TooltipProvider>
+          </FinanceDataProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  )
+}
