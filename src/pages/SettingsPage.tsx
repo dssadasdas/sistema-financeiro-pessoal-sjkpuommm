@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
-const LAST_SYNC_KEY = 'semia_last_sync'
+const LAST_SYNC_KEY = 'semeia_last_sync'
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime()
@@ -844,7 +844,7 @@ export default function SettingsPage() {
               </AlertDialog>
 
               <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-1">
-                Semia v1.0.0
+                Semeia v1.0.0
               </p>
             </CardContent>
           </Card>

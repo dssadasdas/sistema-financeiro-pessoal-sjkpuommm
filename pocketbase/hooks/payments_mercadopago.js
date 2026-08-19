@@ -1,5 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Pagamentos Mercado Pago — Semia (Checkout Pro / preferência)
+// Pagamentos Mercado Pago — Semeia (Checkout Pro / preferência)
 //
 // Endpoints:
 //   POST /backend/v1/payments/mercadopago/checkout   (auth) -> cria preferência
@@ -16,7 +16,7 @@
 //   4. Backend busca o pagamento em /v1/payments/{id} com o access token
 //   5. Se status=approved, ativa a assinatura local
 //
-// Normalização de status (MP -> Semia):
+// Normalização de status (MP -> Semeia):
 //   approved                -> ativa  + admin_released = true
 //   pending | in_process    -> mantém estado (não libera)
 //   rejected | cancelled    -> bloqueada
@@ -73,9 +73,9 @@ routerAdd(
       const prefObj = {
         items: [
           {
-            id: 'semia-' + plan,
-            title: 'Semia Plano ' + planLabelPt,
-            description: 'Assinatura Semia ' + planLabelPt + ' — sistema financeiro pessoal',
+            id: 'semeia-' + plan,
+            title: 'Semeia Plano ' + planLabelPt,
+            description: 'Assinatura Semeia ' + planLabelPt + ' — sistema financeiro pessoal',
             quantity: 1,
             currency_id: 'BRL',
             unit_price: unitAmount,
@@ -95,7 +95,7 @@ routerAdd(
           plan: planPt,
           provider: 'mercadopago',
         },
-        statement_descriptor: 'SEMIA',
+        statement_descriptor: 'SEMEIA',
         // Subscriptions via MP: tentamos criar preferência com subscrição.
         // (MP tem API separada para assinaturas recorrentes; para simplicidade
         //  usamos checkout Pro de pagamento único e renovamos pelo webhook do

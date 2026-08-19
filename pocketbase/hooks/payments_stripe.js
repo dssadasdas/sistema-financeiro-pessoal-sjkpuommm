@@ -1,5 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Pagamentos Stripe — Semia
+// Pagamentos Stripe — Semeia
 //
 // Endpoints:
 //   POST /backend/v1/payments/stripe/checkout   (auth)  -> cria Checkout Session
@@ -11,7 +11,7 @@
 //   STRIPE_SECRET_KEY        (chave secreta da API Stripe)
 //   STRIPE_WEBHOOK_SECRET    (signing secret do endpoint de webhook)
 //
-// Normalização de status (Stripe -> Semia):
+// Normalização de status (Stripe -> Semeia):
 //   active | trialing         -> ativa   + admin_released = true
 //   past_due | unpaid         -> ativa   (período de carência mantém acesso)
 //   canceled | incomplete...  -> bloqueada + admin_released = false
@@ -87,9 +87,9 @@ routerAdd(
         'line_items[0][price_data][currency]=' + enc('brl'),
         'line_items[0][price_data][unit_amount]=' + enc(String(unitAmount)),
         'line_items[0][price_data][recurring][interval]=' + enc(interval),
-        'line_items[0][price_data][product_data][name]=' + enc('Semia Plano ' + planLabelPt),
+        'line_items[0][price_data][product_data][name]=' + enc('Semeia Plano ' + planLabelPt),
         'line_items[0][price_data][product_data][description]=' +
-          enc('Assinatura Semia ' + planLabelPt + ' — sistema financeiro pessoal'),
+          enc('Assinatura Semeia ' + planLabelPt + ' — sistema financeiro pessoal'),
         'client_reference_id=' + enc(userId),
         'subscription_data[metadata][user_id]=' + enc(userId),
         'subscription_data[metadata][plan]=' + enc(planPt),

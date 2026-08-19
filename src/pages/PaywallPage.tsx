@@ -119,7 +119,7 @@ export default function PaywallPage() {
               S
             </div>
             <span className="font-extrabold text-3xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-              Semia
+              Semeia
             </span>
           </div>
 
@@ -130,7 +130,7 @@ export default function PaywallPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-1">
             {isSubscriptionActive
               ? 'Seu acesso foi liberado com sucesso!'
-              : 'Assine o Semia para liberar seu painel completo'}
+              : 'Assine o Semeia para liberar seu painel completo'}
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             {isSubscriptionActive

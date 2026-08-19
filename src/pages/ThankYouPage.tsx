@@ -261,7 +261,7 @@ export default function ThankYouPage() {
                 Pagamento confirmado! 🎉
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                Sua assinatura Semia está ativa.
+                Sua assinatura Semeia está ativa.
               </p>
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-6">
                 Plano {planLabel}

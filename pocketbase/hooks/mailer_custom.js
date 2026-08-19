@@ -1,5 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Emails transacionais do Semia em pt-BR — templates do Mailer nativo.
+// Emails transacionais do Semeia em pt-BR — templates do Mailer nativo.
 //
 // O e-mail de boas-vindas foi movido para subscription_emails.js (via SendGrid,
 // com fallback para o Mailer nativo). Este arquivo mantém apenas a
@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 onMailerRecordVerificationSend((e) => {
   const name = e.record.getString('name') || e.record.email()
-  e.message.subject = 'Confirme seu e-mail no Semia'
+  e.message.subject = 'Confirme seu e-mail no Semeia'
   e.message.html =
     '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">' +
     '<div style="background:linear-gradient(135deg,#059669,#14b8a6);padding:24px;border-radius:16px 16px 0 0;text-align:center">' +
@@ -24,7 +24,7 @@ onMailerRecordVerificationSend((e) => {
     '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
     name +
     '</strong>!</p>' +
-    '<p style="font-size:15px;line-height:1.6">Confirme seu endereço de e-mail para garantir a segurança da sua conta no Semia.</p>' +
+    '<p style="font-size:15px;line-height:1.6">Confirme seu endereço de e-mail para garantir a segurança da sua conta no Semeia.</p>' +
     '<div style="text-align:center;margin:28px 0">' +
     '<a href="' +
     e.message.actionUrl +
@@ -43,7 +43,7 @@ onMailerRecordVerificationSend((e) => {
 // ---------------------------------------------------------------------------
 onMailerRecordPasswordResetSend((e) => {
   const name = e.record.getString('name') || e.record.email()
-  e.message.subject = 'Redefina sua senha no Semia'
+  e.message.subject = 'Redefina sua senha no Semeia'
   e.message.html =
     '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">' +
     '<div style="background:linear-gradient(135deg,#059669,#14b8a6);padding:24px;border-radius:16px 16px 0 0;text-align:center">' +
@@ -53,7 +53,7 @@ onMailerRecordPasswordResetSend((e) => {
     '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
     name +
     '</strong>!</p>' +
-    '<p style="font-size:15px;line-height:1.6">Recebemos uma solicitação para redefinir a senha da sua conta no Semia. Clique no botão abaixo para criar uma nova senha:</p>' +
+    '<p style="font-size:15px;line-height:1.6">Recebemos uma solicitação para redefinir a senha da sua conta no Semeia. Clique no botão abaixo para criar uma nova senha:</p>' +
     '<div style="text-align:center;margin:28px 0">' +
     '<a href="' +
     e.message.actionUrl +

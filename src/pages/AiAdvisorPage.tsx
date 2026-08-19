@@ -569,7 +569,7 @@ export default function AiAdvisorPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Olá! 👋 Sou a Semia, sua IA Financeira.
+                    Olá! 👋 Sou a Semeia, sua IA Financeira.
                   </p>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm">
                     Pergunte qualquer coisa sobre suas finanças — gastos, metas, investimentos,

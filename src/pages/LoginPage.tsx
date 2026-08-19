@@ -88,7 +88,7 @@ export default function LoginPage() {
             <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center text-white shadow-lg">
               <Wallet className="w-6 h-6" />
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-white">Semia</span>
+            <span className="font-extrabold text-2xl tracking-tight text-white">Semeia</span>
           </Link>
         </div>
 

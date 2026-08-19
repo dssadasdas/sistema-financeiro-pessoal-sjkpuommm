@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
-const APP_NAME = 'Semia'
+const APP_NAME = 'Semeia'
 
 type TitleEntry = { match: (p: string) => boolean; title: string }
 

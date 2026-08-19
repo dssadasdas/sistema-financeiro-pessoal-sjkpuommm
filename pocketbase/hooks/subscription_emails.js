@@ -1,5 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
-// Emails transacionais do Semia via SendGrid — pt-BR, identidade esmeralda.
+// Emails transacionais do Semeia via SendGrid — pt-BR, identidade esmeralda.
 //
 // Templates enviados:
 //   1. Boas-vindas                          (ao criar conta — onRecordAfterCreateSuccess em users)
@@ -10,7 +10,7 @@
 //
 // Secrets:
 //   SENDGRID_API_KEY     (chave da API do SendGrid, "SG.xxxx...")
-//   SENDGRID_FROM_EMAIL  (remetente, ex.: "Semia <noreply@semia.finance>")
+//   SENDGRID_FROM_EMAIL  (remetente, ex.: "Semeia <noreply@semeia.finance>")
 //
 // IMPORTANTE: o JSVM do PocketBase executa callbacks em um pool de VMs separado,
 // então NENHUMA função/variável top-level é acessível dentro de callbacks. Toda
@@ -44,7 +44,7 @@ onRecordAfterCreateSuccess(function (e) {
       '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
       name +
       '</strong>!</p>' +
-      '<p style="font-size:15px;line-height:1.6">Sua conta no Semia foi criada com sucesso. Agora você tem em um só lugar o controle de receitas, despesas, cartões de crédito, contas a pagar, metas, orçamentos e investimentos — com a ajuda da nossa IA financeira.</p>' +
+      '<p style="font-size:15px;line-height:1.6">Sua conta no Semeia foi criada com sucesso. Agora você tem em um só lugar o controle de receitas, despesas, cartões de crédito, contas a pagar, metas, orçamentos e investimentos — com a ajuda da nossa IA financeira.</p>' +
       '<p style="font-size:15px;line-height:1.6">Para liberar o painel completo, escolha um dos planos e comece a organizar sua vida financeira.</p>' +
       '<div style="text-align:center;margin:28px 0">' +
       '<a href="' +
@@ -58,14 +58,14 @@ onRecordAfterCreateSuccess(function (e) {
       '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">' +
       '<div style="background:linear-gradient(135deg,#059669,#14b8a6);padding:24px;border-radius:16px 16px 0 0;text-align:center">' +
       '<h1 style="color:#fff;margin:0;font-size:22px">' +
-      'Bem-vindo ao Semia 👋' +
+      'Bem-vindo ao Semeia 👋' +
       '</h1>' +
       '</div>' +
       '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
       body +
       '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">' +
-      'Semia · Sistema Financeiro Pessoal<br/>' +
-      'Recebeu este e-mail por ter uma conta no Semia.' +
+      'Semeia · Sistema Financeiro Pessoal<br/>' +
+      'Recebeu este e-mail por ter uma conta no Semeia.' +
       '</p>' +
       '</div></div>'
 
@@ -76,7 +76,7 @@ onRecordAfterCreateSuccess(function (e) {
       // --- inline: parseFromEmail ---
       var rawFrom = $os.getenv('SENDGRID_FROM_EMAIL') || ''
       var fromAddress = rawFrom
-      var fromName = 'Semia'
+      var fromName = 'Semeia'
       if (rawFrom) {
         var lt = rawFrom.indexOf('<')
         var gt = rawFrom.indexOf('>')
@@ -85,15 +85,15 @@ onRecordAfterCreateSuccess(function (e) {
           if (maybeName) fromName = maybeName
           fromAddress = rawFrom.substring(lt + 1, gt).trim()
         } else if (rawFrom.indexOf('@') < 0) {
-          fromAddress = 'noreply@semia.finance'
+          fromAddress = 'noreply@semeia.finance'
         }
       }
-      if (!fromAddress) fromAddress = 'noreply@semia.finance'
+      if (!fromAddress) fromAddress = 'noreply@semeia.finance'
 
       var payload = {
         personalizations: [{ to: [{ email: email }] }],
         from: { email: fromAddress, name: fromName },
-        subject: 'Bem-vindo ao Semia!',
+        subject: 'Bem-vindo ao Semeia!',
         content: [{ type: 'text/html', value: html }],
       }
       try {
@@ -115,25 +115,25 @@ onRecordAfterCreateSuccess(function (e) {
             res.statusCode,
             'para',
             email,
-            'Bem-vindo ao Semia!',
+            'Bem-vindo ao Semeia!',
           )
         }
       } catch (err) {
         console.log('[sendgrid] exceção:', err)
       }
     } else {
-      console.log('[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Bem-vindo ao Semia!')
+      console.log('[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Bem-vindo ao Semeia!')
     }
 
     if (!sent) {
       // Fallback: Mailer nativo do PocketBase (exige SMTP configurado)
       try {
-        var senderAddress = $app.settings().meta.senderAddress || 'noreply@semia.app'
-        var senderName = $app.settings().meta.senderName || 'Semia'
+        var senderAddress = $app.settings().meta.senderAddress || 'noreply@semeia.app'
+        var senderName = $app.settings().meta.senderName || 'Semeia'
         var message = new MailerMessage({
           from: { address: senderAddress, name: senderName },
           to: [{ address: email }],
-          subject: 'Bem-vindo ao Semia!',
+          subject: 'Bem-vindo ao Semeia!',
           html: html,
         })
         $app.newMailClient().send(message)
@@ -216,7 +216,7 @@ routerAdd('POST', '/backend/v1/emails/subscription-activated', function (e) {
       '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
       name +
       '</strong>!</p>' +
-      '<p style="font-size:15px;line-height:1.6">Sua assinatura no Semia foi confirmada com sucesso. 🎉</p>' +
+      '<p style="font-size:15px;line-height:1.6">Sua assinatura no Semeia foi confirmada com sucesso. 🎉</p>' +
       '<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">' +
       '<tr><td style="padding:8px 0;color:#64748b">Plano</td><td style="padding:8px 0;font-weight:600;text-align:right">' +
       planLabel +
@@ -253,8 +253,8 @@ routerAdd('POST', '/backend/v1/emails/subscription-activated', function (e) {
       '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
       bodyHtml +
       '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">' +
-      'Semia · Sistema Financeiro Pessoal<br/>' +
-      'Recebeu este e-mail por ter uma conta no Semia.' +
+      'Semeia · Sistema Financeiro Pessoal<br/>' +
+      'Recebeu este e-mail por ter uma conta no Semeia.' +
       '</p>' +
       '</div></div>'
 
@@ -263,13 +263,13 @@ routerAdd('POST', '/backend/v1/emails/subscription-activated', function (e) {
     var apiKey = $os.getenv('SENDGRID_API_KEY') || ''
     if (!apiKey) {
       console.log(
-        '[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Sua assinatura Semia está ativa!',
+        '[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Sua assinatura Semeia está ativa!',
       )
     } else {
       // --- inline: parseFromEmail ---
       var rawFrom = $os.getenv('SENDGRID_FROM_EMAIL') || ''
       var fromAddress = rawFrom
-      var fromName = 'Semia'
+      var fromName = 'Semeia'
       if (rawFrom) {
         var lt = rawFrom.indexOf('<')
         var gt = rawFrom.indexOf('>')
@@ -278,15 +278,15 @@ routerAdd('POST', '/backend/v1/emails/subscription-activated', function (e) {
           if (maybeName) fromName = maybeName
           fromAddress = rawFrom.substring(lt + 1, gt).trim()
         } else if (rawFrom.indexOf('@') < 0) {
-          fromAddress = 'noreply@semia.finance'
+          fromAddress = 'noreply@semeia.finance'
         }
       }
-      if (!fromAddress) fromAddress = 'noreply@semia.finance'
+      if (!fromAddress) fromAddress = 'noreply@semeia.finance'
 
       var payload = {
         personalizations: [{ to: [{ email: email }] }],
         from: { email: fromAddress, name: fromName },
-        subject: 'Sua assinatura Semia está ativa!',
+        subject: 'Sua assinatura Semeia está ativa!',
         content: [{ type: 'text/html', value: html }],
       }
       try {
@@ -308,7 +308,7 @@ routerAdd('POST', '/backend/v1/emails/subscription-activated', function (e) {
             res.statusCode,
             'para',
             email,
-            'Sua assinatura Semia está ativa!',
+            'Sua assinatura Semeia está ativa!',
           )
         }
       } catch (err) {
@@ -395,7 +395,7 @@ routerAdd('POST', '/backend/v1/emails/payment-receipt', function (e) {
       '</strong>!</p>' +
       '<p style="font-size:15px;line-height:1.6">Recebemos seu pagamento. Aqui está o seu recibo:</p>' +
       '<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">' +
-      '<tr><td style="padding:8px 0;color:#64748b">Descrição</td><td style="padding:8px 0;font-weight:600;text-align:right">Semia Plano ' +
+      '<tr><td style="padding:8px 0;color:#64748b">Descrição</td><td style="padding:8px 0;font-weight:600;text-align:right">Semeia Plano ' +
       planLabel +
       '</td></tr>' +
       '<tr><td style="padding:8px 0;color:#64748b;border-top:1px solid #e2e8f0">Valor</td><td style="padding:8px 0;font-weight:600;text-align:right;border-top:1px solid #e2e8f0">R$ ' +
@@ -432,8 +432,8 @@ routerAdd('POST', '/backend/v1/emails/payment-receipt', function (e) {
       '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
       bodyHtml +
       '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">' +
-      'Semia · Sistema Financeiro Pessoal<br/>' +
-      'Recebeu este e-mail por ter uma conta no Semia.' +
+      'Semeia · Sistema Financeiro Pessoal<br/>' +
+      'Recebeu este e-mail por ter uma conta no Semeia.' +
       '</p>' +
       '</div></div>'
 
@@ -442,13 +442,13 @@ routerAdd('POST', '/backend/v1/emails/payment-receipt', function (e) {
     var apiKey = $os.getenv('SENDGRID_API_KEY') || ''
     if (!apiKey) {
       console.log(
-        '[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Recibo do seu pagamento Semia',
+        '[sendgrid] SENDGRID_API_KEY ausente — email não enviado: Recibo do seu pagamento Semeia',
       )
     } else {
       // --- inline: parseFromEmail ---
       var rawFrom = $os.getenv('SENDGRID_FROM_EMAIL') || ''
       var fromAddress = rawFrom
-      var fromName = 'Semia'
+      var fromName = 'Semeia'
       if (rawFrom) {
         var lt = rawFrom.indexOf('<')
         var gt = rawFrom.indexOf('>')
@@ -457,15 +457,15 @@ routerAdd('POST', '/backend/v1/emails/payment-receipt', function (e) {
           if (maybeName) fromName = maybeName
           fromAddress = rawFrom.substring(lt + 1, gt).trim()
         } else if (rawFrom.indexOf('@') < 0) {
-          fromAddress = 'noreply@semia.finance'
+          fromAddress = 'noreply@semeia.finance'
         }
       }
-      if (!fromAddress) fromAddress = 'noreply@semia.finance'
+      if (!fromAddress) fromAddress = 'noreply@semeia.finance'
 
       var payload = {
         personalizations: [{ to: [{ email: email }] }],
         from: { email: fromAddress, name: fromName },
-        subject: 'Recibo do seu pagamento Semia',
+        subject: 'Recibo do seu pagamento Semeia',
         content: [{ type: 'text/html', value: html }],
       }
       try {
@@ -487,7 +487,7 @@ routerAdd('POST', '/backend/v1/emails/payment-receipt', function (e) {
             res.statusCode,
             'para',
             email,
-            'Recibo do seu pagamento Semia',
+            'Recibo do seu pagamento Semeia',
           )
         }
       } catch (err) {
@@ -535,8 +535,8 @@ routerAdd('POST', '/backend/v1/emails/subscription-canceled', function (e) {
     var isCanceled = reason === 'canceled'
     var title = isCanceled ? 'Assinatura cancelada' : 'Assinatura expirada'
     var intro = isCanceled
-      ? 'Sua assinatura do Semia foi cancelada, conforme solicitado. Você continuará com acesso até o fim do ciclo já pago.'
-      : 'Sua assinatura do Semia expirou. Para voltar a usar todos os recursos, reative agora.'
+      ? 'Sua assinatura do Semeia foi cancelada, conforme solicitado. Você continuará com acesso até o fim do ciclo já pago.'
+      : 'Sua assinatura do Semeia expirou. Para voltar a usar todos os recursos, reative agora.'
 
     var bodyHtml =
       '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
@@ -571,8 +571,8 @@ routerAdd('POST', '/backend/v1/emails/subscription-canceled', function (e) {
       '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
       bodyHtml +
       '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">' +
-      'Semia · Sistema Financeiro Pessoal<br/>' +
-      'Recebeu este e-mail por ter uma conta no Semia.' +
+      'Semeia · Sistema Financeiro Pessoal<br/>' +
+      'Recebeu este e-mail por ter uma conta no Semeia.' +
       '</p>' +
       '</div></div>'
 
@@ -580,12 +580,12 @@ routerAdd('POST', '/backend/v1/emails/subscription-canceled', function (e) {
     var sent = false
     var apiKey = $os.getenv('SENDGRID_API_KEY') || ''
     if (!apiKey) {
-      console.log('[sendgrid] SENDGRID_API_KEY ausente — email não enviado:', title + ' — Semia')
+      console.log('[sendgrid] SENDGRID_API_KEY ausente — email não enviado:', title + ' — Semeia')
     } else {
       // --- inline: parseFromEmail ---
       var rawFrom = $os.getenv('SENDGRID_FROM_EMAIL') || ''
       var fromAddress = rawFrom
-      var fromName = 'Semia'
+      var fromName = 'Semeia'
       if (rawFrom) {
         var lt = rawFrom.indexOf('<')
         var gt = rawFrom.indexOf('>')
@@ -594,15 +594,15 @@ routerAdd('POST', '/backend/v1/emails/subscription-canceled', function (e) {
           if (maybeName) fromName = maybeName
           fromAddress = rawFrom.substring(lt + 1, gt).trim()
         } else if (rawFrom.indexOf('@') < 0) {
-          fromAddress = 'noreply@semia.finance'
+          fromAddress = 'noreply@semeia.finance'
         }
       }
-      if (!fromAddress) fromAddress = 'noreply@semia.finance'
+      if (!fromAddress) fromAddress = 'noreply@semeia.finance'
 
       var payload = {
         personalizations: [{ to: [{ email: email }] }],
         from: { email: fromAddress, name: fromName },
-        subject: title + ' — Semia',
+        subject: title + ' — Semeia',
         content: [{ type: 'text/html', value: html }],
       }
       try {
@@ -619,7 +619,7 @@ routerAdd('POST', '/backend/v1/emails/subscription-canceled', function (e) {
         if (res.statusCode === 202 || res.statusCode === 200) {
           sent = true
         } else {
-          console.log('[sendgrid] erro status', res.statusCode, 'para', email, title + ' — Semia')
+          console.log('[sendgrid] erro status', res.statusCode, 'para', email, title + ' — Semeia')
         }
       } catch (err) {
         console.log('[sendgrid] exceção:', err)
@@ -721,7 +721,7 @@ cronAdd('subscription_emails_reminder', '0 8 * * *', function () {
         '<p style="font-size:15px;line-height:1.6">Olá, <strong>' +
         name +
         '</strong>!</p>' +
-        '<p style="font-size:15px;line-height:1.6">Sua assinatura Semia Plano ' +
+        '<p style="font-size:15px;line-height:1.6">Sua assinatura Semeia Plano ' +
         planLabel +
         ' será renovada automaticamente em <strong>3 dias</strong>.</p>' +
         '<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">' +
@@ -743,7 +743,7 @@ cronAdd('subscription_emails_reminder', '0 8 * * *', function () {
         '</div>'
 
       // --- inline: semiaTemplate ---
-      var templateTitle = 'Sua assinatura Semia renova em 3 dias'
+      var templateTitle = 'Sua assinatura Semeia renova em 3 dias'
       var html =
         '<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">' +
         '<div style="background:linear-gradient(135deg,#059669,#14b8a6);padding:24px;border-radius:16px 16px 0 0;text-align:center">' +
@@ -753,7 +753,7 @@ cronAdd('subscription_emails_reminder', '0 8 * * *', function () {
         '</div>' +
         '<div style="border:1px solid #e2e8f0;border-top:none;padding:28px;border-radius:0 0 16px 16px">' +
         bodyHtml +
-        '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">Semia · Sistema Financeiro Pessoal</p>' +
+        '<p style="font-size:12px;color:#94a3b8;margin-top:28px;text-align:center">Semeia · Sistema Financeiro Pessoal</p>' +
         '</div></div>'
 
       // --- inline: sendSemiaEmail (envio direto via SendGrid) ---
@@ -765,7 +765,7 @@ cronAdd('subscription_emails_reminder', '0 8 * * *', function () {
       // --- inline: parseFromEmail ---
       var rawFrom = $os.getenv('SENDGRID_FROM_EMAIL') || ''
       var fromAddress = rawFrom
-      var fromName = 'Semia'
+      var fromName = 'Semeia'
       if (rawFrom) {
         var lt = rawFrom.indexOf('<')
         var gt = rawFrom.indexOf('>')
@@ -774,15 +774,15 @@ cronAdd('subscription_emails_reminder', '0 8 * * *', function () {
           if (maybeName) fromName = maybeName
           fromAddress = rawFrom.substring(lt + 1, gt).trim()
         } else if (rawFrom.indexOf('@') < 0) {
-          fromAddress = 'noreply@semia.finance'
+          fromAddress = 'noreply@semeia.finance'
         }
       }
-      if (!fromAddress) fromAddress = 'noreply@semia.finance'
+      if (!fromAddress) fromAddress = 'noreply@semeia.finance'
 
       var payload = {
         personalizations: [{ to: [{ email: email }] }],
         from: { email: fromAddress, name: fromName },
-        subject: 'Sua assinatura Semia renova em 3 dias',
+        subject: 'Sua assinatura Semeia renova em 3 dias',
         content: [{ type: 'text/html', value: html }],
       }
       try {
