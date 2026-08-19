@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/constants'
-import { askAiAdvisor, buildAiContext } from '@/lib/aiAdvisor'
+import { askAiAgent, askAiAgentStream, consumeAiStream } from '@/lib/aiAdvisor'
 import {
   Sparkles,
   TrendingUp,
@@ -115,7 +115,6 @@ export default function AiAdvisorPage() {
     bills,
     budgets,
     investments,
-    goals,
     totalInvested,
     totalInvestmentsResult,
     isLoading,
@@ -135,6 +134,8 @@ export default function AiAdvisorPage() {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const conversationIdRef = useRef<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const analytics = useMemo(() => {
     const currentMonthKey = new Date().toISOString().slice(0, 7)
@@ -295,32 +296,6 @@ export default function AiAdvisorPage() {
     totalInvestmentsResult,
   ])
 
-  const aiContext = useMemo(
-    () =>
-      buildAiContext({
-        transactions,
-        accounts,
-        creditCards,
-        bills,
-        budgets,
-        goals,
-        investments,
-        totalInvested,
-        totalInvestmentsResult,
-      }),
-    [
-      transactions,
-      accounts,
-      creditCards,
-      bills,
-      budgets,
-      goals,
-      investments,
-      totalInvested,
-      totalInvestmentsResult,
-    ],
-  )
-
   // Auto-scroll chat para o fim
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -336,10 +311,10 @@ export default function AiAdvisorPage() {
       setExpandedQuestion(id)
       setQuickLoading(id)
       try {
-        const result = await askAiAdvisor(QUICK_QUESTION_TEXT[id], aiContext, 'quick')
+        const { content } = await askAiAgent(QUICK_QUESTION_TEXT[id])
         setQuickAnswers((prev) => ({
           ...prev,
-          [id]: { content: result.content, offline: result.offline },
+          [id]: { content, offline: false },
         }))
       } catch {
         setQuickAnswers((prev) => ({
@@ -353,13 +328,20 @@ export default function AiAdvisorPage() {
         setQuickLoading(null)
       }
     },
-    [aiContext, quickAnswers],
+    [quickAnswers],
   )
 
   const sendChatMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
       if (!trimmed || chatLoading) return
+
+      // Aborta qualquer stream anterior se houver
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+
       const userMsg: ChatMessage = {
         id: `u-${Date.now()}`,
         role: 'user',
@@ -375,12 +357,50 @@ export default function AiAdvisorPage() {
       setChatMessages((prev) => [...prev, userMsg, pendingMsg])
       setChatInput('')
       setChatLoading(true)
+
+      const controller = new AbortController()
+      abortRef.current = controller
+
       try {
-        const result = await askAiAdvisor(trimmed, aiContext, 'chat')
+        const { stream, conversationId } = await askAiAgentStream(
+          trimmed,
+          conversationIdRef.current ?? undefined,
+        )
+        if (conversationId) conversationIdRef.current = conversationId
+
+        // Primeiro chunk recebido: remove o estado "pending" (TypingIndicator)
+        let firstChunk = true
+        await consumeAiStream(
+          stream,
+          (chunkText) => {
+            if (firstChunk) {
+              firstChunk = false
+              setChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === pendingId ? { ...m, content: chunkText, pending: false } : m,
+                ),
+              )
+            } else {
+              setChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === pendingId ? { ...m, content: m.content + chunkText, pending: false } : m,
+                ),
+              )
+            }
+          },
+          controller.signal,
+        )
+
+        // Garante que saiu do estado pending mesmo se nenhum chunk veio
         setChatMessages((prev) =>
           prev.map((m) =>
-            m.id === pendingId
-              ? { ...m, content: result.content, offline: result.offline, pending: false }
+            m.id === pendingId && m.pending
+              ? {
+                  ...m,
+                  content: 'Sem resposta recebida. Tente novamente.',
+                  offline: true,
+                  pending: false,
+                }
               : m,
           ),
         )
@@ -398,10 +418,11 @@ export default function AiAdvisorPage() {
           ),
         )
       } finally {
+        if (abortRef.current === controller) abortRef.current = null
         setChatLoading(false)
       }
     },
-    [aiContext, chatLoading],
+    [chatLoading],
   )
 
   if (isLoading) {
@@ -912,18 +933,12 @@ function TypingIndicator() {
   )
 }
 
-function AiAnswer({ content, offline }: { content: string; offline?: boolean }) {
+function AiAnswer({ content }: { content: string; offline?: boolean }) {
   return (
     <div className="space-y-2">
       <div className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
         {content}
       </div>
-      {offline && (
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-          <AlertCircle className="w-3 h-3" />
-          Análise offline — IA indisponível no momento
-        </div>
-      )}
     </div>
   )
 }
