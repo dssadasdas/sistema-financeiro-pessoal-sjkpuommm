@@ -4,8 +4,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
 import {
   CheckCircle2,
   Lock,
@@ -15,15 +13,29 @@ import {
   Loader2,
   AlertCircle,
   CreditCard,
+  Landmark,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import type { PaymentProvider } from '@/lib/payments'
 
+// Tipos locais — a UI usa "mensal"/"anual" (locale do app), mas a API espera
+// "monthly"/"yearly".
+type LocalPlan = 'mensal' | 'anual'
+
+// -------------------------------------------------------------------
+// PaywallPage — exibida quando o usuário não tem assinatura ativa.
+// Mostra os planos Mensal (R$ 11,99/mês) e Anual (R$ 119,99/ano, com badge
+// "Melhor escolha") e dois botões de pagamento: Stripe (cartão) e Mercado
+// Pago (PIX/boleto). Cada botão chama a rota de checkout correspondente do
+// backend e redireciona para a URL retornada.
+// Se a assinatura já estiver ativa, redireciona para /inicio.
+// -------------------------------------------------------------------
 export default function PaywallPage() {
   const {
     user,
     subscription,
     isSubscriptionActive,
+    subscriptionStatus,
     logout,
     startSubscriptionCheckout,
     refreshSubscription,
@@ -32,24 +44,20 @@ export default function PaywallPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  // Plano e provedor selecionados
-  const [selectedPlan, setSelectedPlan] = useState<'mensal' | 'anual'>('anual')
-  const [provider, setProvider] = useState<PaymentProvider>('stripe')
-  const [loading, setLoading] = useState(false)
+  // Plano selecionado e provedor em uso no clique atual.
+  const [selectedPlan, setSelectedPlan] = useState<LocalPlan>('anual')
+  // Qual provedor está processando no momento ('stripe' | 'mercadopago' | null).
+  const [processingProvider, setProcessingProvider] = useState<PaymentProvider | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Reflete parâmetros da URL (?plan=anual|mensal, ?provider=stripe|mercadopago)
-  // e estados de retorno (?canceled, ?pending, ?failed) que redirecionam para /obrigado
+  // Reflete parâmetros da URL (?plan=anual|mensal) e estados de retorno do
+  // provedor (?canceled, ?pending, ?failed, ?success) -> /obrigado.
   useEffect(() => {
     const planParam = searchParams.get('plan')
     if (planParam === 'mensal' || planParam === 'anual') {
       setSelectedPlan(planParam)
     }
-    const provParam = searchParams.get('provider')
-    if (provParam === 'mercadopago' || provParam === 'stripe') {
-      setProvider(provParam)
-    }
-    // Estados de retorno do provedor -> manda para a página de processamento
+    const provParam = searchParams.get('provider') as PaymentProvider | null
     if (searchParams.get('canceled') === '1') {
       navigate('/obrigado?canceled=1&provider=' + (provParam || 'stripe'), { replace: true })
     } else if (searchParams.get('pending') === '1') {
@@ -66,15 +74,25 @@ export default function PaywallPage() {
     }
   }, [searchParams, navigate])
 
-  const handleSubscribe = async () => {
+  // Redireciona para o painel assim que a assinatura fica ativa (ex: retorno
+  // de checkout confirmado por webhook enquanto a aba estava aberta).
+  useEffect(() => {
+    if (subscriptionStatus === 'active') {
+      navigate('/inicio', { replace: true })
+    }
+  }, [subscriptionStatus, navigate])
+
+  const handleSubscribe = async (provider: PaymentProvider) => {
     setErrorMsg('')
-    setLoading(true)
+    setProcessingProvider(provider)
     try {
-      // Mapeia "mensal"/"anual" (locale do app) -> "monthly"/"annual" (API)
+      // Mapeia "mensal"/"anual" (locale do app) -> "monthly"/"annual" (API).
+      // O backend (CheckoutPlan) usa "annual", não "yearly".
       const apiPlan = selectedPlan === 'anual' ? 'annual' : 'monthly'
       await startSubscriptionCheckout(provider, apiPlan)
-      // O redirecionamento para o provedor acontece dentro de startSubscriptionCheckout.
-      // Se não redirecionou (erro de config), o throw abaixo captura.
+      // O redirecionamento para o provedor acontece dentro de
+      // startSubscriptionCheckout. Se não redirecionou (erro de config), o
+      // throw abaixo captura.
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Não foi possível iniciar o checkout.'
       setErrorMsg(msg)
@@ -84,13 +102,17 @@ export default function PaywallPage() {
         variant: 'destructive',
       })
     } finally {
-      setLoading(false)
+      setProcessingProvider(null)
     }
   }
+
+  const loading = processingProvider !== null
+  const planPriceLabel = selectedPlan === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'
 
   return (
     <div className="min-h-screen bg-[#F6F7FB] dark:bg-[#0B1220] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-4xl py-8">
+        {/* Cabeçalho */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 font-black text-2xl">
@@ -204,7 +226,7 @@ export default function PaywallPage() {
               >
                 <div className="absolute -top-3.5 right-6">
                   <Badge className="bg-emerald-600 text-white font-bold text-xs py-1 px-3 shadow-md flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Economize 2 meses
+                    <Sparkles className="w-3 h-3" /> Melhor escolha
                   </Badge>
                 </div>
                 <div>
@@ -256,56 +278,87 @@ export default function PaywallPage() {
               </Card>
             </div>
 
-            {/* Seletor de provedor de pagamento */}
+            {/* Resumo do plano selecionado + botões de pagamento */}
             <Card className="mt-6 max-w-3xl mx-auto rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-lg">
               <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Plano selecionado</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">
+                      Plano {selectedPlan === 'anual' ? 'Anual' : 'Mensal'} — {planPriceLabel}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await refreshSubscription()
+                    }}
+                    className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline self-start sm:self-auto"
+                  >
+                    Já paguei? Atualizar
+                  </button>
+                </div>
+
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-                  Forma de pagamento
+                  Escolha a forma de pagamento
                 </p>
-                <RadioGroup
-                  value={provider}
-                  onValueChange={(v) => setProvider(v as PaymentProvider)}
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                >
-                  <Label
-                    htmlFor="prov-stripe"
-                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      provider === 'stripe'
-                        ? 'border-[#635BFF] bg-[#635BFF]/5 dark:bg-[#635BFF]/10'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                    }`}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Stripe — Cartão de crédito */}
+                  <Button
+                    type="button"
+                    onClick={() => handleSubscribe('stripe')}
+                    disabled={loading}
+                    className="h-14 bg-[#635BFF] hover:bg-[#5a52e8] text-white font-bold text-base shadow-lg shadow-[#635BFF]/20 flex items-center justify-center gap-2"
                   >
-                    <RadioGroupItem id="prov-stripe" value="stripe" />
-                    <div className="flex-1">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Cartão de crédito
-                      </span>
-                      <span className="block text-xs text-slate-500 dark:text-slate-400">
-                        Stripe · parcelamento via Stripe
-                      </span>
-                    </div>
-                    <CreditCard className="w-5 h-5 text-[#635BFF]" />
-                  </Label>
-                  <Label
-                    htmlFor="prov-mercadopago"
-                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      provider === 'mercadopago'
-                        ? 'border-[#00B1EA] bg-[#00B1EA]/5 dark:bg-[#00B1EA]/10'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                    }`}
+                    {processingProvider === 'stripe' ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-5 h-5" />
+                        Pagar com Stripe
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Mercado Pago — PIX / Boleto */}
+                  <Button
+                    type="button"
+                    onClick={() => handleSubscribe('mercadopago')}
+                    disabled={loading}
+                    className="h-14 bg-[#00B1EA] hover:bg-[#009fd0] text-white font-bold text-base shadow-lg shadow-[#00B1EA]/20 flex items-center justify-center gap-2"
                   >
-                    <RadioGroupItem id="prov-mercadopago" value="mercadopago" />
-                    <div className="flex-1">
-                      <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Pix / Boleto / Cartão
-                      </span>
-                      <span className="block text-xs text-slate-500 dark:text-slate-400">
-                        Mercado Pago · checkout Pro
-                      </span>
-                    </div>
-                    <span className="text-[#00B1EA] font-bold text-sm">MP</span>
-                  </Label>
-                </RadioGroup>
+                    {processingProvider === 'mercadopago' ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <Landmark className="w-5 h-5" />
+                        Pagar com Mercado Pago
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Você será redirecionado para o checkout seguro do provedor escolhido. Após o
+                  pagamento, seu acesso será liberado automaticamente.
+                </p>
+
+                {/* Forma de pagamento suportada (hint) */}
+                <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="w-3 h-3" /> Stripe · cartão de crédito
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Landmark className="w-3 h-3" /> Mercado Pago · PIX / boleto
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -319,33 +372,6 @@ export default function PaywallPage() {
                 </div>
               </div>
             )}
-
-            {/* Botão de checkout real */}
-            <div className="mt-6 max-w-3xl mx-auto">
-              <Button
-                onClick={handleSubscribe}
-                disabled={loading}
-                className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-lg shadow-emerald-600/30"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Processando...
-                  </>
-                ) : (
-                  <>
-                    Assinar {selectedPlan === 'anual' ? 'Anual' : 'Mensal'} —{' '}
-                    {selectedPlan === 'anual' ? 'R$ 119,99/ano' : 'R$ 11,99/mês'}
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </Button>
-              <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
-                Você será redirecionado para o checkout seguro do{' '}
-                {provider === 'mercadopago' ? 'Mercado Pago' : 'Stripe'}. Após o pagamento, seu
-                acesso será liberado automaticamente.
-              </p>
-            </div>
           </>
         )}
 

@@ -50,7 +50,7 @@ export default function SignupPage() {
         description: 'Enviamos um e-mail de verificação para confirmar seu endereço.',
       })
       // Após o cadastro, leva direto para o paywall para escolher o plano.
-      navigate(`/paywall?plan=${preselectedPlan}`)
+      navigate('/paywall', { replace: true })
     } catch (err: unknown) {
       const fieldErrors = extractFieldErrors(err)
       if (Object.keys(fieldErrors).length > 0) {

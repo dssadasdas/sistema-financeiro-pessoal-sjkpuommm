@@ -50,7 +50,7 @@ function FullScreenLoader() {
 
 // Protected Route Guard
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, subscription } = useAuth()
+  const { user, isLoading, isSubscriptionActive } = useAuth()
 
   if (isLoading) {
     return <FullScreenLoader />
@@ -60,8 +60,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  // Se assinatura estiver explicitamente bloqueada e não estiver na rota de paywall
-  if (subscription && subscription.status === 'bloqueada' && !subscription.admin_released) {
+  // Sem assinatura ativa (status "none" ou expirada) -> bloqueia no paywall.
+  if (!isSubscriptionActive) {
     return <Navigate to="/paywall" replace />
   }
 

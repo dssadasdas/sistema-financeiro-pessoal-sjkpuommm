@@ -8,10 +8,26 @@ import { getMercadoPagoStatus } from '@/lib/payments'
 
 type Status = 'processing' | 'success' | 'failed' | 'canceled'
 
+// -------------------------------------------------------------------
+// ThankYouPage — página pós-checkout (/obrigado).
+//
+// Fluxo:
+//   - Retorno do Stripe/MP com ?provider=... -> processa/polling -> sucesso.
+//   - Se a assinatura já estiver ativa ao carregar (visita direta, sem
+//     parâmetros de retorno), redireciona para o painel.
+//   - Mostra o plano escolhido e um botão "Acessar painel".
+// -------------------------------------------------------------------
 export default function ThankYouPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const { user, subscription, refreshSubscription, isLoading } = useAuth()
+  const {
+    user,
+    subscription,
+    subscriptionStatus,
+    subscriptionPlan,
+    refreshSubscription,
+    isLoading,
+  } = useAuth()
   const [status, setStatus] = useState<Status>('processing')
   const [message, setMessage] = useState<string>('')
   const pollRef = useRef<number | null>(null)
@@ -21,7 +37,31 @@ export default function ThankYouPage() {
   const pending = params.get('pending') === '1'
   const failed = params.get('failed') === '1'
   const paymentId = params.get('payment_id') || params.get('collection_id') || ''
-  const plan = params.get('plan') || ''
+  const planParam = params.get('plan') || ''
+  // Indica se a página foi carregada a partir de um retorno de checkout
+  // (há parâmetros de provedor/estado). Se não houver, e a assinatura já
+  // estiver ativa, redirecionamos direto para o painel.
+  const hasReturnParams =
+    Boolean(provider && provider !== 'stripe') ||
+    canceled ||
+    pending ||
+    failed ||
+    params.get('success') === '1' ||
+    Boolean(paymentId)
+
+  // Plano a exibir: prioriza o parâmetro da URL, depois o do contexto.
+  const planLabel =
+    planParam === 'anual' || planParam === 'annual'
+      ? 'Anual'
+      : planParam === 'mensal' || planParam === 'monthly'
+        ? 'Mensal'
+        : subscriptionPlan === 'yearly'
+          ? 'Anual'
+          : subscriptionPlan === 'monthly'
+            ? 'Mensal'
+            : subscription?.plan === 'anual'
+              ? 'Anual'
+              : 'Mensal'
 
   const checkStatus = useCallback(async () => {
     // Sem usuário logado: redireciona para login
@@ -31,12 +71,10 @@ export default function ThankYouPage() {
     }
     if (!user) return
 
-    // Se veio canceled=1, mostra tela de cancelamento
     if (canceled) {
       setStatus('canceled')
       return
     }
-    // Se veio pending=1 (MP), mostra "aguardando aprovação"
     if (pending) {
       setStatus('processing')
       setMessage(
@@ -44,7 +82,6 @@ export default function ThankYouPage() {
       )
       return
     }
-    // Se veio failed=1 (MP), mostra erro
     if (failed) {
       setStatus('failed')
       setMessage('O pagamento não foi aprovado. Tente novamente.')
@@ -77,9 +114,6 @@ export default function ThankYouPage() {
         // ignora — continua processando
       }
     }
-
-    // Verifica a assinatura local do usuário
-    // (refreshSubscription atualiza o contexto; usamos o valor mais recente)
   }, [
     isLoading,
     user,
@@ -88,10 +122,20 @@ export default function ThankYouPage() {
     failed,
     provider,
     paymentId,
-    plan,
     navigate,
     refreshSubscription,
   ])
+
+  // Redireciona para o painel se a assinatura já estiver ativa e não houver
+  // contexto de retorno de checkout (visita direta à página).
+  useEffect(() => {
+    if (isLoading) return
+    if (!user) return
+    if (subscriptionStatus === 'active' && !hasReturnParams) {
+      navigate('/inicio', { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user, subscriptionStatus])
 
   useEffect(() => {
     // Polling: checa a cada 3s por até ~90s
@@ -189,7 +233,7 @@ export default function ThankYouPage() {
   // ---- Renderização ----
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F6F7F9] dark:bg-[#0b1120] p-4">
-      <Card className="max-w-md w-full border-emerald-200 dark:border-emerald-900/50 shadow-xl">
+      <Card className="max-w-md w-full border-emerald-200 dark:border-emerald-900/50 shadow-xl bg-white dark:bg-[#121a2b]">
         <CardContent className="p-8 text-center">
           <div className="flex justify-center mb-5">
             <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg mb-2">
@@ -216,15 +260,17 @@ export default function ThankYouPage() {
               <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                 Pagamento confirmado! 🎉
               </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-                Sua assinatura Semia está ativa. Agora você tem acesso a todos os recursos: cartões,
-                faturas, orçamentos, metas, investimentos e a IA financeira.
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                Sua assinatura Semia está ativa.
+              </p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-6">
+                Plano {planLabel}
               </p>
               <Button
                 onClick={handleGoToDashboard}
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
               >
-                Acessar meu painel
+                Acessar painel
               </Button>
             </>
           )}

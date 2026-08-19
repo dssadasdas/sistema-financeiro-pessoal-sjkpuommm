@@ -35,6 +35,11 @@ export type PlanType = 'mensal' | 'anual'
 export type SubscriptionStatus = 'ativa' | 'bloqueada'
 export type SubscriptionProvider = 'stripe' | 'mercadopago'
 
+// Tipos da integração de pagamentos (frontend) — espelham os valores usados
+// pelas rotas de checkout do backend e pelo contexto de auth.
+export type PaymentProvider = 'stripe' | 'mercadopago'
+export type SubscriptionPlan = 'monthly' | 'yearly' | 'none'
+
 export interface User {
   id: string
   email: string
@@ -297,22 +302,36 @@ export interface CategorizationRule {
   updated: string
 }
 
+// Assinatura do usuário na coleção `subscriptions` do PocketBase.
+// Os campos snake_case são os nomes reais vindos do PocketBase (definidos na
+// migration 0010_subscriptions_payment_providers.js). Os campos camelCase
+// (userId, providerSubscriptionId, currentPeriodStart, currentPeriodEnd,
+// cancelAtPeriodEnd, createdAt) são aliases expostos pela camada de
+// pagamentos do frontend — mantidos opcionais pois nem todo literal os
+// preenche (o PocketBase grava apenas os snake_case).
 export interface Subscription {
   id: string
+  userId?: string // = user (relação) — alias camelCase
   user: string
   plan: PlanType
-  price: number
   status: SubscriptionStatus
+  provider?: SubscriptionProvider
+  providerSubscriptionId?: string // = provider_subscription_id — alias
+  provider_subscription_id?: string
+  currentPeriodStart?: string // = current_period_start — alias
+  current_period_start?: string
+  currentPeriodEnd?: string // = current_period_end — alias
+  current_period_end?: string
+  cancelAtPeriodEnd?: boolean // = cancel_at_period_end — alias
+  cancel_at_period_end?: boolean
+  createdAt?: string // = created (autodate) — alias
+  created: string
+  updated: string
+  // Campos legados mantidos por compatibilidade:
+  price?: number
   started_at?: string
   renewed_at?: string
   expires_at?: string
   admin_released?: boolean
-  provider?: SubscriptionProvider
-  provider_subscription_id?: string
   provider_customer_id?: string
-  current_period_start?: string
-  current_period_end?: string
-  cancel_at_period_end?: boolean
-  created: string
-  updated: string
 }

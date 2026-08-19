@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import pb from '@/lib/pocketbase/client'
 import type { RecordModel } from 'pocketbase'
 import { User, Subscription } from '@/types/finance'
+import type { SubscriptionPlan } from '@/types/finance'
 import {
   startCheckout,
   cancelStripeSubscription,
@@ -9,12 +10,20 @@ import {
   type PaymentProvider,
   type CheckoutPlan,
 } from '@/lib/payments'
+import { useRealtime } from '@/hooks/use-realtime'
+
+// Status de assinatura derivado, consumido pelas páginas de paywall/obrigado.
+type SubscriptionStatus = 'active' | 'inactive' | 'loading'
 
 interface AuthContextType {
   user: User | null
   subscription: Subscription | null
   isLoading: boolean
   isSubscriptionActive: boolean
+  // Campos derivados exigidos pela integração de pagamentos (frontend).
+  subscriptionStatus: SubscriptionStatus
+  subscriptionPlan: SubscriptionPlan
+  subscriptionExpiry: Date | null
   hideValues: boolean
   setHideValues: (hide: boolean) => void
   toggleHideValues: () => void
@@ -57,6 +66,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('raiz_ai_enabled', String(val))
   }
 
+  // Busca a assinatura mais recente do usuário na coleção `subscriptions`.
+  // Se não existir, cria um registro inicial inativo (status=bloqueada) para
+  // que o fluxo de paywall tenha um registro para atualizar no checkout.
   const fetchSubscription = useCallback(async (userId: string) => {
     try {
       const records = await pb.collection('subscriptions').getList<Subscription>(1, 1, {
@@ -66,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (records.items.length > 0) {
         setSubscription(records.items[0])
       } else {
-        // Cria subscription padrão pendente
         const created = await pb.collection('subscriptions').create<Subscription>({
           user: userId,
           plan: 'anual',
@@ -81,11 +92,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const refreshSubscription = async () => {
-    if (user?.id) {
-      await fetchSubscription(user.id)
+  const refreshSubscription = useCallback(async () => {
+    // `user` é capturado em closure, mas buscamos o id atual do authStore para
+    // cobrir chamadas imediatas pós-login (quando o estado ainda não
+    // re-renderizou).
+    const id = user?.id || (pb.authStore.model as { id?: string } | null)?.id
+    if (id) {
+      await fetchSubscription(id)
     }
-  }
+  }, [user?.id, fetchSubscription])
+
+  // Atualização em tempo real: quando qualquer assinatura muda (ativação por
+  // webhook, liberação manual, cancelamento), refletimos no contexto.
+  useRealtime(
+    'subscriptions',
+    () => {
+      const id = user?.id || (pb.authStore.model as { id?: string } | null)?.id
+      if (id) fetchSubscription(id)
+    },
+    Boolean(user?.id),
+  )
 
   const refreshUser = async () => {
     if (!user?.id) return
@@ -102,24 +128,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   useEffect(() => {
-    let unsubSub: (() => Promise<void>) | undefined
-
     const initAuth = async () => {
       try {
         if (pb.authStore.isValid && pb.authStore.model) {
           const authModel = pb.authStore.model as unknown as User
           setUser(authModel)
           await fetchSubscription(authModel.id)
-
-          // Realtime na collection subscriptions para refletir liberação manual
-          try {
-            const fn = await pb.collection('subscriptions').subscribe('*', () => {
-              if (authModel?.id) fetchSubscription(authModel.id)
-            })
-            unsubSub = fn
-          } catch (e) {
-            console.warn('Realtime subscriptions failed:', e)
-          }
         }
       } catch (err) {
         console.warn('Auth init failed:', err)
@@ -130,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuth()
 
+    // O realtime de subscriptions fica a cargo do hook `useRealtime` acima,
+    // ativo sempre que há um usuário autenticado.
     const unsubscribe = pb.authStore.onChange(async (_, model) => {
       if (model) {
         const u = model as unknown as User
@@ -143,7 +159,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       unsubscribe()
-      if (unsubSub) unsubSub().catch(() => {})
     }
   }, [fetchSubscription])
 
@@ -255,6 +270,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     subscription && (subscription.status === 'ativa' || subscription.admin_released === true),
   )
 
+  // Campos derivados (status/plan/expiry) consumidos pelas páginas de
+  // paywall/obrigado. Usamos useMemo para estabilizar a referência e evitar
+  // re-renderizações desnecessárias nos consumers.
+  const { subscriptionStatus, subscriptionPlan, subscriptionExpiry } = useMemo(() => {
+    if (isLoading || !user) {
+      return {
+        subscriptionStatus: 'loading' as const,
+        subscriptionPlan: 'none' as SubscriptionPlan,
+        subscriptionExpiry: null,
+      }
+    }
+    const active = Boolean(
+      subscription && (subscription.status === 'ativa' || subscription.admin_released === true),
+    )
+    // Considera expirada se expires_at estiver no passado.
+    let expired = false
+    if (subscription?.expires_at) {
+      const exp = new Date(subscription.expires_at)
+      if (!Number.isNaN(exp.getTime())) {
+        expired = exp.getTime() < Date.now()
+      }
+    }
+    const plan: SubscriptionPlan =
+      subscription && !expired && active
+        ? subscription.plan === 'anual'
+          ? 'yearly'
+          : 'monthly'
+        : 'none'
+    const status = active && !expired ? ('active' as const) : ('inactive' as const)
+    const expiry =
+      subscription?.expires_at && !Number.isNaN(new Date(subscription.expires_at).getTime())
+        ? new Date(subscription.expires_at)
+        : null
+    return { subscriptionStatus: status, subscriptionPlan: plan, subscriptionExpiry: expiry }
+  }, [subscription, isLoading, user])
+
   return (
     <AuthContext.Provider
       value={{
@@ -262,6 +313,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscription,
         isLoading,
         isSubscriptionActive,
+        subscriptionStatus,
+        subscriptionPlan,
+        subscriptionExpiry,
         hideValues,
         setHideValues,
         toggleHideValues,
