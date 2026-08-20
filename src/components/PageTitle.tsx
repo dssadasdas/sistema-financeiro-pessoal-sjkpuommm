@@ -15,7 +15,11 @@ const EXACT: TitleEntry[] = [
   { match: (p) => p === '/extrato', title: 'Extrato' },
   { match: (p) => p === '/contas', title: 'Contas Bancárias' },
   { match: (p) => p === '/cartoes' || p === '/faturas', title: 'Cartões de Crédito' },
-  { match: (p) => p === '/contas-a-pagar' || p === '/contas-e-boletos', title: 'Contas a Pagar' },
+  {
+    match: (p) =>
+      p === '/contas-a-pagar' || p === '/contas-e-boletos' || p === '/contas-a-pagar-e-receber',
+    title: 'Contas a Pagar e Receber',
+  },
   { match: (p) => p === '/recorrencias' || p === '/recorrentes', title: 'Recorrências' },
   { match: (p) => p === '/parcelamentos', title: 'Parcelamentos' },
   { match: (p) => p === '/orcamento' || p === '/orcamentos', title: 'Orçamentos' },

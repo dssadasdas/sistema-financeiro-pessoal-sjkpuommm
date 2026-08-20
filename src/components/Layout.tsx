@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import TransactionModal from '@/components/modals/TransactionModal'
+import CentralDeAlertas from '@/components/CentralDeAlertas'
 
 type NavItem = {
   label: string
@@ -51,7 +52,7 @@ const navItems: NavItem[] = [
   { label: 'Extrato', path: '/extrato', icon: Receipt },
   { label: 'Contas Bancárias', path: '/contas', icon: Landmark },
   { label: 'Cartões de Crédito', path: '/cartoes', icon: CreditCard },
-  { label: 'Contas a Pagar', path: '/contas-a-pagar', icon: FileText },
+  { label: 'Contas a Pagar e Receber', path: '/contas-a-pagar', icon: FileText },
   { label: 'Recorrências', path: '/recorrencias', icon: RefreshCw },
   { label: 'Parcelamentos', path: '/parcelamentos', icon: Layers },
   { label: 'Orçamentos', path: '/orcamento', icon: PieChart },
@@ -214,7 +215,7 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Topbar mobile + tablet (abaixo de 1024px): logo + hamburger que abre drawer */}
+        {/* Topbar mobile + tablet (abaixo de 1024px): logo + alertas + hamburger que abre drawer */}
         <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 md:px-5 flex items-center justify-between pt-safe">
           <Link
             to="/inicio"
@@ -228,15 +229,18 @@ export default function Layout() {
               Semeia
             </span>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-slate-600 dark:text-slate-300 touch-target flex-shrink-0"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Abrir menu"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <CentralDeAlertas />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-600 dark:text-slate-300 touch-target flex-shrink-0"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Abrir menu"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          </div>
         </header>
 
         {/* Desktop slim topbar (apenas 1024px+) */}
@@ -244,11 +248,14 @@ export default function Layout() {
           <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
             {currentTitle()}
           </h1>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-medium">
-            <span className="text-slate-500 dark:text-slate-400">Saldo geral:</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {formatCurrency(totalCurrentBalance, hideValues)}
-            </span>
+          <div className="flex items-center gap-3">
+            <CentralDeAlertas />
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-medium">
+              <span className="text-slate-500 dark:text-slate-400">Saldo geral:</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {formatCurrency(totalCurrentBalance, hideValues)}
+              </span>
+            </div>
           </div>
         </header>
 
