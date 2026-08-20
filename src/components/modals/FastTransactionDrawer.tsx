@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-} from '@/components/ui/drawer'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,11 +21,47 @@ import {
   Calendar as CalendarIcon,
   Check,
   ChevronLeft,
+  ChevronRight,
   Delete,
   Loader2,
   Repeat,
   Layers,
+  CreditCard as CreditCardIcon,
+  Building2,
+  Tag,
+  CheckCircle2,
+  Clock,
+  ArrowRight,
 } from 'lucide-react'
+
+// Sugestões padrão separadas por tipo para melhorar a experiência
+const DEFAULT_EXPENSE_CATEGORIES = [
+  'Alimentação',
+  'Moradia',
+  'Transporte',
+  'Saúde',
+  'Educação',
+  'Lazer',
+  'Assinaturas',
+  'Luz',
+  'Água',
+  'Combustível',
+  'Taxas e tarifas',
+  'Compras',
+  'Casa',
+  'Outros',
+]
+
+const DEFAULT_INCOME_CATEGORIES = [
+  'Salário',
+  'Investimentos',
+  'Renda Extra',
+  'Vendas',
+  'Freelance',
+  'Pró-labore',
+  'Reembolso',
+  'Outros',
+]
 
 interface FastTransactionDrawerProps {
   open: boolean
@@ -56,29 +86,32 @@ export default function FastTransactionDrawer({
     customCategories,
   } = useFinance()
 
-  // Steps: 1 = Valor (Calculadora/NumPad), 2 = Detalhes (Descrição, Categoria, Data, Conta/Cartão, Switches)
-  const [step, setStep] = useState<1 | 2>(1)
+  // Steps: 1 = Valor, 2 = Configuração (Data, Parcelado, Recorrente), 3 = Detalhes (Título, Categoria, Conta/Cartão, Já paguei/recebi)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [type, setType] = useState<TransactionType | 'transferencia'>('despesa')
 
   // Step 1: Valor em centavos / string calculadora
   const [rawAmountCents, setRawAmountCents] = useState<number>(0)
-  // Step 2: Form fields
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [accountId, setAccountId] = useState('')
-  const [targetAccountId, setTargetAccountId] = useState('')
-  const [creditCardId, setCreditCardId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX')
 
-  // Switches
+  // Step 2: Configurações
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [isParcelada, setIsParcelada] = useState(false)
   const [totalInstallments, setTotalInstallments] = useState(2)
+  const [installmentCreditCardId, setInstallmentCreditCardId] = useState('')
 
   const [isRecorrente, setIsRecorrente] = useState(false)
   const [recurrentFrequency, setRecurrentFrequency] = useState<'mensal' | 'semanal' | 'anual'>(
     'mensal',
   )
+
+  // Step 3: Detalhes
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [accountId, setAccountId] = useState('')
+  const [targetAccountId, setTargetAccountId] = useState('') // Para transferências
+  const [creditCardId, setCreditCardId] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX')
+  const [isPaid, setIsPaid] = useState(false) // Padrão: desligado (não recebeu/pagou ainda)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -96,6 +129,7 @@ export default function FastTransactionDrawer({
       setTotalInstallments(2)
       setIsRecorrente(false)
       setRecurrentFrequency('mensal')
+      setIsPaid(false) // Desligado por padrão conforme especificação
       setError('')
 
       // Categoria padrão
@@ -126,23 +160,47 @@ export default function FastTransactionDrawer({
         setTargetAccountId('')
       }
 
+      // Cartões padrão
       if (creditCards.length > 0) {
-        setCreditCardId(creditCards[0].id)
+        setCreditCardId('none')
+        setInstallmentCreditCardId(creditCards[0].id)
       } else {
         setCreditCardId('none')
+        setInstallmentCreditCardId('none')
       }
     }
   }, [open, initialType, accounts, creditCards])
 
-  // Categorias combinadas
-  const allCategories = useMemo(() => {
-    const defaultCats = CATEGORY_SUGGESTIONS
-    const customNames = customCategories.map((c) => c.name)
-    const combined = Array.from(new Set([...defaultCats, ...customNames]))
-    return combined.sort((a, b) => a.localeCompare(b))
-  }, [customCategories])
+  // Se o usuário seleciona um cartão no step 2 para parcelamento, sincronizamos com creditCardId
+  useEffect(() => {
+    if (isParcelada && installmentCreditCardId && installmentCreditCardId !== 'none') {
+      setCreditCardId(installmentCreditCardId)
+      setPaymentMethod('Crédito')
+    }
+  }, [isParcelada, installmentCreditCardId])
 
-  // Formatação do valor (ex: 5000 centavos -> "50,00")
+  // Categorias filtradas de acordo com o tipo
+  const relevantCategories = useMemo(() => {
+    if (type === 'transferencia') {
+      return ['Transferência']
+    }
+
+    let defaultList = CATEGORY_SUGGESTIONS
+    if (type === 'receita') {
+      defaultList = DEFAULT_INCOME_CATEGORIES
+    } else if (type === 'despesa') {
+      defaultList = DEFAULT_EXPENSE_CATEGORIES
+    }
+
+    const customMatching = customCategories
+      .filter((c) => (type === 'receita' || type === 'despesa' ? c.type === type : true))
+      .map((c) => c.name)
+
+    const combined = Array.from(new Set([...defaultList, ...customMatching]))
+    return combined.sort((a, b) => a.localeCompare(b))
+  }, [customCategories, type])
+
+  // Formatação do valor (ex: 5000 centavos -> "R$ 50,00")
   const formattedValue = useMemo(() => {
     const val = rawAmountCents / 100
     return new Intl.NumberFormat('pt-BR', {
@@ -167,13 +225,28 @@ export default function FastTransactionDrawer({
     setRawAmountCents(0)
   }
 
-  const handleAdvanceToDetails = () => {
+  const handleAdvanceToStep2 = () => {
     if (rawAmountCents <= 0) {
       setError('Informe um valor maior que zero')
       return
     }
     setError('')
     setStep(2)
+  }
+
+  const handleAdvanceToStep3 = () => {
+    if (!date) {
+      setError('Selecione uma data válida')
+      return
+    }
+    setError('')
+    setStep(3)
+  }
+
+  const handleGoBack = () => {
+    setError('')
+    if (step === 3) setStep(2)
+    else if (step === 2) setStep(1)
   }
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -204,27 +277,39 @@ export default function FastTransactionDrawer({
           description.trim() || undefined,
         )
       } else {
-        const desc =
-          description.trim() || (type === 'receita' ? 'Receita rápida' : 'Despesa rápida')
+        const defaultDesc =
+          type === 'receita'
+            ? 'Receita rápida'
+            : type === 'despesa'
+              ? 'Despesa rápida'
+              : 'Ajuste rápido'
+        const desc = description.trim() || defaultDesc
         const chosenAcc = accountId && accountId !== 'none' ? accountId : undefined
-        const chosenCard =
-          type === 'despesa' && creditCardId && creditCardId !== 'none' ? creditCardId : undefined
 
         // Se marcou parcelada
         if (isParcelada && type === 'despesa' && totalInstallments > 1) {
+          const chosenCard =
+            installmentCreditCardId && installmentCreditCardId !== 'none'
+              ? installmentCreditCardId
+              : creditCardId && creditCardId !== 'none'
+                ? creditCardId
+                : undefined
+
           const installmentVal = Number((numericAmount / totalInstallments).toFixed(2))
           await createInstallment({
             description: desc,
             total_value: numericAmount,
             installment_value: installmentVal,
             total_installments: totalInstallments,
-            current_installment: 1,
+            current_installment: isPaid ? 1 : 1, // Mantém inicial
             category: category || 'Outros',
             credit_card: chosenCard,
             start_date: date,
           })
         } else if (isRecorrente) {
           // Criar conta recorrente
+          const chosenCard =
+            type === 'despesa' && creditCardId && creditCardId !== 'none' ? creditCardId : undefined
           const day = parseInt(date.split('-')[2] || '1', 10)
           await createRecurringBill({
             description: desc,
@@ -241,18 +326,28 @@ export default function FastTransactionDrawer({
           })
         } else {
           // Lançamento avulso padrão
+          const chosenCard =
+            type === 'despesa' && creditCardId && creditCardId !== 'none' ? creditCardId : undefined
+          const status = isPaid ? 'realizado' : 'pendente'
+          const paid_at = isPaid ? new Date().toISOString() : undefined
+
+          let effectivePaymentMethod = paymentMethod
+          if (chosenCard) {
+            effectivePaymentMethod = 'Crédito'
+          }
+
           await createTransaction({
             description: desc,
             value: numericAmount,
             category: category || 'Outros',
             date: `${date} 12:00:00.000Z`,
-            payment_method: paymentMethod,
-            status: 'realizado',
+            payment_method: effectivePaymentMethod,
+            status,
             type: type as TransactionType,
             account: chosenAcc,
             credit_card: chosenCard,
             source: 'manual',
-            paid_at: new Date().toISOString(),
+            paid_at,
           })
         }
       }
@@ -277,6 +372,9 @@ export default function FastTransactionDrawer({
       icon: ArrowUpRight,
       actionBtn:
         'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-emerald-600/30',
+      paidLabel: 'Já recebi',
+      unpaidLabel: 'A receber',
+      paidDescription: 'Marcar receita como recebida',
     },
     despesa: {
       title: 'Adicionar Despesa',
@@ -285,6 +383,9 @@ export default function FastTransactionDrawer({
       bgBadge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
       icon: ArrowDownLeft,
       actionBtn: 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-rose-600/30',
+      paidLabel: 'Já paguei',
+      unpaidLabel: 'A pagar',
+      paidDescription: 'Marcar despesa como já paga',
     },
     transferencia: {
       title: 'Criar Transferência',
@@ -293,6 +394,9 @@ export default function FastTransactionDrawer({
       bgBadge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       icon: ArrowLeftRight,
       actionBtn: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30',
+      paidLabel: 'Já transferido',
+      unpaidLabel: 'Pendente',
+      paidDescription: 'Transferência concluída',
     },
     ajuste: {
       title: 'Ajuste de Saldo',
@@ -301,6 +405,9 @@ export default function FastTransactionDrawer({
       bgBadge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       icon: Repeat,
       actionBtn: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30',
+      paidLabel: 'Já efetivado',
+      unpaidLabel: 'Pendente',
+      paidDescription: 'Marcar ajuste como efetivado',
     },
   }[type]
 
@@ -309,15 +416,16 @@ export default function FastTransactionDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-[#0f172a] text-white shadow-2xl p-0 overflow-hidden max-h-[92vh]">
-        {/* Top bar com indicador de arrastar e título sutil */}
-        <div className="pt-3 pb-2 px-6 flex items-center justify-between border-b border-slate-800/60">
+        {/* Top bar com indicador de arrastar, botão voltar e progresso de passos */}
+        <div className="pt-3 pb-2.5 px-6 flex items-center justify-between border-b border-slate-800/60">
           <div className="flex items-center gap-2">
-            {step === 2 && (
+            {step > 1 && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setStep(1)}
-                className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={handleGoBack}
+                className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 -ml-1"
+                aria-label="Voltar passo"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
@@ -330,7 +438,24 @@ export default function FastTransactionDrawer({
             </div>
           </div>
 
-          <div className="text-xs text-slate-400 font-medium">Passo {step} de 2</div>
+          {/* Indicador de passos visual */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3].map((s) => (
+                <div
+                  key={s}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    s === step
+                      ? 'w-5 bg-emerald-500'
+                      : s < step
+                        ? 'w-2 bg-emerald-500/60'
+                        : 'w-2 bg-slate-700'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-xs text-slate-400 font-medium ml-1">Passo {step} de 3</span>
+          </div>
         </div>
 
         {error && (
@@ -339,8 +464,10 @@ export default function FastTransactionDrawer({
           </div>
         )}
 
-        <div className="p-6 pt-4 overflow-y-auto">
+        <div className="p-6 pt-4 overflow-y-auto max-h-[calc(92vh-60px)]">
+          {/* ========================================================================= */}
           {/* PASSO 1: CALCULADORA / ENTRADA DE VALOR */}
+          {/* ========================================================================= */}
           {step === 1 && (
             <div className="flex flex-col justify-between min-h-[420px] space-y-4">
               {/* Pergunta e Valor Gigante */}
@@ -478,33 +605,239 @@ export default function FastTransactionDrawer({
                 </button>
                 <button
                   type="button"
-                  onClick={handleAdvanceToDetails}
+                  onClick={handleAdvanceToStep2}
                   disabled={rawAmountCents <= 0}
                   className={`col-span-2 h-13 sm:h-14 rounded-2xl ${typeConfig.actionBtn} disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-base flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95`}
                 >
                   <span>Avançar</span>
-                  <Check className="w-5 h-5 stroke-[3]" />
+                  <ArrowRight className="w-5 h-5 stroke-[2.5]" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* PASSO 2: DETALHES (Descrição, Categoria, Data, Conta/Cartão, Switches) */}
+          {/* ========================================================================= */}
+          {/* PASSO 2: CONFIGURAÇÃO (Data, Parcelado, Recorrente) */}
+          {/* ========================================================================= */}
           {step === 2 && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-4">
               {/* Resumo do Valor */}
               <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
                 <span className="text-xs text-slate-400 font-medium">Valor selecionado:</span>
                 <span className="text-lg font-bold text-white tabular-nums">{formattedValue}</span>
               </div>
 
-              {/* Descrição */}
+              {/* Seletor de Data */}
               <div className="space-y-1.5">
-                <Label htmlFor="fast-desc" className="text-xs text-slate-300">
-                  Descrição
+                <Label
+                  htmlFor="fast-date-step2"
+                  className="text-xs font-semibold text-slate-300 flex items-center gap-1.5"
+                >
+                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Data do lançamento</span>
                 </Label>
                 <Input
-                  id="fast-desc"
+                  id="fast-date-step2"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white"
+                  required
+                />
+              </div>
+
+              {/* Switches para Receita/Despesa */}
+              {type !== 'transferencia' ? (
+                <div className="space-y-3 pt-1">
+                  {/* Switch Parcelado (Disponível para Despesas) */}
+                  {type === 'despesa' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <Layers className="w-4 h-4 text-slate-400" />
+                          <div>
+                            <span className="text-sm font-medium text-slate-200 block">
+                              É <strong className="text-white">parcelado?</strong>
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              Dividir a compra em parcelas
+                            </span>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={isParcelada}
+                          onCheckedChange={(val) => {
+                            setIsParcelada(val)
+                            if (val) setIsRecorrente(false)
+                          }}
+                        />
+                      </div>
+
+                      {/* Campos extras se Parcelado estiver ligado */}
+                      {isParcelada && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/40 animate-in fade-in-50 duration-200">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-slate-300">Nº de Parcelas</Label>
+                            <Select
+                              value={String(totalInstallments)}
+                              onValueChange={(val) => setTotalInstallments(Number(val))}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-48">
+                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48].map((n) => (
+                                  <SelectItem key={n} value={String(n)}>
+                                    {n}x de R${' '}
+                                    {(rawAmountCents / 100 / n).toFixed(2).replace('.', ',')}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs text-slate-300">Cartão de Crédito</Label>
+                            <Select
+                              value={installmentCreditCardId}
+                              onValueChange={setInstallmentCreditCardId}
+                            >
+                              <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                                <SelectValue placeholder="Selecione o cartão" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                                <SelectItem value="none">Nenhum cartão</SelectItem>
+                                {creditCards.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name} (•••• {c.last_four})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Switch Recorrente (Para Despesas e Receitas) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <Repeat className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <span className="text-sm font-medium text-slate-200 block">
+                            É <strong className="text-white">recorrente?</strong>
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            Repetir automaticamente periodicamente
+                          </span>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={isRecorrente}
+                        onCheckedChange={(val) => {
+                          setIsRecorrente(val)
+                          if (val) setIsParcelada(false)
+                        }}
+                      />
+                    </div>
+
+                    {/* Frequência se Recorrente estiver ligado */}
+                    {isRecorrente && (
+                      <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/40 animate-in fade-in-50 duration-200">
+                        <Label className="text-xs text-slate-300 mb-1.5 block">Frequência</Label>
+                        <Select
+                          value={recurrentFrequency}
+                          onValueChange={(val: 'mensal' | 'semanal' | 'anual') =>
+                            setRecurrentFrequency(val)
+                          }
+                        >
+                          <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                            <SelectItem value="mensal">Mensal (todo mês)</SelectItem>
+                            <SelectItem value="semanal">Semanal (toda semana)</SelectItem>
+                            <SelectItem value="anual">Anual (todo ano)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Informação para Transferência no Passo 2 */
+                <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/40 text-xs text-slate-300 space-y-1">
+                  <p className="font-semibold text-white">Transferência entre contas</p>
+                  <p className="text-slate-400">
+                    Defina a data acima e prossiga para o próximo passo para selecionar a conta de
+                    origem e destino.
+                  </p>
+                </div>
+              )}
+
+              {/* Botões do Passo 2: Voltar e Avançar */}
+              <div className="pt-4 space-y-2.5">
+                <Button
+                  type="button"
+                  onClick={handleAdvanceToStep3}
+                  className={`w-full h-12 rounded-2xl ${typeConfig.actionBtn} font-bold text-base shadow-lg flex items-center justify-center gap-2`}
+                >
+                  <span>Avançar para Detalhes</span>
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGoBack}
+                  className="w-full h-11 rounded-2xl border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent"
+                >
+                  Voltar ao Valor
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* PASSO 3: DETALHES (Título, Categoria, Conta/Cartão, Já paguei/recebi) */}
+          {/* ========================================================================= */}
+          {step === 3 && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Resumo do Valor + Data */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+                <div>
+                  <span className="text-[11px] text-slate-400 block">Total & Data</span>
+                  <span className="text-base font-bold text-white tabular-nums">
+                    {formattedValue}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-300 font-medium">
+                    {date.split('-').reverse().join('/')}
+                  </span>
+                  {isParcelada && (
+                    <span className="text-[11px] text-emerald-400 block font-semibold">
+                      {totalInstallments}x de R${' '}
+                      {(rawAmountCents / 100 / totalInstallments).toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                  {isRecorrente && (
+                    <span className="text-[11px] text-emerald-400 block font-semibold capitalize">
+                      Recorrente ({recurrentFrequency})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Título / Descrição */}
+              <div className="space-y-1.5">
+                <Label htmlFor="fast-desc-step3" className="text-xs font-semibold text-slate-300">
+                  Título / Descrição
+                </Label>
+                <Input
+                  id="fast-desc-step3"
                   placeholder={
                     type === 'transferencia'
                       ? 'Ex: Transferência p/ Poupança'
@@ -523,7 +856,10 @@ export default function FastTransactionDrawer({
               {type === 'transferencia' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-300">Conta Origem</Label>
+                    <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                      Conta de Origem
+                    </Label>
                     <Select value={accountId} onValueChange={setAccountId}>
                       <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
                         <SelectValue placeholder="Selecione origem" />
@@ -539,7 +875,10 @@ export default function FastTransactionDrawer({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-300">Conta Destino</Label>
+                    <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                      Conta de Destino
+                    </Label>
                     <Select value={targetAccountId} onValueChange={setTargetAccountId}>
                       <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
                         <SelectValue placeholder="Selecione destino" />
@@ -556,154 +895,69 @@ export default function FastTransactionDrawer({
                 </div>
               ) : (
                 /* Se for Receita ou Despesa */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-300">Categoria</Label>
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
-                        <SelectValue placeholder="Categoria" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-56">
-                        {allCategories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-slate-300">Conta Bancária</Label>
-                    <Select value={accountId} onValueChange={setAccountId}>
-                      <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
-                        <SelectValue placeholder="Selecione conta" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                        <SelectItem value="none">Nenhuma conta</SelectItem>
-                        {accounts.map((acc) => (
-                          <SelectItem key={acc.id} value={acc.id}>
-                            {acc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
-              {/* Data */}
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="fast-date"
-                  className="text-xs text-slate-300 flex items-center gap-1.5"
-                >
-                  <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                  qual a data?
-                </Label>
-                <Input
-                  id="fast-date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white"
-                  required
-                />
-              </div>
-
-              {/* Seção de Switches estilo screenshot */}
-              {type !== 'transferencia' && (
-                <div className="space-y-3 pt-2">
-                  {type === 'despesa' && (
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-800/50 border border-slate-700/40">
-                      <div className="flex items-center gap-2.5">
-                        <Layers className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-200">
-                          ela é <strong className="text-white">parcelada?</strong>
-                        </span>
-                      </div>
-                      <Switch
-                        checked={isParcelada}
-                        onCheckedChange={(val) => {
-                          setIsParcelada(val)
-                          if (val) setIsRecorrente(false)
-                        }}
-                      />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Categoria */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-emerald-400" />
+                        Categoria
+                      </Label>
+                      <Select value={category} onValueChange={setCategory}>
+                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                          <SelectValue placeholder="Selecione a categoria" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-56">
+                          {relevantCategories.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Outros">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
 
-                  {isParcelada && type === 'despesa' && (
-                    <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-800/40 border border-slate-700/40">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-slate-300">Nº de Parcelas</Label>
-                        <Select
-                          value={String(totalInstallments)}
-                          onValueChange={(val) => setTotalInstallments(Number(val))}
-                        >
-                          <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-48">
-                            {[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48].map((n) => (
-                              <SelectItem key={n} value={String(n)}>
-                                {n}x de R$ {(rawAmountCents / 100 / n).toFixed(2).replace('.', ',')}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs text-slate-300">Cartão (opcional)</Label>
-                        <Select value={creditCardId} onValueChange={setCreditCardId}>
-                          <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
-                            <SelectValue placeholder="Nenhum" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                            <SelectItem value="none">Nenhum cartão</SelectItem>
-                            {creditCards.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-800/50 border border-slate-700/40">
-                    <div className="flex items-center gap-2.5">
-                      <Repeat className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-200">
-                        ela é <strong className="text-white">recorrente?</strong>
-                      </span>
-                    </div>
-                    <Switch
-                      checked={isRecorrente}
-                      onCheckedChange={(val) => {
-                        setIsRecorrente(val)
-                        if (val) setIsParcelada(false)
-                      }}
-                    />
-                  </div>
-
-                  {isRecorrente && (
-                    <div className="p-3 rounded-2xl bg-slate-800/40 border border-slate-700/40">
-                      <Label className="text-xs text-slate-300 mb-1.5 block">Frequência</Label>
-                      <Select
-                        value={recurrentFrequency}
-                        onValueChange={(val: 'mensal' | 'semanal' | 'anual') =>
-                          setRecurrentFrequency(val)
-                        }
-                      >
-                        <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
-                          <SelectValue />
+                    {/* Conta Bancária */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        Conta Bancária
+                      </Label>
+                      <Select value={accountId} onValueChange={setAccountId}>
+                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                          <SelectValue placeholder="Selecione conta" />
                         </SelectTrigger>
                         <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                          <SelectItem value="mensal">Mensal (todo mês)</SelectItem>
-                          <SelectItem value="semanal">Semanal (toda semana)</SelectItem>
-                          <SelectItem value="anual">Anual (todo ano)</SelectItem>
+                          <SelectItem value="none">Nenhuma conta</SelectItem>
+                          {accounts.map((acc) => (
+                            <SelectItem key={acc.id} value={acc.id}>
+                              {acc.name} ({acc.bank})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Cartão de Crédito (apenas para despesas avulsas/não parceladas, ou se quiser vincular) */}
+                  {type === 'despesa' && !isParcelada && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                        <CreditCardIcon className="w-3.5 h-3.5 text-slate-400" />
+                        Cartão de Crédito (opcional)
+                      </Label>
+                      <Select value={creditCardId} onValueChange={setCreditCardId}>
+                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                          <SelectValue placeholder="Selecione o cartão" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                          <SelectItem value="none">Nenhum cartão</SelectItem>
+                          {creditCards.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name} (•••• {c.last_four})
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -711,8 +965,38 @@ export default function FastTransactionDrawer({
                 </div>
               )}
 
-              {/* Botões Salvar / Voltar */}
-              <div className="pt-4 space-y-2.5">
+              {/* Switch "Já recebi" / "Já paguei" */}
+              {type !== 'transferencia' && !isRecorrente && (
+                <div className="pt-1">
+                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      {isPaid ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <Clock className="w-4 h-4 text-slate-400" />
+                      )}
+                      <div>
+                        <span className="text-sm font-medium text-slate-200 block">
+                          {typeConfig.paidLabel} <strong className="text-white">?</strong>
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {isPaid ? (
+                            <span className="text-emerald-400 font-medium">
+                              Lançamento efetivado no saldo
+                            </span>
+                          ) : (
+                            <span>{typeConfig.unpaidLabel} (pendente)</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <Switch checked={isPaid} onCheckedChange={setIsPaid} />
+                  </div>
+                </div>
+              )}
+
+              {/* Botões do Passo 3: Salvar / Voltar */}
+              <div className="pt-3 space-y-2.5">
                 <Button
                   type="submit"
                   disabled={loading}
@@ -723,17 +1007,20 @@ export default function FastTransactionDrawer({
                       <Loader2 className="w-5 h-5 animate-spin" /> Salvando...
                     </span>
                   ) : (
-                    'Confirmar Lançamento'
+                    <span className="flex items-center gap-2">
+                      <Check className="w-5 h-5 stroke-[2.5]" />
+                      Salvar
+                    </span>
                   )}
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setStep(1)}
+                  onClick={handleGoBack}
                   className="w-full h-11 rounded-2xl border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent"
                 >
-                  Voltar
+                  Voltar às Configurações
                 </Button>
               </div>
             </form>
