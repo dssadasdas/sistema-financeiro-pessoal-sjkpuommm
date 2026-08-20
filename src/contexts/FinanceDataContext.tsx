@@ -540,7 +540,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deleteAccount = async (id: string, options?: { deleteLinkedTransactions?: boolean }) => {
     if (!user) throw new Error('Não autenticado')
 
-    // 1. Busca TODAS as transações vinculadas (account + transfer_target_account)
+    // 1. Busca TODAS as transações vinculadas (account + transfer_target_account) para verificação prévia
     const [txnsAsAccount, txnsAsTransferTarget] = await Promise.all([
       pb
         .collection('transactions')
@@ -559,111 +559,14 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       throw new Error('Esta conta possui movimentações vinculadas. Escolha excluir tudo junto.')
     }
 
-    // 2. Desvincula bills, recurring_bills, recurrences
-    try {
-      const [linkedBills, linkedRecurring, linkedRecurrences] = await Promise.all([
-        pb.collection('bills').getFullList<Bill>({ batch: 500, filter: `account = "${id}"` }),
-        pb
-          .collection('recurring_bills')
-          .getFullList<RecurringBill>({ batch: 500, filter: `account = "${id}"` }),
-        pb
-          .collection('recurrences')
-          .getFullList<Recurrence>({ batch: 500, filter: `account = "${id}"` }),
-      ])
-
-      for (const b of linkedBills) {
-        await pb
-          .collection('bills')
-          .update(b.id, { account: null })
-          .catch(() => {})
-      }
-      for (const rb of linkedRecurring) {
-        await pb
-          .collection('recurring_bills')
-          .update(rb.id, { account: null })
-          .catch(() => {})
-      }
-      for (const r of linkedRecurrences) {
-        await pb
-          .collection('recurrences')
-          .update(r.id, { account: null })
-          .catch(() => {})
-      }
-    } catch (e) {
-      console.warn('Erro ao desvincular bills/recurrences:', e)
-    }
-
-    // 3. Se cascade, deleta TODAS as transações vinculadas ANTES da conta
     if (linkedTxns.length > 0 && options?.deleteLinkedTransactions) {
-      const linkedTxnIds = new Set(linkedTxns.map((t) => t.id))
-
-      // 3.1 Desvincula generated_transaction em bills
-      try {
-        const allBills = await pb.collection('bills').getFullList<Bill>({ batch: 500 })
-        for (const b of allBills) {
-          if (b.generated_transaction && linkedTxnIds.has(b.generated_transaction)) {
-            await pb
-              .collection('bills')
-              .update(b.id, { generated_transaction: null })
-              .catch(() => {})
-          }
-        }
-      } catch (e) {
-        console.warn('Erro bills gen tx:', e)
-      }
-
-      // 3.2 Desvincula payment_transaction em invoices
-      try {
-        const allInvoices = await pb.collection('invoices').getFullList<Invoice>({ batch: 500 })
-        for (const inv of allInvoices) {
-          if (inv.payment_transaction && linkedTxnIds.has(inv.payment_transaction)) {
-            await pb
-              .collection('invoices')
-              .update(inv.id, { payment_transaction: null })
-              .catch(() => {})
-          }
-        }
-      } catch (e) {
-        console.warn('Erro invoices pay tx:', e)
-      }
-
-      // 3.3 Deleta transações em LOTES para performance
-      const deletePromises = linkedTxns.map((t) =>
-        pb
-          .collection('transactions')
-          .delete(t.id)
-          .catch((err) => {
-            console.warn(`Falha ao deletar transação ${t.id}:`, err)
-          }),
-      )
-      await Promise.all(deletePromises)
-
-      // 3.4 Verificação final: busca qualquer transação remanescente
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      const [leftover1, leftover2] = await Promise.all([
-        pb
-          .collection('transactions')
-          .getFullList<Transaction>({ batch: 500, filter: `account = "${id}"` }),
-        pb
-          .collection('transactions')
-          .getFullList<Transaction>({ batch: 500, filter: `transfer_target_account = "${id}"` }),
-      ])
-      const allLeftovers = [...leftover1, ...leftover2]
-      if (allLeftovers.length > 0) {
-        await Promise.all(
-          allLeftovers.map((t) =>
-            pb
-              .collection('transactions')
-              .delete(t.id)
-              .catch(() => {}),
-          ),
-        )
-        await new Promise((resolve) => setTimeout(resolve, 300))
-      }
+      // O backend cuida de desvincular e deletar tudo atomicamente
+      await pb.collection('accounts').delete(id, { query: { cascade: 'true' } })
+    } else {
+      // Sem transações vinculadas, deleção simples
+      await pb.collection('accounts').delete(id)
     }
 
-    // 4. Exclui a conta
-    await pb.collection('accounts').delete(id)
     await fetchAllData()
   }
 
