@@ -24,6 +24,12 @@ import { Progress } from '@/components/ui/progress'
 import TransactionModal from '@/components/modals/TransactionModal'
 import { calculateCashFlowProjection } from '@/lib/projectionEngine'
 import { calculateMonthlyComparative } from '@/lib/dreEngine'
+import {
+  calculateHealthScore,
+  detectAnomalies,
+  identifySavingsOpportunities,
+  FinancialContextData,
+} from '@/lib/anomalyDetector'
 import { FileText } from 'lucide-react'
 
 const MONTHS_PT = [
@@ -99,6 +105,50 @@ export default function DashboardPage() {
       days: 30,
     })
   }, [accounts, transactions, bills, recurringBills, recurrences, financeInstallments, invoices])
+
+  // Contexto e Métricas Semeia IA (Etapa 5)
+  const iaContext: FinancialContextData = useMemo(
+    () => ({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments: financeInstallments,
+      invoices,
+      budgets,
+      goals,
+      investments,
+      customCategories,
+      currentMonthKey,
+    }),
+    [
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      financeInstallments,
+      invoices,
+      budgets,
+      goals,
+      investments,
+      customCategories,
+      currentMonthKey,
+    ],
+  )
+
+  const healthScore = useMemo(
+    () => calculateHealthScore(iaContext, currentMonthKey),
+    [iaContext, currentMonthKey],
+  )
+  const { anomalies } = useMemo(
+    () => detectAnomalies(iaContext, currentMonthKey),
+    [iaContext, currentMonthKey],
+  )
+  const opportunities = useMemo(() => identifySavingsOpportunities(iaContext), [iaContext])
+  const topAnomaly = anomalies[0] || null
+  const topOpportunity = opportunities[0] || null
 
   // Histórico real dos últimos 6 meses (saldo = receitas - despesas realizadas)
   const monthlyHistory = useMemo(() => {
@@ -254,6 +304,97 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Widget Compacto SEMEIA IA (Etapa 5) */}
+      <Card className="rounded-2xl border-emerald-200 dark:border-emerald-800/80 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-slate-50 dark:from-emerald-950/40 dark:via-[#121A2B] dark:to-slate-900/40 shadow-sm p-5">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            {/* Health Score Pill */}
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-900/80 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl p-3 shadow-xs flex-shrink-0">
+              <div className="text-center">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Saúde Financeira
+                </span>
+                <div className={`text-2xl font-black tabular-nums ${healthScore.color}`}>
+                  {healthScore.score}
+                  <span className="text-xs font-semibold text-slate-400">/100</span>
+                </div>
+              </div>
+              <Badge
+                className={`text-[10px] font-bold border-0 capitalize py-0.5 px-2 ${
+                  healthScore.level === 'excelente'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                    : healthScore.level === 'boa'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-300'
+                      : healthScore.level === 'atencao'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300'
+                }`}
+              >
+                {healthScore.levelLabel}
+              </Badge>
+            </div>
+
+            {/* Insights compactos */}
+            <div className="space-y-1.5 min-w-0 flex-1 text-xs">
+              {topAnomaly ? (
+                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-bold shrink-0 ${
+                      topAnomaly.priority === 'CRITICO'
+                        ? 'border-red-500 text-red-600 dark:text-red-400'
+                        : 'border-amber-500 text-amber-600 dark:text-amber-400'
+                    }`}
+                  >
+                    {topAnomaly.priority}
+                  </Badge>
+                  <span className="font-semibold truncate">{topAnomaly.title}:</span>
+                  <span className="text-slate-500 dark:text-slate-400 truncate">
+                    {topAnomaly.description}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 border-0 text-[10px] font-bold">
+                    POSITIVO
+                  </Badge>
+                  <span className="truncate">
+                    Nenhum alerta crítico pendente em seu fluxo de caixa.
+                  </span>
+                </div>
+              )}
+
+              {topOpportunity && (
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950/60 border-0 text-[10px] font-bold shrink-0">
+                    OPORTUNIDADE
+                  </Badge>
+                  <span className="truncate">{topOpportunity.description}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch md:self-auto justify-end shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/ia-financeira')}
+              className="text-xs font-bold rounded-xl h-9 px-3 gap-1"
+            >
+              Copiloto IA
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => navigate('/analises')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-sm"
+            >
+              Ver análise completa <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Widget "Resultado do Mês" (Etapa 4 - DRE & Comparativo) */}
       <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-indigo-500/5 dark:from-emerald-950/20 dark:via-[#121A2B] dark:to-indigo-950/20">

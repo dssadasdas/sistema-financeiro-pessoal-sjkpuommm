@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T02:27:13.760Z",
+  "generatedAt": "2026-08-20T02:37:38.199Z",
   "collections": [
     {
       "name": "users",
@@ -1573,6 +1573,61 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_categories_user ON categories (user)"]
+    },
+    {
+      "name": "weekly_analyses",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "week_start",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "week_end",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "summary_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_weekly_analyses_user_week ON weekly_analyses (user, week_start)"
+      ]
     }
   ]
 }

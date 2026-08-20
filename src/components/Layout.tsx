@@ -64,6 +64,7 @@ const navItems: NavItem[] = [
   { label: 'DRE Demonstrativo', path: '/dre', icon: FileText },
   { label: 'Comparativo Mensal', path: '/comparativo', icon: ArrowLeftRight },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
+  { label: 'Análises Semanais', path: '/analises', icon: FileText },
 ]
 
 function isActivePath(pathname: string, path: string) {

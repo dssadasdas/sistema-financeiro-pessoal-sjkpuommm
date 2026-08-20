@@ -324,6 +324,16 @@ export interface Investment {
   profit_loss_pct?: number
 }
 
+export interface WeeklyAnalysis {
+  id: string
+  user: string
+  week_start: string
+  week_end: string
+  summary_json: any
+  created: string
+  updated: string
+}
+
 export interface CategorizationRule {
   id: string
   user: string

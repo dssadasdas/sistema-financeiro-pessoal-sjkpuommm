@@ -2,7 +2,18 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/constants'
-import { askAiAgent, askAiAgentStream, consumeAiStream } from '@/lib/aiAdvisor'
+import {
+  askAiAgent,
+  askAiAgentStream,
+  consumeAiStream,
+  evaluateLocalDeterministicAnswer,
+} from '@/lib/aiAdvisor'
+import {
+  calculateHealthScore,
+  detectAnomalies,
+  identifySavingsOpportunities,
+  FinancialContextData,
+} from '@/lib/anomalyDetector'
 import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
 import {
   calculateDreReport,
@@ -100,18 +111,18 @@ const QUICK_QUESTION_TEXT: Record<QuickQuestionId, string> = {
 }
 
 const CHAT_SUGGESTIONS = [
+  'Posso gastar R$ 2.000 agora?',
   'Quanto terei daqui a 30 dias?',
-  'Tenho dinheiro suficiente para pagar minhas contas do próximo mês?',
-  'Qual será meu pior dia financeiro nos próximos 60 dias?',
-  'Posso gastar R$ 2.000 agora sem comprometer minhas contas?',
-  'Quanto tenho de compromissos nos próximos 30 dias?',
-  'Qual foi meu lucro este mês?',
-  'Minha situação melhorou em relação ao mês passado?',
-  'Qual despesa mais aumentou?',
+  'Qual será meu pior dia financeiro?',
   'Qual minha margem líquida?',
-  'Onde estou gastando mais?',
-  'Compare meus últimos 6 meses.',
   'Qual foi meu melhor mês?',
+  'Minha situação melhorou?',
+  'Quanto gastei este mês?',
+  'Qual minha maior despesa?',
+  'Quanto ainda tenho para pagar?',
+  'Quanto tenho para receber?',
+  'Qual cartão está mais comprometido?',
+  'Quanto estou economizando?',
 ]
 
 const AUTO_ANALYSIS_MESSAGE =
@@ -561,6 +572,33 @@ ${topEvents30.join('\n')}
       setChatLoading(true)
       setShowNewMessagesDivider(false)
       lastActivityRef.current = Date.now()
+
+      // 1. Checa resposta determinística pré-calculada primeiro (CÁLCULO PRIMEIRO)
+      const localContext: FinancialContextData = {
+        accounts,
+        transactions,
+        bills,
+        recurringBills,
+        recurrences,
+        installments,
+        invoices,
+        budgets,
+        goals: [],
+        investments,
+        customCategories,
+      }
+      const localDeterministic = evaluateLocalDeterministicAnswer(trimmed, localContext)
+
+      if (localDeterministic) {
+        setChatMessages((prev) =>
+          prev.map((m) =>
+            m.id === pendingId ? { ...m, content: localDeterministic, pending: false } : m,
+          ),
+        )
+        setChatLoading(false)
+        lastActivityRef.current = Date.now()
+        return
+      }
 
       const controller = new AbortController()
       abortRef.current = controller

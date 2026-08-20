@@ -37,6 +37,7 @@ import ComparativePage from '@/pages/ComparativePage'
 import InvestmentsPage from '@/pages/InvestmentsPage'
 import ReportsPage from '@/pages/ReportsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
+import WeeklyAnalysisPage from '@/pages/WeeklyAnalysisPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 // Full-screen loading spinner with logo
@@ -176,6 +177,8 @@ export default function App() {
                   <Route path="/relatorios" element={<ReportsPage />} />
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />
                   <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
+                  <Route path="/assistente-ia" element={<Navigate to="/ia-financeira" replace />} />
+                  <Route path="/analises" element={<WeeklyAnalysisPage />} />
                   <Route path="/configuracoes" element={<SettingsPage />} />
                 </Route>
 
