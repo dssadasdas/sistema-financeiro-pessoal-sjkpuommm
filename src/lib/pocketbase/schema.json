@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T04:52:10.588Z",
+  "generatedAt": "2026-08-20T05:00:15.029Z",
   "collections": [
     {
       "name": "users",
@@ -65,6 +65,18 @@
         {
           "name": "display_name",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notification_preferences",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "financial_preferences",
+          "type": "json",
           "required": false,
           "system": false
         }

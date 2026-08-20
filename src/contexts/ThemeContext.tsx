@@ -1,16 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-type Theme = 'dark' | 'light'
+export type ThemeMode = 'dark' | 'light' | 'system'
+export type ResolvedTheme = 'dark' | 'light'
 
 interface ThemeProviderProps {
   children: React.ReactNode
-  defaultTheme?: Theme
+  defaultTheme?: ThemeMode
   storageKey?: string
 }
 
 interface ThemeProviderState {
-  theme: Theme
-  setTheme: (theme: Theme) => void
+  theme: ThemeMode
+  resolvedTheme: ResolvedTheme
+  setTheme: (theme: ThemeMode) => void
   toggleTheme: () => void
 }
 
@@ -18,43 +20,80 @@ const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undef
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'light',
+  defaultTheme = 'system',
   storageKey = 'semeia-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
-      const saved = localStorage.getItem(storageKey) as Theme | null
-      if (saved === 'dark' || saved === 'light') return saved
+      const saved = localStorage.getItem(storageKey) as ThemeMode | null
+      if (saved === 'dark' || saved === 'light' || saved === 'system') return saved
     } catch {
       /* storage indisponível */
-    }
-    if (typeof window !== 'undefined') {
-      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      return isSystemDark ? 'dark' : 'light'
     }
     return defaultTheme
   })
 
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
+    if (theme === 'dark') return 'dark'
+    if (theme === 'light') return 'light'
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    return 'light'
+  })
+
   useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+    const computeResolved = (): ResolvedTheme => {
+      if (theme === 'dark') return 'dark'
+      if (theme === 'light') return 'light'
+      return mediaQuery.matches ? 'dark' : 'light'
+    }
+
+    const currentResolved = computeResolved()
+    setResolvedTheme(currentResolved)
+
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
-    root.classList.add(theme)
-    root.style.colorScheme = theme
+    root.classList.add(currentResolved)
+    root.style.colorScheme = currentResolved
+
     try {
       localStorage.setItem(storageKey, theme)
     } catch {
       /* storage indisponível */
     }
+
+    const handler = () => {
+      if (theme === 'system') {
+        const sysResolved = mediaQuery.matches ? 'dark' : 'light'
+        setResolvedTheme(sysResolved)
+        root.classList.remove('light', 'dark')
+        root.classList.add(sysResolved)
+        root.style.colorScheme = sysResolved
+      }
+    }
+
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
   }, [theme, storageKey])
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+    setTheme((prev) => {
+      if (prev === 'system') {
+        const isSysDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        return isSysDark ? 'light' : 'dark'
+      }
+      return prev === 'dark' ? 'light' : 'dark'
+    })
   }
 
   const value = {
     theme,
-    setTheme: (t: Theme) => {
+    resolvedTheme,
+    setTheme: (t: ThemeMode) => {
       setTheme(t)
     },
     toggleTheme,

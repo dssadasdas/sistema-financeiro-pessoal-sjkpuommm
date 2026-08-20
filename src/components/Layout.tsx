@@ -140,7 +140,7 @@ function UserAvatar({
 }
 
 function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout: () => void }) {
-  const { theme, toggleTheme } = useTheme()
+  const { resolvedTheme, toggleTheme } = useTheme()
   const { hideValues, toggleHideValues } = useAuth()
   return (
     <div className="px-3 py-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
@@ -181,10 +181,10 @@ function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout
           size="icon"
           onClick={toggleTheme}
           className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 shrink-0"
-          title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
-          aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
+          title={resolvedTheme === 'dark' ? 'Tema claro' : 'Tema escuro'}
+          aria-label={resolvedTheme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
         >
-          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
       </div>
 

@@ -64,6 +64,23 @@ export interface CategoryItem {
 export type PaymentProvider = 'stripe' | 'mercadopago'
 export type SubscriptionPlan = 'monthly' | 'yearly' | 'none'
 
+export interface UserNotificationPreferences {
+  contas_a_vencer?: boolean
+  boletos?: boolean
+  faturas_cartao?: boolean
+  saldo_baixo?: boolean
+  orcamento?: boolean
+  metas?: boolean
+  previsao_caixa?: boolean
+  analise_semanal?: boolean
+}
+
+export interface UserFinancialPreferences {
+  currency?: string
+  first_day_of_week?: 'sunday' | 'monday'
+  value_format?: string
+}
+
 export interface User {
   id: string
   email: string
@@ -75,6 +92,8 @@ export interface User {
   state?: string
   display_name?: string
   verified?: boolean
+  notification_preferences?: UserNotificationPreferences
+  financial_preferences?: UserFinancialPreferences
   created: string
   updated: string
 }
