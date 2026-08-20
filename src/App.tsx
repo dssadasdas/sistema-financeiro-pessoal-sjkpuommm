@@ -21,23 +21,10 @@ import NotFound from '@/pages/NotFound'
 // Páginas Autenticadas
 import DashboardPage from '@/pages/DashboardPage'
 import TransactionsPage from '@/pages/TransactionsPage'
-import StatementPage from '@/pages/StatementPage'
 import AccountsPage from '@/pages/AccountsPage'
 import CardsPage from '@/pages/CardsPage'
 import CardDetailPage from '@/pages/CardDetailPage'
-import BillsPage from '@/pages/BillsPage'
-import BoletosPage from '@/pages/BoletosPage'
-import RecurrencesPage from '@/pages/RecurrencesPage'
-import InstallmentsPage from '@/pages/InstallmentsPage'
-import BudgetPage from '@/pages/BudgetPage'
-import GoalsPage from '@/pages/GoalsPage'
-import ForecastPage from '@/pages/ForecastPage'
-import DrePage from '@/pages/DrePage'
-import ComparativePage from '@/pages/ComparativePage'
-import InvestmentsPage from '@/pages/InvestmentsPage'
-import ReportsPage from '@/pages/ReportsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
-import WeeklyAnalysisPage from '@/pages/WeeklyAnalysisPage'
 import SettingsPage from '@/pages/SettingsPage'
 
 // Full-screen loading spinner with logo
@@ -152,33 +139,13 @@ export default function App() {
                   <Route path="/dashboard" element={<Navigate to="/inicio" replace />} />
                   <Route path="/transacoes" element={<TransactionsPage />} />
                   <Route path="/lancamentos" element={<Navigate to="/transacoes" replace />} />
-                  <Route path="/extrato" element={<StatementPage />} />
                   <Route path="/contas" element={<AccountsPage />} />
                   <Route path="/cartoes" element={<CardsPage />} />
                   <Route path="/cartoes/:id" element={<CardDetailPage />} />
-                  <Route path="/faturas" element={<CardsPage />} />
-                  <Route path="/boletos" element={<BoletosPage />} />
-                  <Route path="/contas-a-pagar" element={<BillsPage />} />
-                  <Route
-                    path="/contas-a-pagar-e-receber"
-                    element={<Navigate to="/contas-a-pagar" replace />}
-                  />
-                  <Route path="/contas-e-boletos" element={<Navigate to="/boletos" replace />} />
-                  <Route path="/recorrencias" element={<RecurrencesPage />} />
-                  <Route path="/recorrentes" element={<Navigate to="/recorrencias" replace />} />
-                  <Route path="/parcelamentos" element={<InstallmentsPage />} />
-                  <Route path="/orcamento" element={<BudgetPage />} />
-                  <Route path="/orcamentos" element={<Navigate to="/orcamento" replace />} />
-                  <Route path="/metas" element={<GoalsPage />} />
-                  <Route path="/previsao" element={<ForecastPage />} />
-                  <Route path="/dre" element={<DrePage />} />
-                  <Route path="/comparativo" element={<ComparativePage />} />
-                  <Route path="/investimentos" element={<InvestmentsPage />} />
-                  <Route path="/relatorios" element={<ReportsPage />} />
+                  <Route path="/faturas" element={<Navigate to="/cartoes" replace />} />
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />
                   <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
                   <Route path="/assistente-ia" element={<Navigate to="/ia-financeira" replace />} />
-                  <Route path="/analises" element={<WeeklyAnalysisPage />} />
                   <Route path="/configuracoes" element={<SettingsPage />} />
                 </Route>
 

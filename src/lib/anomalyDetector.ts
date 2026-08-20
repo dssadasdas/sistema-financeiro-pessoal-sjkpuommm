@@ -13,7 +13,7 @@ import {
   Transaction,
 } from '@/types/finance'
 import { calculateCashFlowProjection, ProjectionSummary } from './projectionEngine'
-import { calculateDreReport, calculateMonthlyComparative } from './dreEngine'
+
 import { formatCurrency, formatDate } from './constants'
 
 export type InsightPriority = 'CRITICO' | 'IMPORTANTE' | 'OPORTUNIDADE' | 'POSITIVO'
@@ -399,23 +399,29 @@ export function detectAnomalies(
       }
     })
 
-    // Piora de margem ou redução drástica de poupança
-    const curDre = calculateDreReport(context.transactions, {
-      month: currentMonthKey,
-      customCategories: context.customCategories,
-    })
-    const prevDre = calculateDreReport(context.transactions, {
-      month: prevMonthKey,
-      customCategories: context.customCategories,
-    })
+    // Queda no resultado financeiro em relação ao mês anterior
+    const curTotals = monthlyData[currentMonthKey] || {
+      income: 0,
+      expense: 0,
+      count: 0,
+      byCategory: {},
+    }
+    const prevTotals = monthlyData[prevMonthKey] || {
+      income: 0,
+      expense: 0,
+      count: 0,
+      byCategory: {},
+    }
+    const curNet = curTotals.income - curTotals.expense
+    const prevNet = prevTotals.income - prevTotals.expense
 
-    if (prevDre.margemLiquidaPct > 10 && curDre.margemLiquidaPct < prevDre.margemLiquidaPct - 15) {
+    if (prevNet > 0 && curNet < 0) {
       anomalies.push({
-        id: 'margin-deterioration',
-        title: 'Piora na Margem Líquida',
-        description: `Sua margem líquida caiu de ${prevDre.margemLiquidaPct.toFixed(1)}% no mês anterior para ${curDre.margemLiquidaPct.toFixed(1)}% neste mês.`,
+        id: 'result-deterioration',
+        title: 'Queda no Resultado Líquido',
+        description: `Seu saldo no mês anterior foi positivo (${formatCurrency(prevNet)}), mas este mês está em déficit (${formatCurrency(curNet)}).`,
         priority: 'IMPORTANTE',
-        variationPct: curDre.margemLiquidaPct - prevDre.margemLiquidaPct,
+        variationPct: prevNet > 0 ? ((curNet - prevNet) / prevNet) * 100 : -100,
       })
     }
   }

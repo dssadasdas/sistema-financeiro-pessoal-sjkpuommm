@@ -8,11 +8,7 @@ import {
   evaluateCanSpendPurchase,
 } from './anomalyDetector'
 import { calculateCashFlowProjection } from './projectionEngine'
-import {
-  calculateDreReport,
-  calculateMonthlyComparative,
-  calculateComparativeHistory,
-} from './dreEngine'
+
 import { formatCurrency, formatDate } from './constants'
 
 export interface AiAdvisorResult {
@@ -54,7 +50,6 @@ function authHeaders(): Record<string, string> {
  */
 export function buildComprehensiveFinancialContext(context: FinancialContextData): string {
   const currentMonthKey = context.currentMonthKey || new Date().toISOString().slice(0, 7)
-  const todayStr = new Date().toISOString().slice(0, 10)
 
   // 1. Saldos em Contas
   const totalBalance = context.accounts.reduce((acc, a) => acc + (a.current_balance || 0), 0)
@@ -62,30 +57,10 @@ export function buildComprehensiveFinancialContext(context: FinancialContextData
     .map((a) => `  * ${a.name} (${a.bank}): ${formatCurrency(a.current_balance || 0)}`)
     .join('\n')
 
-  // 2. DRE e Comparativo
-  const dre = calculateDreReport(context.transactions, {
-    month: currentMonthKey,
-    customCategories: context.customCategories,
-  })
-  const comp = calculateMonthlyComparative(
-    context.transactions,
-    currentMonthKey,
-    context.customCategories,
-  )
-  const hist6m = calculateComparativeHistory(
-    context.transactions,
-    currentMonthKey,
-    6,
-    context.customCategories,
-  )
-  const bestMonth = [...hist6m].sort((a, b) => b.resultado - a.resultado)[0]
-
-  // 3. Projeção de Fluxo de Caixa (30, 60, 90 dias)
+  // 2. Projeção de Fluxo de Caixa (30 dias)
   const p30 = calculateCashFlowProjection({ ...context, days: 30 })
-  const p60 = calculateCashFlowProjection({ ...context, days: 60 })
-  const p90 = calculateCashFlowProjection({ ...context, days: 90 })
 
-  // 4. Cartões e Faturas
+  // 3. Cartões e Faturas
   const cardsInfo = (context.creditCards || [])
     .map((c) => {
       const openInv = context.invoices.find(
@@ -95,105 +70,49 @@ export function buildComprehensiveFinancialContext(context: FinancialContextData
     })
     .join('\n')
 
-  // 5. Contas a Pagar e Boletos Vencidos/Pendentes
-  const pendingBills = context.bills.filter((b) => b.status !== 'pago')
-  const overdueBills = pendingBills.filter((b) => (b.due_date || '').slice(0, 10) < todayStr)
-  const upcomingBills = pendingBills
-    .filter((b) => (b.due_date || '').slice(0, 10) >= todayStr)
-    .slice(0, 5)
-
-  // 6. Recorrências e Parcelamentos
-  const activeRecs = (context.recurringBills || []).filter((r) => r.active)
-  const totalActiveRecsVal = activeRecs.reduce((acc, r) => acc + Number(r.value || 0), 0)
-
-  // 7. Orçamentos e Metas
-  const curBudgets = context.budgets.filter((b) => b.month === currentMonthKey)
-  const budgetsBreakdown = curBudgets
-    .map(
-      (b) =>
-        `  * ${b.category}: ${b.percentage}% usado (${formatCurrency(b.spent || 0)} / ${formatCurrency(b.limit_value)})`,
-    )
-    .join('\n')
-
-  const goalsBreakdown = context.goals
-    .map(
-      (g) =>
-        `  * ${g.name}: ${g.percentage}% acumulado (${formatCurrency(g.accumulated || 0)} / ${formatCurrency(g.target_value)})`,
-    )
-    .join('\n')
-
-  // 8. Investimentos
-  const totalInvested = context.investments.reduce(
-    (acc, i) => acc + Number(i.applied_value || 0),
-    0,
-  )
-  const totalInvestCurrent = context.investments.reduce(
-    (acc, i) => acc + Number(i.current_total_value || i.applied_value || 0),
-    0,
-  )
-  const investGain = totalInvestCurrent - totalInvested
-
-  // 9. Saúde Financeira e Anomalias Determinísticas
+  // 4. Saúde Financeira e Anomalias Determinísticas
   const health = calculateHealthScore(context, currentMonthKey)
   const { anomalies, hasEnoughHistory } = detectAnomalies(context, currentMonthKey)
   const opportunities = identifySavingsOpportunities(context)
 
+  // 5. Resumo do Mês das Transações
+  const monthTxns = (context.transactions || []).filter(
+    (t) => (t.date || '').startsWith(currentMonthKey) && t.status === 'realizado',
+  )
+  const monthIncome = monthTxns
+    .filter((t) => t.type === 'receita')
+    .reduce((acc, t) => acc + Number(t.value || 0), 0)
+  const monthExpense = monthTxns
+    .filter((t) => t.type === 'despesa')
+    .reduce((acc, t) => acc + Number(t.value || 0), 0)
+
   return `
-[SAÚDE FINANCEIRA E INDICADOR INTERNO]:
-- Pontuação de Saúde: ${health.score}/100 (${health.levelLabel.toUpperCase()})
-- Fatores calculados:
+[SAÚDE FINANCEIRA]:
+- Pontuação: ${health.score}/100 (${health.levelLabel.toUpperCase()})
+- Fatores:
 ${health.factors.map((f) => `  * ${f.factor}: ${f.score}/${f.maxScore} pts (${f.description})`).join('\n')}
 
 [SALDO CONSOLIDADO E POR BANCO]:
 - Saldo Consolidado Hoje: ${formatCurrency(totalBalance)}
 ${accountsBreakdown || '  * Nenhuma conta cadastrada'}
 
-[DRE DO MÊS ATUAL (${dre.periodLabel})]:
-- Receita Bruta: ${formatCurrency(dre.receitaBruta)}
-- Deduções: ${formatCurrency(dre.deducoes)}
-- Receita Líquida: ${formatCurrency(dre.receitaLiquida)}
-- CMV / Custos: ${formatCurrency(dre.cmv)}
-- Lucro Bruto: ${formatCurrency(dre.lucroBruto)} (Margem Bruta: ${dre.margemBrutaPct.toFixed(1)}%)
-- Despesas Operacionais: ${formatCurrency(dre.despesasOperacionaisTotal)}
-- Resultado Líquido: ${formatCurrency(dre.resultadoLiquido)} (Margem Líquida: ${dre.margemLiquidaPct.toFixed(1)}%)
-- Taxa de Economia / Poupança: ${dre.margemEconomiaPct.toFixed(1)}%
+[MÊS ATUAL]:
+- Receitas realizadas: ${formatCurrency(monthIncome)}
+- Despesas realizadas: ${formatCurrency(monthExpense)}
+- Resultado líquido: ${formatCurrency(monthIncome - monthExpense)}
 
-[COMPARATIVO COM O MÊS ANTERIOR]:
-- Receitas: ${formatCurrency(comp.incomeCurrent)} vs ${formatCurrency(comp.incomePrevious)} (Variação: ${comp.incomeVariationPct >= 0 ? '+' : ''}${comp.incomeVariationPct.toFixed(1)}%)
-- Despesas: ${formatCurrency(comp.expenseCurrent)} vs ${formatCurrency(comp.expensePrevious)} (Variação: ${comp.expenseVariationPct >= 0 ? '+' : ''}${comp.expenseVariationPct.toFixed(1)}%)
-- Resultado: ${formatCurrency(comp.resultCurrent)} vs ${formatCurrency(comp.resultPrevious)} (Diferença: ${comp.resultDiff >= 0 ? '+' : ''}${formatCurrency(comp.resultDiff)})
-- Maior Categoria de Gasto: ${comp.topExpenseCategory ? `${comp.topExpenseCategory.category} (${formatCurrency(comp.topExpenseCategory.value)}, ${comp.topExpenseCategory.percentage.toFixed(1)}% do total)` : 'N/A'}
-- Categoria que mais aumentou: ${comp.fastestGrowingCategory ? `${comp.fastestGrowingCategory.category} (+${formatCurrency(comp.fastestGrowingCategory.diff)}, +${comp.fastestGrowingCategory.pct.toFixed(1)}%)` : 'Nenhuma'}
-- Melhor mês nos últimos 6 meses: ${bestMonth ? `${bestMonth.label} com resultado de ${formatCurrency(bestMonth.resultado)}` : 'N/A'}
-
-[PREVISÃO DE FLUXO DE CAIXA (ETAPA 3)]:
+[PREVISÃO DE FLUXO DE CAIXA (30 DIAS)]:
 - 30 dias: Entradas ${formatCurrency(p30.totalIncome)}, Saídas ${formatCurrency(p30.totalExpense)} → Saldo final previsto: ${formatCurrency(p30.projectedEndBalance)} (${p30.isPositive ? 'Positivo' : 'Negativo'})
-  Risco 30d: ${p30.risk.hasRisk ? `Déficit a partir de ${formatDate(p30.risk.firstNegativeDate || '')} (${formatCurrency(p30.risk.firstNegativeBalance || 0)}), maior déficit: ${formatCurrency(p30.risk.maxDeficit)}` : 'Sem risco de saldo negativo nos próximos 30 dias'}
-- 60 dias: Saldo final previsto: ${formatCurrency(p60.projectedEndBalance)}
-- 90 dias: Saldo final previsto: ${formatCurrency(p90.projectedEndBalance)}
+  Risco 30d: ${p30.risk.hasRisk ? `Déficit a partir de ${formatDate(p30.risk.firstNegativeDate || '')} (${formatCurrency(p30.risk.firstNegativeBalance || 0)})` : 'Sem risco de saldo negativo nos próximos 30 dias'}
 
 [CARTÕES E FATURAS]:
 ${cardsInfo || '  * Nenhum cartão cadastrado'}
 
-[COMPROMISSOS A PAGAR E RECEBER]:
-- Contas vencidas: ${overdueBills.length} item(ns) totalizando ${formatCurrency(overdueBills.reduce((acc, b) => acc + Number(b.value || 0), 0))}
-- Próximos vencimentos: ${upcomingBills.map((b) => `${b.description} (${formatCurrency(b.value)} em ${formatDate(b.due_date)})`).join(', ') || 'Nenhum próximo'}
-- Recorrências ativas: ${activeRecs.length} item(ns) totalizando ${formatCurrency(totalActiveRecsVal)}/mês
-
-[ORÇAMENTOS DO MÊS]:
-${budgetsBreakdown || '  * Nenhum orçamento definido para este mês'}
-
-[METAS FINANCEIRAS]:
-${goalsBreakdown || '  * Nenhuma meta cadastrada'}
-
-[INVESTIMENTOS]:
-- Patrimônio: ${formatCurrency(totalInvestCurrent)} | Rentabilidade total: ${formatCurrency(investGain)} (${totalInvested > 0 ? ((investGain / totalInvested) * 100).toFixed(1) : '0'}%)
-
-[ANOMALIAS E ALERTAS DETECTADOS (ETAPA 5)]:
-- Histórico de comparação: ${hasEnoughHistory ? 'Histórico suficiente para médias' : 'Ainda não há histórico suficiente para essa comparação.'}
+[ANOMALIAS E ALERTAS]:
+- Histórico: ${hasEnoughHistory ? 'Histórico suficiente para médias' : 'Ainda não há histórico suficiente para essa comparação.'}
 ${anomalies.map((a) => `  * [${a.priority}] ${a.title}: ${a.description}`).join('\n') || '  * Nenhuma anomalia crítica detectada'}
 
-[OPORTUNIDADES DE ECONOMIA IDENTIFICADAS]:
+[OPORTUNIDADES IDENTIFICADAS]:
 ${opportunities.map((o) => `  * ${o.title}: ${o.description}`).join('\n') || '  * Nenhuma oportunidade pendente'}
   `.trim()
 }
@@ -231,29 +150,24 @@ export function evaluateLocalDeterministicAnswer(
     return `Nos próximos 30 dias, considerando entradas previstas de ${formatCurrency(p30.totalIncome)} e saídas previstas de ${formatCurrency(p30.totalExpense)}, seu saldo projetado é de ${formatCurrency(p30.projectedEndBalance)} (${p30.isPositive ? 'Positivo' : 'Negativo'}).`
   }
 
-  // 3. "Qual minha margem líquida?"
-  if (msgLower.includes('margem líquida') || msgLower.includes('margem liquida')) {
+  // 3. "Qual o resultado deste mês?"
+  if (
+    msgLower.includes('resultado deste mês') ||
+    msgLower.includes('resultado do mês') ||
+    msgLower.includes('saldo do mês')
+  ) {
     const currentMonthKey = context.currentMonthKey || new Date().toISOString().slice(0, 7)
-    const dre = calculateDreReport(context.transactions, {
-      month: currentMonthKey,
-      customCategories: context.customCategories,
-    })
-    return `Sua margem líquida no período (${dre.periodLabel}) é de ${dre.margemLiquidaPct.toFixed(1)}%, com resultado líquido de ${formatCurrency(dre.resultadoLiquido)} sobre uma receita líquida de ${formatCurrency(dre.receitaLiquida)}.`
-  }
-
-  // 4. "Qual foi meu melhor mês?"
-  if (msgLower.includes('melhor mês') || msgLower.includes('melhor mes')) {
-    const currentMonthKey = context.currentMonthKey || new Date().toISOString().slice(0, 7)
-    const hist6m = calculateComparativeHistory(
-      context.transactions,
-      currentMonthKey,
-      6,
-      context.customCategories,
+    const monthTxns = (context.transactions || []).filter(
+      (t) => (t.date || '').startsWith(currentMonthKey) && t.status === 'realizado',
     )
-    const best = [...hist6m].sort((a, b) => b.resultado - a.resultado)[0]
-    if (best) {
-      return `Seu melhor mês nos últimos 6 meses foi ${best.label}, com resultado líquido positivo de ${formatCurrency(best.resultado)}.`
-    }
+    const inc = monthTxns
+      .filter((t) => t.type === 'receita')
+      .reduce((a, t) => a + Number(t.value || 0), 0)
+    const exp = monthTxns
+      .filter((t) => t.type === 'despesa')
+      .reduce((a, t) => a + Number(t.value || 0), 0)
+    const res = inc - exp
+    return `No mês atual, você recebeu ${formatCurrency(inc)} e gastou ${formatCurrency(exp)}, resultando em ${res >= 0 ? 'saldo positivo' : 'déficit'} de ${formatCurrency(res)}.`
   }
 
   return null

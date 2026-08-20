@@ -15,11 +15,7 @@ import {
   FinancialContextData,
 } from '@/lib/anomalyDetector'
 import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
-import {
-  calculateDreReport,
-  calculateMonthlyComparative,
-  calculateComparativeHistory,
-} from '@/lib/dreEngine'
+
 import {
   Sparkles,
   TrendingUp,
@@ -190,41 +186,25 @@ export default function AiAdvisorPage() {
   // Constrói o contexto contábil real e auditado (Etapa 3 Projeção + Etapa 4 DRE / Comparativo)
   const combinedFinancialContextString = useMemo(() => {
     const currentMonthKey = new Date().toISOString().slice(0, 7)
-    const dreCur = calculateDreReport(transactions, { month: currentMonthKey, customCategories })
-    const compCur = calculateMonthlyComparative(transactions, currentMonthKey, customCategories)
-    const hist6m = calculateComparativeHistory(transactions, currentMonthKey, 6, customCategories)
+    const monthTxns = transactions.filter(
+      (t) => (t.date || '').startsWith(currentMonthKey) && t.status === 'realizado',
+    )
+    const monthIncome = monthTxns
+      .filter((t) => t.type === 'receita')
+      .reduce((acc, t) => acc + Number(t.value || 0), 0)
+    const monthExpense = monthTxns
+      .filter((t) => t.type === 'despesa')
+      .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
-    // Acha melhor mês nos últimos 6 meses
-    const bestMonth = [...hist6m].sort((a, b) => b.resultado - a.resultado)[0]
     const p30 = calculateCashFlowProjection({
       accounts,
       transactions,
-      bills,
-      recurringBills,
-      recurrences,
-      installments,
+      bills: [],
+      recurringBills: [],
+      recurrences: [],
+      installments: [],
       invoices,
       days: 30,
-    })
-    const p60 = calculateCashFlowProjection({
-      accounts,
-      transactions,
-      bills,
-      recurringBills,
-      recurrences,
-      installments,
-      invoices,
-      days: 60,
-    })
-    const p90 = calculateCashFlowProjection({
-      accounts,
-      transactions,
-      bills,
-      recurringBills,
-      recurrences,
-      installments,
-      invoices,
-      days: 90,
     })
 
     const topEvents30 = p30.timelineEvents
@@ -235,47 +215,19 @@ export default function AiAdvisorPage() {
       )
 
     return `
-[DADOS CONTÁBEIS DRE E RESULTADO REAL (ETAPA 4)]:
-- Período: ${dreCur.periodLabel}
-- Receita Bruta: ${formatCurrency(dreCur.receitaBruta)}
-- Deduções: ${formatCurrency(dreCur.deducoes)}
-- Receita Líquida: ${formatCurrency(dreCur.receitaLiquida)}
-- CMV / Custos: ${formatCurrency(dreCur.cmv)}
-- Lucro Bruto: ${formatCurrency(dreCur.lucroBruto)} (Margem Bruta: ${dreCur.margemBrutaPct.toFixed(1)}%)
-- Despesas Operacionais: ${formatCurrency(dreCur.despesasOperacionaisTotal)}
-- Resultado Operacional: ${formatCurrency(dreCur.resultadoOperacional)} (Margem Operacional: ${dreCur.margemOperacionalPct.toFixed(1)}%)
-- Resultado Líquido: ${formatCurrency(dreCur.resultadoLiquido)} (Margem Líquida: ${dreCur.margemLiquidaPct.toFixed(1)}%)
-- Taxa de Economia: ${dreCur.margemEconomiaPct.toFixed(1)}%
+[DADOS DO MÊS ATUAL]:
+- Receitas Realizadas: ${formatCurrency(monthIncome)}
+- Despesas Realizadas: ${formatCurrency(monthExpense)}
+- Resultado Líquido: ${formatCurrency(monthIncome - monthExpense)}
 
-[COMPARATIVO COM O MÊS ANTERIOR]:
-- Mês Atual (${compCur.currentMonthLabel}) vs Mês Anterior (${compCur.previousMonthLabel}):
-  * Receitas: ${formatCurrency(compCur.incomeCurrent)} vs ${formatCurrency(compCur.incomePrevious)} (Variação: ${compCur.incomeVariationPct >= 0 ? '+' : ''}${compCur.incomeVariationPct.toFixed(1)}%)
-  * Despesas: ${formatCurrency(compCur.expenseCurrent)} vs ${formatCurrency(compCur.expensePrevious)} (Variação: ${compCur.expenseVariationPct >= 0 ? '+' : ''}${compCur.expenseVariationPct.toFixed(1)}%)
-  * Resultado Líquido: ${formatCurrency(compCur.resultCurrent)} vs ${formatCurrency(compCur.resultPrevious)} (Diferença: ${compCur.resultDiff >= 0 ? '+' : ''}${formatCurrency(compCur.resultDiff)})
-  * Maior gasto atual: ${compCur.topExpenseCategory ? `${compCur.topExpenseCategory.category} (${formatCurrency(compCur.topExpenseCategory.value)}, ${compCur.topExpenseCategory.percentage.toFixed(1)}% do total)` : 'Nenhum'}
-  * Despesa que mais aumentou: ${compCur.fastestGrowingCategory ? `${compCur.fastestGrowingCategory.category} (+${formatCurrency(compCur.fastestGrowingCategory.diff)}, +${compCur.fastestGrowingCategory.pct.toFixed(1)}%)` : 'Nenhuma'}
-  * Despesa que mais reduziu: ${compCur.fastestFallingCategory ? `${compCur.fastestFallingCategory.category} (${formatCurrency(compCur.fastestFallingCategory.diff)}, ${compCur.fastestFallingCategory.pct.toFixed(1)}%)` : 'Nenhuma'}
-  * Melhor mês dos últimos 6 meses: ${bestMonth ? `${bestMonth.label} com resultado de ${formatCurrency(bestMonth.resultado)}` : 'N/A'}
-
-[PROJEÇÃO DE FLUXO DE CAIXA (ETAPA 3)]:
+[PROJEÇÃO DE FLUXO DE CAIXA (30 DIAS)]:
 - Saldo consolidado inicial hoje: ${formatCurrency(p30.startingBalance)}
 - Projeção 30 dias: Entradas ${formatCurrency(p30.totalIncome)}, Saídas ${formatCurrency(p30.totalExpense)}, Saldo final previsto: ${formatCurrency(p30.projectedEndBalance)} (${p30.isPositive ? 'Positivo' : 'Negativo'})
   Risco 30d: ${p30.risk.hasRisk ? `Déficit a partir de ${formatDate(p30.risk.firstNegativeDate || '')} (${formatCurrency(p30.risk.firstNegativeBalance || 0)}), maior déficit: ${formatCurrency(p30.risk.maxDeficit)}` : 'Sem risco previsto'}
-- Projeção 60 dias: Entradas ${formatCurrency(p60.totalIncome)}, Saídas ${formatCurrency(p60.totalExpense)}, Saldo final previsto: ${formatCurrency(p60.projectedEndBalance)}
-- Projeção 90 dias: Saldo final previsto: ${formatCurrency(p90.projectedEndBalance)}
 - Principais eventos previstos nos próximos 30 dias:
 ${topEvents30.join('\n')}
     `.trim()
-  }, [
-    accounts,
-    transactions,
-    bills,
-    recurringBills,
-    recurrences,
-    installments,
-    invoices,
-    customCategories,
-  ])
+  }, [accounts, transactions, invoices])
 
   const runAutoAnalysis = useCallback(async () => {
     setAutoAnalysis({ content: '', loading: true, error: false })
@@ -306,20 +258,12 @@ ${topEvents30.join('\n')}
     const monthTxns = transactions.filter((t) => (t.date || '').startsWith(currentMonthKey))
     const totalIncome = monthTxns
       .filter(
-        (t) =>
-          t.type === 'receita' &&
-          t.status === 'realizado' &&
-          !t.transfer_group_id &&
-          t.category !== 'Transferência',
+        (t) => t.type === 'receita' && t.status === 'realizado' && t.category !== 'Transferência',
       )
       .reduce((acc, t) => acc + Number(t.value || 0), 0)
     const totalExpenses = monthTxns
       .filter(
-        (t) =>
-          t.type === 'despesa' &&
-          t.status === 'realizado' &&
-          !t.transfer_group_id &&
-          t.category !== 'Transferência',
+        (t) => t.type === 'despesa' && t.status === 'realizado' && t.category !== 'Transferência',
       )
       .reduce((acc, t) => acc + Number(t.value || 0), 0)
     const netSavings = totalIncome - totalExpenses
@@ -329,11 +273,7 @@ ${topEvents30.join('\n')}
     const catMap: Record<string, number> = {}
     monthTxns
       .filter(
-        (t) =>
-          t.type === 'despesa' &&
-          t.status === 'realizado' &&
-          !t.transfer_group_id &&
-          t.category !== 'Transferência',
+        (t) => t.type === 'despesa' && t.status === 'realizado' && t.category !== 'Transferência',
       )
       .forEach((t) => {
         const c = t.category || 'Outros'
@@ -345,27 +285,22 @@ ${topEvents30.join('\n')}
     const topCategoryPct =
       totalExpenses > 0 && topCategory ? Math.round((topCategory[1] / totalExpenses) * 100) : 0
 
-    // 3. Contas a Vencer
-    const pendingBills = bills.filter((b) => b.status !== 'pago')
-    const overdueBills = pendingBills.filter((b) => (b.due_date || '').slice(0, 10) < todayStr)
-    const upcomingBills = pendingBills
-      .filter((b) => (b.due_date || '').slice(0, 10) >= todayStr)
-      .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+    // 3. Despesas pendentes
+    const pendingTxns = transactions.filter((t) => t.status !== 'realizado' && t.type === 'despesa')
+    const overdueBills = pendingTxns.filter((t) => (t.date || '').slice(0, 10) < todayStr)
+    const upcomingBills = pendingTxns
+      .filter((t) => (t.date || '').slice(0, 10) >= todayStr)
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
       .slice(0, 5)
-    const totalBillsPending = pendingBills.reduce((acc, b) => acc + Number(b.value || 0), 0)
+    const totalBillsPending = pendingTxns.reduce((acc, b) => acc + Number(b.value || 0), 0)
 
     // 4. Saldo em Contas
     const totalCash = accounts.reduce((acc, a) => acc + (a.current_balance || 0), 0)
 
-    // 5. Investimentos
-    const totalInvestCurrent = totalInvested + totalInvestmentsResult
-    const investGain = totalInvestmentsResult
-    const investGainPct = totalInvested > 0 ? (investGain / totalInvested) * 100 : 0
-
-    // 6. Cartões estourados (>80% do limite)
+    // 5. Cartões estourados (>80% do limite)
     const cardsNearLimit = creditCards.filter((c) => (c.used_percentage || 0) > 80)
 
-    // 7. Tendência de gastos (últimos 3 meses por categoria)
+    // 6. Tendência de gastos (últimos 3 meses por categoria)
     const categoryTrend = (() => {
       const months: string[] = []
       const now = new Date()
@@ -399,12 +334,7 @@ ${topEvents30.join('\n')}
       return { months, rising }
     })()
 
-    // 8. Alerta de orçamento (>80%)
-    const budgetAlerts = budgets
-      .filter((b) => b.month === currentMonthKey && (b.percentage || 0) >= 80)
-      .sort((a, b) => (b.percentage || 0) - (a.percentage || 0))
-
-    // 9. Sugestão de economia (gastos recorrentes médios)
+    // 7. Sugestão de economia (gastos recorrentes médios)
     const recurringSuggestion = (() => {
       const now = new Date()
       let total3m = 0
@@ -423,7 +353,7 @@ ${topEvents30.join('\n')}
       return { avgMonthly, suggested }
     })()
 
-    // 10. Saúde Financeira
+    // 8. Saúde Financeira
     let healthScore = 70
     const expenseRatio = totalIncome > 0 ? totalExpenses / totalIncome : 1
     if (expenseRatio < 0.7) healthScore += 15
@@ -450,30 +380,17 @@ ${topEvents30.join('\n')}
       sortedCats,
       overdueBills,
       upcomingBills,
-      pendingBills,
+      pendingBills: pendingTxns,
       totalBillsPending,
       totalCash,
-      totalInvested,
-      totalInvestCurrent,
-      investGain,
-      investGainPct,
       cardsNearLimit,
       categoryTrend,
-      budgetAlerts,
+      budgetAlerts: [],
       recurringSuggestion,
       healthScore,
       healthLevel,
     }
-  }, [
-    transactions,
-    accounts,
-    bills,
-    investments,
-    creditCards,
-    budgets,
-    totalInvested,
-    totalInvestmentsResult,
-  ])
+  }, [transactions, accounts, creditCards])
 
   // Auto-scroll chat para o fim
   useEffect(() => {
@@ -955,7 +872,7 @@ ${topEvents30.join('\n')}
                       {b.description}
                     </div>
                     <div className="text-[10px] text-red-600 font-medium">
-                      Venceu em {formatDate(b.due_date)}
+                      Venceu em {formatDate(b.date || '')}
                     </div>
                   </div>
                   <span className="font-bold text-red-600 text-xs tabular-nums">
@@ -972,7 +889,7 @@ ${topEvents30.join('\n')}
                     <div className="font-semibold text-slate-900 dark:text-white text-xs truncate">
                       {b.description}
                     </div>
-                    <div className="text-[10px] text-slate-400">{formatDate(b.due_date)}</div>
+                    <div className="text-[10px] text-slate-400">{formatDate(b.date || '')}</div>
                   </div>
                   <span className="font-bold text-slate-900 dark:text-white text-xs tabular-nums">
                     {formatCurrency(b.value, hideValues)}
@@ -981,42 +898,6 @@ ${topEvents30.join('\n')}
               ))}
             </div>
           )}
-        </Card>
-
-        {/* Investimentos */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-600" />
-              Investimentos
-            </h3>
-            <Badge variant="outline" className="text-xs">
-              {investments.length} ativo(s)
-            </Badge>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="text-[11px] text-slate-400">Patrimônio total</div>
-              <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
-                {formatCurrency(analytics.totalInvestCurrent, hideValues)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-400">Rentabilidade</div>
-              <div
-                className={cn(
-                  'text-lg font-black tabular-nums',
-                  analytics.investGain >= 0 ? 'text-emerald-600' : 'text-red-600',
-                )}
-              >
-                {analytics.investGain >= 0 ? '+' : ''}
-                {analytics.investGainPct.toFixed(1)}%
-              </div>
-            </div>
-          </div>
-          <div className="mt-2 text-[11px] text-slate-500">
-            Ganho/perda: {formatCurrency(analytics.investGain, hideValues)}
-          </div>
         </Card>
       </div>
 
@@ -1082,7 +963,8 @@ ${topEvents30.join('\n')}
       </div>
 
       {/* Análises complementares */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {' '}
         {/* Tendência de gastos */}
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
@@ -1117,7 +999,6 @@ ${topEvents30.join('\n')}
             Comparativo dos últimos 3 meses por categoria.
           </p>
         </Card>
-
         {/* Alerta de orçamento */}
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
@@ -1163,7 +1044,6 @@ ${topEvents30.join('\n')}
             Categorias acima de 80% do orçamento do mês.
           </p>
         </Card>
-
         {/* Sugestão de economia */}
         <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">

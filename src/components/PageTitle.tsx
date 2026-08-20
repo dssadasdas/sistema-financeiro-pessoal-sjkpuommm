@@ -12,22 +12,12 @@ const EXACT: TitleEntry[] = [
   { match: (p) => p === '/paywall', title: 'Assinar plano' },
   { match: (p) => p === '/inicio' || p === '/dashboard', title: 'Dashboard' },
   { match: (p) => p === '/transacoes' || p === '/lancamentos', title: 'Transações' },
-  { match: (p) => p === '/extrato', title: 'Extrato' },
   { match: (p) => p === '/contas', title: 'Contas Bancárias' },
   { match: (p) => p === '/cartoes' || p === '/faturas', title: 'Cartões de Crédito' },
   {
-    match: (p) =>
-      p === '/contas-a-pagar' || p === '/contas-e-boletos' || p === '/contas-a-pagar-e-receber',
-    title: 'Contas a Pagar e Receber',
+    match: (p) => p === '/ia-financeira' || p === '/assistente' || p === '/assistente-ia',
+    title: 'Assistente IA',
   },
-  { match: (p) => p === '/recorrencias' || p === '/recorrentes', title: 'Recorrências' },
-  { match: (p) => p === '/parcelamentos', title: 'Parcelamentos' },
-  { match: (p) => p === '/orcamento' || p === '/orcamentos', title: 'Orçamentos' },
-  { match: (p) => p === '/metas', title: 'Metas' },
-  { match: (p) => p === '/previsao', title: 'Previsão Financeira' },
-  { match: (p) => p === '/investimentos', title: 'Investimentos' },
-  { match: (p) => p === '/relatorios', title: 'Relatórios' },
-  { match: (p) => p === '/ia-financeira' || p === '/assistente', title: 'Assistente IA' },
   { match: (p) => p === '/configuracoes', title: 'Configurações' },
 ]
 

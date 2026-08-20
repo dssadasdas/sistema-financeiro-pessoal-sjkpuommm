@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate } from '@/lib/constants'
-import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
 import {
   Bell,
   AlertTriangle,
@@ -12,30 +11,12 @@ import {
   Flame,
   Check,
   ChevronRight,
-  ExternalLink,
-  Receipt,
   Wallet,
-  PieChart,
-  Target,
   CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 export type AlertLevel = 'info' | 'warning' | 'high' | 'critical'
 
@@ -44,7 +25,7 @@ export interface SmartAlert {
   level: AlertLevel
   title: string
   description: string
-  category: 'contas' | 'orcamento' | 'saldo' | 'metas' | 'cartoes'
+  category: 'contas' | 'saldo' | 'cartoes'
   targetPath: string
   date?: string
   value?: number
@@ -52,77 +33,20 @@ export interface SmartAlert {
 }
 
 export function useSmartAlerts(): SmartAlert[] {
-  const {
-    accounts,
-    bills,
-    transactions,
-    invoices,
-    budgets,
-    goals,
-    recurringBills,
-    recurrences,
-    installments,
-  } = useFinance()
+  const { accounts, transactions, invoices } = useFinance()
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
-  const currentMonthPrefix = useMemo(() => new Date().toISOString().slice(0, 7), [])
 
   const alerts = useMemo(() => {
     const list: SmartAlert[] = []
 
-    // 1. Contas a pagar/receber e boletos vencidos (Crítico / Importante)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const threeDaysAhead = new Date(today)
     threeDaysAhead.setDate(threeDaysAhead.getDate() + 3)
     const threeDaysStr = threeDaysAhead.toISOString().slice(0, 10)
 
-    // A) Bills não pagas (Boletos / Contas)
-    bills.forEach((b) => {
-      if (b.status === 'pago') return
-      const due = (b.due_date || '').slice(0, 10)
-      if (!due) return
-      const isDespesa = (b.type || 'pagar') === 'pagar'
-
-      if (due < todayStr) {
-        const diffMs = today.getTime() - new Date(due + 'T00:00:00').getTime()
-        const diffDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-        list.push({
-          id: `bill-overdue-${b.id}`,
-          level: 'critical',
-          category: 'contas',
-          title: `${isDespesa ? 'Boleto Vencido' : 'Receita Vencida'}`,
-          description: `${isDespesa ? 'Boleto de ' : ''}${b.description} está vencido há ${diffDays} dia(s) — ${formatCurrency(b.value)}`,
-          targetPath: `/boletos?id=${b.id}`,
-          date: due,
-          value: b.value,
-          badgeText: 'Vencido',
-        })
-      } else if (due <= threeDaysStr) {
-        const isToday = due === todayStr
-        const diffMs = new Date(due + 'T00:00:00').getTime() - today.getTime()
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-        list.push({
-          id: `bill-upcoming-${b.id}`,
-          level: isToday ? 'high' : 'warning',
-          category: 'contas',
-          title: isToday
-            ? `${isDespesa ? 'Boleto' : 'Receita'} Vence Hoje!`
-            : `${isDespesa ? 'Boleto' : 'Receita'} Próximo do Vencimento`,
-          description: isToday
-            ? `${b.description} vence hoje — ${formatCurrency(b.value)}`
-            : diffDays === 1
-              ? `${b.description} vence amanhã — ${formatCurrency(b.value)}`
-              : `${b.description} vence em ${diffDays} dias — ${formatCurrency(b.value)}`,
-          targetPath: `/boletos?id=${b.id}`,
-          date: due,
-          value: b.value,
-          badgeText: isToday ? 'Hoje' : diffDays === 1 ? 'Amanhã' : 'Em breve',
-        })
-      }
-    })
-
-    // B) Transações pendentes
+    // 1. Transações pendentes e vencidas / próximas (despesas e receitas)
     transactions.forEach((tx) => {
       if (tx.status === 'realizado') return
       const txDate = (tx.date || '').slice(0, 10)
@@ -134,7 +58,7 @@ export function useSmartAlerts(): SmartAlert[] {
           id: `tx-overdue-${tx.id}`,
           level: 'high',
           category: 'contas',
-          title: `Lançamento ${isDespesa ? 'de Despesa' : 'de Receita'} Pendente e Vencido`,
+          title: `Lançamento ${isDespesa ? 'de Despesa' : 'de Receita'} Pendente`,
           description: `"${tx.description}" previsto para ${formatDate(txDate)} (${formatCurrency(tx.value)}) não foi concluído.`,
           targetPath: '/transacoes',
           date: txDate,
@@ -156,7 +80,7 @@ export function useSmartAlerts(): SmartAlert[] {
       }
     })
 
-    // C) Faturas de cartão abertas e com vencimento próximo ou vencido
+    // 2. Faturas de cartão abertas e com vencimento próximo ou vencido
     invoices.forEach((inv) => {
       if (inv.status === 'paga') return
       const due = (inv.due_date || '').slice(0, 10)
@@ -189,37 +113,7 @@ export function useSmartAlerts(): SmartAlert[] {
       }
     })
 
-    // 2. Orçamento atingindo 80%+ ou 100%+ (Atenção / Importante / Crítico)
-    budgets.forEach((b) => {
-      if (b.month !== currentMonthPrefix) return
-      const limit = Number(b.limit_value || 0)
-      const spent = Number(b.spent || 0)
-      const pct = b.percentage || (limit > 0 ? Math.round((spent / limit) * 100) : 0)
-
-      if (pct >= 100) {
-        list.push({
-          id: `budget-exceeded-${b.id}`,
-          level: 'critical',
-          category: 'orcamento',
-          title: `Orçamento Estourado: ${b.category}`,
-          description: `Você gastou ${formatCurrency(spent)} de um limite de ${formatCurrency(limit)} (${pct}% consumido).`,
-          targetPath: '/orcamento',
-          badgeText: `${pct}%`,
-        })
-      } else if (pct >= 80) {
-        list.push({
-          id: `budget-warning-${b.id}`,
-          level: 'warning',
-          category: 'orcamento',
-          title: `Atenção ao Orçamento: ${b.category}`,
-          description: `Você já consumiu ${pct}% (${formatCurrency(spent)} de ${formatCurrency(limit)}) do teto deste mês.`,
-          targetPath: '/orcamento',
-          badgeText: `${pct}%`,
-        })
-      }
-    })
-
-    // 3. Saldo baixo nas contas (ex: < R$ 100 ou negativo)
+    // 3. Saldo baixo ou negativo nas contas bancárias
     accounts.forEach((acc) => {
       const bal = Number(acc.current_balance || 0)
       if (bal < 0) {
@@ -228,7 +122,7 @@ export function useSmartAlerts(): SmartAlert[] {
           level: 'critical',
           category: 'saldo',
           title: `Saldo Negativo: ${acc.name}`,
-          description: `A conta está com saldo negativo de ${formatCurrency(bal)}. Evite taxas de cheque especial.`,
+          description: `A conta está com saldo negativo de ${formatCurrency(bal)}. Evite juros e encargos.`,
           targetPath: '/contas',
           value: bal,
           badgeText: 'Negativo',
@@ -247,143 +141,6 @@ export function useSmartAlerts(): SmartAlert[] {
       }
     })
 
-    // 4. Metas com data limite ultrapassada
-    goals.forEach((g) => {
-      if (!g.target_date) return
-      const targetDate = g.target_date.slice(0, 10)
-      const pct = g.percentage || 0
-      if (pct < 100 && targetDate < todayStr) {
-        list.push({
-          id: `goal-overdue-${g.id}`,
-          level: 'high',
-          category: 'metas',
-          title: `Meta com Prazo Expirado: ${g.name}`,
-          description: `O prazo era ${formatDate(targetDate)} e a meta atingiu apenas ${pct}%.`,
-          targetPath: '/metas',
-          badgeText: `${pct}% atingido`,
-        })
-      }
-    })
-
-    // 5. ALERTAS DE FLUXO DE CAIXA PROJETADO (ETAPA 3)
-    // Calcula a projeção financeira de 30 dias com o motor central
-    const forecast30 = calculateCashFlowProjection({
-      accounts,
-      transactions,
-      bills,
-      recurringBills,
-      recurrences,
-      installments,
-      invoices,
-      days: 30,
-    })
-
-    // 5.1 Saldo projetado ficar negativo (nível: Crítico)
-    if (forecast30.risk.hasRisk && forecast30.risk.firstNegativeDate) {
-      list.push({
-        id: 'forecast-negative-risk',
-        level: 'critical',
-        category: 'saldo',
-        title: 'Risco de Fluxo de Caixa Negativo',
-        description: `Mantendo as movimentações previstas, seu saldo poderá ficar negativo em ${formatCurrency(
-          Math.abs(forecast30.risk.firstNegativeBalance || 0),
-        )} no dia ${forecast30.risk.firstNegativeDayLabel || formatDayMonth(forecast30.risk.firstNegativeDate)}.`,
-        targetPath: '/previsao',
-        date: forecast30.risk.firstNegativeDate,
-        value: forecast30.risk.maxDeficit,
-        badgeText: 'Déficit Previsto',
-      })
-    }
-
-    // 5.2 Despesas previstas superarem receitas em mais de 30% (nível: Importante)
-    // Aplica se despesas > receitas * 1.30 e houver despesas relevantes
-    if (
-      forecast30.totalExpense > 0 &&
-      forecast30.totalExpense > forecast30.totalIncome * 1.3 &&
-      forecast30.totalExpense - forecast30.totalIncome > 200
-    ) {
-      const excessPct =
-        forecast30.totalIncome > 0
-          ? Math.round(
-              ((forecast30.totalExpense - forecast30.totalIncome) / forecast30.totalIncome) * 100,
-            )
-          : 100
-      list.push({
-        id: 'forecast-expenses-exceed-income',
-        level: 'high',
-        category: 'orcamento',
-        title: 'Despesas Superam Receitas em >30%',
-        description: `Nos próximos 30 dias, as saídas previstas (${formatCurrency(
-          forecast30.totalExpense,
-        )}) superam as entradas (${formatCurrency(forecast30.totalIncome)}) em ${excessPct}%.`,
-        targetPath: '/previsao',
-        value: forecast30.totalExpense,
-        badgeText: `+${excessPct}% saídas`,
-      })
-    }
-
-    // 5.3 Concentração grande de pagamentos (>3) na mesma data (nível: Atenção)
-    const paymentsByDate: Record<string, { count: number; total: number; descriptions: string[] }> =
-      {}
-    forecast30.timelineEvents
-      .filter((ev) => ev.type === 'expense' && !ev.isSimulation)
-      .forEach((ev) => {
-        if (!paymentsByDate[ev.date]) {
-          paymentsByDate[ev.date] = { count: 0, total: 0, descriptions: [] }
-        }
-        paymentsByDate[ev.date].count += 1
-        paymentsByDate[ev.date].total += ev.value
-        if (paymentsByDate[ev.date].descriptions.length < 3) {
-          paymentsByDate[ev.date].descriptions.push(ev.description)
-        }
-      })
-
-    Object.entries(paymentsByDate).forEach(([pDate, info]) => {
-      if (info.count > 3) {
-        list.push({
-          id: `forecast-concentrated-payments-${pDate}`,
-          level: 'warning',
-          category: 'contas',
-          title: `Concentração de Pagamentos em ${formatDayMonth(pDate)}`,
-          description: `Existem ${info.count} pagamentos agendados para ${formatDate(pDate)} totalizando ${formatCurrency(
-            info.total,
-          )} (${info.descriptions.join(', ')}...).`,
-          targetPath: '/previsao',
-          date: pDate,
-          value: info.total,
-          badgeText: `${info.count} pagamentos`,
-        })
-      }
-    })
-
-    // 5.4 Fatura futura comprometer mais de 50% do saldo atual (nível: Importante)
-    if (forecast30.startingBalance > 0) {
-      invoices.forEach((inv) => {
-        if (inv.status === 'paga') return
-        const total = Number(inv.total || 0)
-        const due = (inv.due_date || '').slice(0, 10)
-        if (total > forecast30.startingBalance * 0.5 && due >= todayStr) {
-          const pctOfBalance = Math.round((total / forecast30.startingBalance) * 100)
-          const cardName = inv.expand?.credit_card?.name || 'Cartão'
-          list.push({
-            id: `forecast-heavy-invoice-${inv.id}`,
-            level: 'high',
-            category: 'cartoes',
-            title: `Fatura Pesa ${pctOfBalance}% do Saldo Atual`,
-            description: `Fatura ${cardName} de ${formatCurrency(
-              total,
-            )} vence em ${formatDate(due)} e compromete ${pctOfBalance}% do seu saldo bancário atual (${formatCurrency(
-              forecast30.startingBalance,
-            )}).`,
-            targetPath: `/cartoes/${inv.credit_card}`,
-            date: due,
-            value: total,
-            badgeText: `${pctOfBalance}% do saldo`,
-          })
-        }
-      })
-    }
-
     // Ordenação por severidade: critical > high > warning > info
     const weight: Record<AlertLevel, number> = {
       critical: 4,
@@ -393,19 +150,7 @@ export function useSmartAlerts(): SmartAlert[] {
     }
 
     return list.sort((a, b) => weight[b.level] - weight[a.level])
-  }, [
-    accounts,
-    bills,
-    transactions,
-    invoices,
-    budgets,
-    goals,
-    recurringBills,
-    recurrences,
-    installments,
-    todayStr,
-    currentMonthPrefix,
-  ])
+  }, [accounts, transactions, invoices, todayStr])
 
   return alerts
 }
@@ -665,11 +410,11 @@ export default function CentralDeAlertas({ variant = 'header-button' }: AlertCen
             size="sm"
             onClick={() => {
               setDialogOpen(false)
-              navigate('/contas-a-pagar')
+              navigate('/transacoes')
             }}
             className="text-[11px] text-emerald-600 p-0 h-auto"
           >
-            Ver Contas a Pagar e Receber
+            Ver Transações
           </Button>
         </div>
       </DialogContent>

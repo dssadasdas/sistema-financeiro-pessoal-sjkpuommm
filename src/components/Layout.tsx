@@ -9,14 +9,6 @@ import {
   ArrowLeftRight,
   Landmark,
   CreditCard,
-  Receipt,
-  Repeat,
-  FileText,
-  RefreshCw,
-  Layers,
-  PieChart,
-  Target,
-  TrendingUp,
   Sparkles,
   Settings,
   LogOut,
@@ -29,7 +21,7 @@ import {
   Plus,
   Wallet,
   Home,
-  Barcode,
+  Repeat,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -50,21 +42,9 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/inicio', icon: LayoutDashboard },
   { label: 'Transações', path: '/transacoes', icon: ArrowLeftRight },
-  { label: 'Extrato', path: '/extrato', icon: Receipt },
-  { label: 'Contas Bancárias', path: '/contas', icon: Landmark },
-  { label: 'Cartões de Crédito', path: '/cartoes', icon: CreditCard },
-  { label: 'Boletos', path: '/boletos', icon: Barcode },
-  { label: 'Contas a Pagar e Receber', path: '/contas-a-pagar', icon: FileText },
-  { label: 'Recorrências', path: '/recorrencias', icon: RefreshCw },
-  { label: 'Parcelamentos', path: '/parcelamentos', icon: Layers },
-  { label: 'Orçamentos', path: '/orcamento', icon: PieChart },
-  { label: 'Metas', path: '/metas', icon: Target },
-  { label: 'Investimentos', path: '/investimentos', icon: TrendingUp },
-  { label: 'Previsão Financeira', path: '/previsao', icon: TrendingUp },
-  { label: 'DRE Demonstrativo', path: '/dre', icon: FileText },
-  { label: 'Comparativo Mensal', path: '/comparativo', icon: ArrowLeftRight },
+  { label: 'Contas', path: '/contas', icon: Landmark },
+  { label: 'Cartões', path: '/cartoes', icon: CreditCard },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
-  { label: 'Análises Semanais', path: '/analises', icon: FileText },
 ]
 
 function isActivePath(pathname: string, path: string) {
@@ -323,12 +303,12 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Bottom navigation mobile + tablet (abaixo de 1024px): 5 ícones (Início, Contas, +, Cartões, Investimentos) */}
+      {/* Bottom navigation mobile + tablet (abaixo de 1024px): 5 itens (Início, Transações, +, Cartões, IA) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 px-2 h-16 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-none">
         <NavLink
           to="/inicio"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
+            `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive
                 ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                 : 'text-slate-500 dark:text-slate-400'
@@ -340,7 +320,7 @@ export default function Layout() {
         </NavLink>
 
         <NavLink
-          to="/contas"
+          to="/transacoes"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive
@@ -349,8 +329,8 @@ export default function Layout() {
             }`
           }
         >
-          <Landmark className="w-5 h-5 mb-0.5" />
-          <span>Contas</span>
+          <ArrowLeftRight className="w-5 h-5 mb-0.5" />
+          <span>Transações</span>
         </NavLink>
 
         {/* Central + button */}
@@ -390,7 +370,7 @@ export default function Layout() {
         <NavLink
           to="/cartoes"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
+            `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive
                 ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                 : 'text-slate-500 dark:text-slate-400'
@@ -402,17 +382,17 @@ export default function Layout() {
         </NavLink>
 
         <NavLink
-          to="/investimentos"
+          to="/ia-financeira"
           className={({ isActive }) =>
-            `flex flex-col items-center justify-center w-16 h-full text-[10px] font-medium transition-colors ${
+            `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive
                 ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                 : 'text-slate-500 dark:text-slate-400'
             }`
           }
         >
-          <TrendingUp className="w-5 h-5 mb-0.5" />
-          <span>Investimentos</span>
+          <Sparkles className="w-5 h-5 mb-0.5" />
+          <span>IA</span>
         </NavLink>
       </nav>
 
