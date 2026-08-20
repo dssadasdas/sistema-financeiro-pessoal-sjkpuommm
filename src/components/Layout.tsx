@@ -291,9 +291,8 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Topbar mobile + tablet (abaixo de 1024px): Saudação + Saldo Geral + Ações */}
-        <header className="lg:hidden sticky top-0 z-30 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 pt-3 pb-3 shadow-xs">
-          {/* Linha 1: Avatar / Saudação + Alertas + Menu */}
+        {/* Topbar mobile + tablet (abaixo de 1024px): Saudação + Alertas + Menu */}
+        <header className="lg:hidden sticky top-0 z-30 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 py-3 shadow-xs">
           <div className="flex items-center justify-between gap-2">
             <Link to="/perfil" className="flex items-center gap-2.5 min-w-0">
               <UserAvatar user={user} size="w-9 h-9" textSize="text-xs" />
@@ -318,30 +317,6 @@ export default function Layout() {
               >
                 <Menu className="w-5 h-5" />
               </Button>
-            </div>
-          </div>
-
-          {/* Linha 2: Saldo Geral com Olho (mostrar/ocultar) */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Saldo geral
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-xs sm:text-sm md:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums truncate">
-                {formatCurrency(totalCurrentBalance, hideValues)}
-              </span>
-              <button
-                type="button"
-                onClick={toggleHideValues}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
-                title={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
-                aria-label={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
-              >
-                {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
           </div>
         </header>

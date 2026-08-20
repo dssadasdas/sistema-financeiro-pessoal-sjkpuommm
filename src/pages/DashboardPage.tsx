@@ -6,7 +6,6 @@ import { formatCurrency, formatDate } from '@/lib/constants'
 import { LoadingState, ErrorState } from '@/components/States'
 import pb from '@/lib/pocketbase/client'
 import {
-  Wallet,
   TrendingUp,
   ArrowUpRight,
   ArrowDownRight,
@@ -14,24 +13,21 @@ import {
   AlertTriangle,
   AlertCircle,
   Flame,
-  Info,
   ChevronRight,
   Sparkles,
   CheckCircle2,
   Plus,
-  Minus,
-  ArrowLeftRight,
-  Barcode,
   Eye,
   EyeOff,
-  Check,
   ShieldCheck,
   Activity,
   Calendar,
+  CreditCard as CreditCardIcon,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { BANK_CONFIGS } from '@/lib/constants'
 import { calculateCashFlowProjection } from '@/lib/projectionEngine'
 import {
   calculateHealthScore,
@@ -40,8 +36,8 @@ import {
   FinancialContextData,
 } from '@/lib/anomalyDetector'
 import { useSmartAlerts, getLevelConfig } from '@/components/CentralDeAlertas'
-import FastTransactionDrawer from '@/components/modals/FastTransactionDrawer'
-import BarcodeScannerModal from '@/components/modals/BarcodeScannerModal'
+import { BankLogoIcon } from '@/components/BankLogoIcon'
+import { Progress } from '@/components/ui/progress'
 
 function DashboardUserAvatar({
   user,
@@ -110,13 +106,6 @@ export default function DashboardPage() {
 
   const { user, hideValues, toggleHideValues } = useAuth()
   const navigate = useNavigate()
-
-  // Modais de Ações Rápidas
-  const [fastDrawerOpen, setFastDrawerOpen] = useState(false)
-  const [fastDrawerType, setFastDrawerType] = useState<
-    'receita' | 'despesa' | 'transferencia' | 'ajuste'
-  >('despesa')
-  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false)
 
   // 1. Saudação dinâmica conforme horário + Nome do usuário
   const greeting = useMemo(() => {
@@ -221,16 +210,6 @@ export default function DashboardPage() {
   // 6. Central de Alertas (máx 2 prioritários)
   const allAlerts = useSmartAlerts()
   const top2Alerts = useMemo(() => allAlerts.slice(0, 2), [allAlerts])
-
-  const handleOpenAction = (actionType: 'receita' | 'despesa' | 'transferencia') => {
-    setFastDrawerType(actionType)
-    setFastDrawerOpen(true)
-  }
-
-  const handleBoletoDetected = (code: string) => {
-    // Ao detectar boleto, pode abrir para registrar ou navegar
-    navigate('/transacoes')
-  }
 
   if (isLoading) {
     return <LoadingState message="Carregando seu resumo financeiro..." />
@@ -380,60 +359,113 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. AÇÕES RÁPIDAS (4 botões compactos) */}
+      {/* 3. SEÇÃO DE CARTÕES DE CRÉDITO */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-        {/* + Receita */}
-        <Button
-          type="button"
-          onClick={() => handleOpenAction('receita')}
-          variant="outline"
-          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-slate-200/90 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
-        >
-          <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-2">
+            <CreditCardIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Cartões</h2>
+            {creditCards.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0">
+                {creditCards.length}
+              </Badge>
+            )}
           </div>
-          <span className="truncate">Receita</span>
-        </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/cartoes')}
+            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 h-7 px-2 gap-0.5"
+          >
+            Ver todos →
+          </Button>
+        </div>
 
-        {/* - Despesa */}
-        <Button
-          type="button"
-          onClick={() => handleOpenAction('despesa')}
-          variant="outline"
-          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-red-50 dark:hover:bg-red-950/40 border-slate-200/90 dark:border-slate-800 hover:border-red-300 dark:hover:border-red-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
-        >
-          <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-            <Minus className="w-3.5 h-3.5 stroke-[3]" />
-          </div>
-          <span className="truncate">Despesa</span>
-        </Button>
+        {creditCards.length === 0 ? (
+          <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-2xs p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CreditCardIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  Você ainda não cadastrou nenhum cartão
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Cadastre seus cartões para acompanhar faturas e limites.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => navigate('/cartoes')}
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-8 px-3.5 gap-1.5 shadow-xs shrink-0 justify-center"
+            >
+              <Plus className="w-3.5 h-3.5" /> Cadastrar cartão
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+            {creditCards.map((card) => {
+              const config = BANK_CONFIGS[card.bank] || BANK_CONFIGS['Outro']
+              const brandLabel = card.brand || 'Crédito'
+              const invoiceTotal = card.current_invoice_total || 0
 
-        {/* Transferir */}
-        <Button
-          type="button"
-          onClick={() => handleOpenAction('transferencia')}
-          variant="outline"
-          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-blue-50 dark:hover:bg-blue-950/40 border-slate-200/90 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
-        >
-          <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <ArrowLeftRight className="w-3.5 h-3.5 stroke-[2.5]" />
-          </div>
-          <span className="truncate">Transferir</span>
-        </Button>
+              return (
+                <Card
+                  key={card.id}
+                  onClick={() => navigate(`/cartoes/${card.id}`)}
+                  className="rounded-xl sm:rounded-2xl border-slate-200/90 dark:border-slate-800 p-3.5 bg-white dark:bg-[#121A2B] shadow-2xs hover:shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700/60 transition-all cursor-pointer flex flex-col justify-between gap-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <BankLogoIcon
+                        bankName={card.bank}
+                        size={28}
+                        className="w-7 h-7 rounded-lg shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                          {card.name}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {config.logoText || card.bank} • {brandLabel}
+                          {card.last_four ? ` • •••• ${card.last_four}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </div>
 
-        {/* Boleto */}
-        <Button
-          type="button"
-          onClick={() => setBarcodeModalOpen(true)}
-          variant="outline"
-          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-purple-50 dark:hover:bg-purple-950/40 border-slate-200/90 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
-        >
-          <div className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-            <Barcode className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] sm:text-[11px] uppercase font-bold text-slate-400">
+                        Fatura atual
+                      </span>
+                      <span className="text-sm sm:text-base font-black tabular-nums tracking-tight text-slate-900 dark:text-white">
+                        {formatCurrency(invoiceTotal, hideValues)}
+                      </span>
+                    </div>
+
+                    {card.limit ? (
+                      <div className="space-y-1">
+                        <Progress
+                          value={card.used_percentage || 0}
+                          className="h-1.5 rounded-full"
+                        />
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                          <span>Limite {formatCurrency(card.limit, hideValues)}</span>
+                          <span>{card.used_percentage || 0}% usado</span>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </Card>
+              )
+            })}
           </div>
-          <span className="truncate">Boleto</span>
-        </Button>
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -723,22 +755,6 @@ export default function DashboardPage() {
           </Button>
         </div>
       </Card>
-
-      {/* ========================================================================= */}
-      {/* MODAIS ATIVADOS PELAS AÇÕES RÁPIDAS */}
-      {/* ========================================================================= */}
-      <FastTransactionDrawer
-        open={fastDrawerOpen}
-        onOpenChange={setFastDrawerOpen}
-        initialType={fastDrawerType}
-        onSuccess={refreshAll}
-      />
-
-      <BarcodeScannerModal
-        open={barcodeModalOpen}
-        onClose={() => setBarcodeModalOpen(false)}
-        onDetected={handleBoletoDetected}
-      />
     </div>
   )
 }
