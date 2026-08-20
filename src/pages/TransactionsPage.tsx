@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, CATEGORY_COLORS } from '@/lib/constants'
-import { useRealtime } from '@/hooks/use-realtime'
 import { LoadingState, ErrorState, EmptyState } from '@/components/States'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Transaction } from '@/types/finance'
+import CategoryExpensesWidget from '@/components/CategoryExpensesWidget'
 import {
   Plus,
   Search,
@@ -17,6 +17,7 @@ import {
   ArrowDownRight,
   ArrowUpDown,
   ArrowLeftRight,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,13 +48,21 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import TransactionModal from '@/components/modals/TransactionModal'
 
-type SortKey = 'date_desc' | 'date_asc' | 'value_desc' | 'value_asc'
+type DatePeriod =
+  | 'todos'
+  | 'este_mes'
+  | 'mes_anterior'
+  | 'ultimos_30_dias'
+  | 'ultimos_90_dias'
+  | 'este_ano'
+  | 'personalizado'
 
 export default function TransactionsPage() {
   const {
     transactions,
     accounts,
     creditCards,
+    customCategories,
     deleteTransaction,
     toggleTransactionStatus,
     isLoading,
@@ -64,11 +73,10 @@ export default function TransactionsPage() {
   const { toast } = useToast()
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'todos' | 'realizado' | 'pendente'>('todos')
-  const [accountFilter, setAccountFilter] = useState<string>('todos')
-  const [cardFilter, setCardFilter] = useState<string>('todos')
   const [categoryFilter, setCategoryFilter] = useState<string>('todos')
-  const [sortBy, setSortBy] = useState<SortKey>('date_desc')
+  const [datePeriod, setDatePeriod] = useState<DatePeriod>('todos')
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [txToEdit, setTxToEdit] = useState<Transaction | null>(null)
@@ -77,17 +85,42 @@ export default function TransactionsPage() {
 
   const categories = useMemo(() => {
     const set = new Set<string>()
+    customCategories.forEach((c) => {
+      if (c.name) set.add(c.name)
+    })
     transactions.forEach((t) => {
       if (t.category) set.add(t.category)
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [transactions])
+  }, [transactions, customCategories])
 
   const filteredTransactions = useMemo(() => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() // 0-indexed
+
+    // Chave do mês atual YYYY-MM
+    const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`
+
+    // Mês anterior
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1)
+    const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`
+
+    // Limites de dias
+    const todayTimestamp = new Date(
+      currentYear,
+      currentMonth,
+      now.getDate(),
+      23,
+      59,
+      59,
+      999,
+    ).getTime()
+    const thirtyDaysAgoTimestamp = todayTimestamp - 30 * 24 * 60 * 60 * 1000
+    const ninetyDaysAgoTimestamp = todayTimestamp - 90 * 24 * 60 * 60 * 1000
+    const currentYearStr = String(currentYear)
+
     const filtered = transactions.filter((tx) => {
-      if (statusFilter !== 'todos' && tx.status !== statusFilter) return false
-      if (accountFilter !== 'todos' && tx.account !== accountFilter) return false
-      if (cardFilter !== 'todos' && tx.credit_card !== cardFilter) return false
       if (categoryFilter !== 'todos' && tx.category !== categoryFilter) return false
 
       if (searchTerm.trim()) {
@@ -97,24 +130,40 @@ export default function TransactionsPage() {
         if (!desc.includes(term) && !cat.includes(term)) return false
       }
 
+      // Filtro por data (período)
+      const txDateStr = (tx.date || '').slice(0, 10)
+      if (datePeriod !== 'todos') {
+        if (!txDateStr) return false
+
+        if (datePeriod === 'este_mes') {
+          if (!txDateStr.startsWith(currentMonthKey)) return false
+        } else if (datePeriod === 'mes_anterior') {
+          if (!txDateStr.startsWith(prevMonthKey)) return false
+        } else if (datePeriod === 'ultimos_30_dias') {
+          const txTime = new Date(`${txDateStr}T12:00:00`).getTime()
+          if (txTime < thirtyDaysAgoTimestamp || txTime > todayTimestamp + 24 * 60 * 60 * 1000) {
+            return false
+          }
+        } else if (datePeriod === 'ultimos_90_dias') {
+          const txTime = new Date(`${txDateStr}T12:00:00`).getTime()
+          if (txTime < ninetyDaysAgoTimestamp || txTime > todayTimestamp + 24 * 60 * 60 * 1000) {
+            return false
+          }
+        } else if (datePeriod === 'este_ano') {
+          if (!txDateStr.startsWith(currentYearStr)) return false
+        } else if (datePeriod === 'personalizado') {
+          if (customStartDate && txDateStr < customStartDate) return false
+          if (customEndDate && txDateStr > customEndDate) return false
+        }
+      }
+
       return true
     })
 
     return filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'date_asc':
-          return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()
-        case 'date_desc':
-          return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
-        case 'value_desc':
-          return Number(b.value || 0) - Number(a.value || 0)
-        case 'value_asc':
-          return Number(a.value || 0) - Number(b.value || 0)
-        default:
-          return 0
-      }
+      return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
     })
-  }, [transactions, statusFilter, accountFilter, cardFilter, categoryFilter, searchTerm, sortBy])
+  }, [transactions, categoryFilter, searchTerm, datePeriod, customStartDate, customEndDate])
 
   // Agrupamento por data (YYYY-MM-DD)
   const groupedByDate = useMemo(() => {
@@ -184,17 +233,17 @@ export default function TransactionsPage() {
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
-    statusFilter !== 'todos' ||
-    accountFilter !== 'todos' ||
-    cardFilter !== 'todos' ||
-    categoryFilter !== 'todos'
+    categoryFilter !== 'todos' ||
+    datePeriod !== 'todos' ||
+    customStartDate !== '' ||
+    customEndDate !== ''
 
   const clearFilters = () => {
     setSearchTerm('')
-    setStatusFilter('todos')
-    setAccountFilter('todos')
-    setCardFilter('todos')
     setCategoryFilter('todos')
+    setDatePeriod('todos')
+    setCustomStartDate('')
+    setCustomEndDate('')
   }
 
   if (isLoading) {
@@ -215,6 +264,13 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 1. Gráfico de Gastos por Categoria (Donut) no topo */}
+      <CategoryExpensesWidget
+        transactions={transactions}
+        customCategories={customCategories}
+        hideValues={hideValues}
+      />
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
@@ -233,11 +289,11 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Barra de Filtros */}
+      {/* 2. Barra de Filtros Simplificada: Busca, Categoria e Data */}
       <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Busca */}
-          <div className="relative sm:col-span-2 lg:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Busca por descrição/categoria */}
+          <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <Input
               placeholder="Buscar descrição ou categoria..."
@@ -247,70 +303,12 @@ export default function TransactionsPage() {
             />
           </div>
 
-          {/* Status */}
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as 'todos' | 'realizado' | 'pendente')}
-          >
-            <SelectTrigger className="h-10 rounded-xl">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os status</SelectItem>
-              <SelectItem value="realizado">Realizados</SelectItem>
-              <SelectItem value="pendente">Pendentes</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Ordenação */}
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-            <SelectTrigger className="h-10 rounded-xl">
-              <SelectValue placeholder="Ordenar por" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date_desc">Data (mais recente)</SelectItem>
-              <SelectItem value="date_asc">Data (mais antiga)</SelectItem>
-              <SelectItem value="value_desc">Maior valor</SelectItem>
-              <SelectItem value="value_asc">Menor valor</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Segunda linha de filtros: Conta, Cartão, Categoria */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Select value={accountFilter} onValueChange={setAccountFilter}>
-            <SelectTrigger className="h-10 rounded-xl">
-              <SelectValue placeholder="Conta" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todas as contas</SelectItem>
-              {accounts.map((acc) => (
-                <SelectItem key={acc.id} value={acc.id}>
-                  {acc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={cardFilter} onValueChange={setCardFilter}>
-            <SelectTrigger className="h-10 rounded-xl">
-              <SelectValue placeholder="Cartão" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os cartões</SelectItem>
-              {creditCards.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name} (•••• {c.last_four})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+          {/* Filtro por categoria */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="h-10 rounded-xl">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-64">
               <SelectItem value="todos">Todas as categorias</SelectItem>
               {categories.map((c) => (
                 <SelectItem key={c} value={c}>
@@ -319,7 +317,50 @@ export default function TransactionsPage() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* Filtro por data (período) */}
+          <Select value={datePeriod} onValueChange={(v) => setDatePeriod(v as DatePeriod)}>
+            <SelectTrigger className="h-10 rounded-xl">
+              <div className="flex items-center gap-2 truncate">
+                <CalendarIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                <SelectValue placeholder="Período" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todo o período</SelectItem>
+              <SelectItem value="este_mes">Este mês</SelectItem>
+              <SelectItem value="mes_anterior">Mês anterior</SelectItem>
+              <SelectItem value="ultimos_30_dias">Últimos 30 dias</SelectItem>
+              <SelectItem value="ultimos_90_dias">Últimos 90 dias</SelectItem>
+              <SelectItem value="este_ano">Este ano</SelectItem>
+              <SelectItem value="personalizado">Personalizado...</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Inputs adicionais se período personalizado for escolhido */}
+        {datePeriod === 'personalizado' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-500">De (Data Inicial)</label>
+              <Input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="h-9 rounded-xl text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-500">Até (Data Final)</label>
+              <Input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="h-9 rounded-xl text-xs"
+              />
+            </div>
+          </div>
+        )}
 
         {hasActiveFilters && (
           <div className="flex items-center justify-between pt-1">
