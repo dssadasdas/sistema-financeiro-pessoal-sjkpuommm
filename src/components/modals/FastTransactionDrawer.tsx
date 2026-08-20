@@ -147,14 +147,14 @@ export default function FastTransactionDrawer({
         setPaymentMethod('Transferência')
       }
 
-      // Contas padrão
+      // Contas padrão (priorizando conta principal se definida)
+      const primaryId = localStorage.getItem('semeia_primary_account_id')
+      const primaryAcc = (primaryId && accounts.find((a) => a.id === primaryId)) || accounts[0]
+
       if (accounts.length > 0) {
-        setAccountId(accounts[0].id)
-        if (accounts.length > 1) {
-          setTargetAccountId(accounts[1].id)
-        } else {
-          setTargetAccountId(accounts[0].id)
-        }
+        setAccountId(primaryAcc?.id || accounts[0].id)
+        const secondary = accounts.find((a) => a.id !== (primaryAcc?.id || accounts[0].id))
+        setTargetAccountId(secondary?.id || accounts[0].id)
       } else {
         setAccountId('')
         setTargetAccountId('')

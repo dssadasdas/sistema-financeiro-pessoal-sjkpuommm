@@ -73,7 +73,9 @@ export default function TransactionModal({
       setPaymentMethod('PIX')
       setStatus('realizado')
       setType(initialType)
-      setAccountId(accounts[0]?.id || 'none')
+      const primaryId = localStorage.getItem('semeia_primary_account_id')
+      const defaultAcc = (primaryId && accounts.find((a) => a.id === primaryId)) || accounts[0]
+      setAccountId(defaultAcc?.id || 'none')
       setCreditCardId(creditCards[0]?.id || 'none')
     }
   }, [transactionToEdit, initialType, accounts, creditCards, open])
