@@ -439,62 +439,74 @@ export default function ReportsPage() {
 
       {/* Cards: Maior Gasto & Maior Categoria & A Receber / A Pagar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-400 font-semibold">Maior Despesa do Mês</span>
-            <div className="text-base font-bold text-slate-900 dark:text-white mt-1 truncate max-w-[140px]">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Maior Despesa
+            </span>
+            <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-1 truncate">
               {topExpense ? topExpense.description : 'Nenhuma'}
             </div>
             {topExpense && (
-              <span className="text-xs text-slate-400">
+              <span className="text-[11px] text-slate-400 truncate block whitespace-nowrap">
                 {topExpense.category} • {formatDate(topExpense.date)}
               </span>
             )}
           </div>
-          <div className="text-right">
-            <div className="text-lg font-black text-orange-600 tabular-nums">
+          <div className="text-right shrink-0">
+            <div className="text-base sm:text-lg font-black text-orange-600 tabular-nums whitespace-nowrap">
               {topExpense ? formatCurrency(topExpense.value, hideValues) : 'R$ 0,00'}
             </div>
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-xs text-slate-400 font-semibold">Maior Categoria de Gasto</span>
-            <div className="text-base font-bold text-slate-900 dark:text-white mt-1 truncate max-w-[140px]">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Maior Categoria
+            </span>
+            <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-1 truncate">
               {topCategory ? topCategory.category : 'Nenhuma'}
             </div>
             {topCategory && (
-              <span className="text-xs text-slate-400">{topCategory.percentage}% do total</span>
+              <span className="text-[11px] text-slate-400 truncate block whitespace-nowrap">
+                {topCategory.percentage}% do total
+              </span>
             )}
           </div>
-          <div className="text-right">
-            <div className="text-lg font-black text-slate-900 dark:text-white tabular-nums">
+          <div className="text-right shrink-0">
+            <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white tabular-nums whitespace-nowrap">
               {topCategory ? formatCurrency(topCategory.total, hideValues) : 'R$ 0,00'}
             </div>
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
-              <ArrowDownRight className="w-3 h-3 text-emerald-600" /> A Receber no Mês
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
+              <ArrowDownRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> A Receber no Mês
             </span>
-            <div className="text-lg font-black text-emerald-600 tabular-nums mt-1">
+            <div className="text-lg sm:text-xl font-black text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(monthBillsToReceive, hideValues)}
             </div>
           </div>
+          <span className="text-[11px] text-slate-400 mt-1 whitespace-nowrap truncate">
+            Previsão de entrada
+          </span>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex items-center justify-between">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
           <div>
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3 text-red-600" /> A Pagar no Mês
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
+              <ArrowUpRight className="w-3.5 h-3.5 text-red-600 shrink-0" /> A Pagar no Mês
             </span>
-            <div className="text-lg font-black text-red-600 tabular-nums mt-1">
+            <div className="text-lg sm:text-xl font-black text-red-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(monthBillsToPay, hideValues)}
             </div>
           </div>
+          <span className="text-[11px] text-slate-400 mt-1 whitespace-nowrap truncate">
+            Compromissos pendentes
+          </span>
         </Card>
       </div>
 

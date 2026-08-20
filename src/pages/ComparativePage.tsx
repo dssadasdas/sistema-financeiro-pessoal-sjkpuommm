@@ -150,11 +150,11 @@ export default function ComparativePage() {
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
               Receitas
             </span>
-            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(comp.incomeCurrent, hideValues)}
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
             <div className="flex items-center justify-between text-slate-500 gap-1">
               <span className="truncate">{comp.previousMonthLabel}:</span>
               <span className="font-semibold whitespace-nowrap">
@@ -188,11 +188,11 @@ export default function ComparativePage() {
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
               Despesas Totais
             </span>
-            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(comp.expenseCurrent, hideValues)}
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
             <div className="flex items-center justify-between text-slate-500 gap-1">
               <span className="truncate">{comp.previousMonthLabel}:</span>
               <span className="font-semibold whitespace-nowrap">
@@ -227,7 +227,7 @@ export default function ComparativePage() {
               Resultado Líquido
             </span>
             <div
-              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1.5 whitespace-nowrap truncate ${
                 comp.resultCurrent >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >
@@ -235,7 +235,7 @@ export default function ComparativePage() {
               {formatCurrency(comp.resultCurrent, hideValues)}
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
             <div className="flex items-center justify-between text-slate-500 gap-1">
               <span className="truncate">{comp.previousMonthLabel}:</span>
               <span className="font-semibold whitespace-nowrap">

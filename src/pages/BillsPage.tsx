@@ -1432,8 +1432,8 @@ function SummaryMiniCard({
     <Card
       className={`border-2 ${colorMap[color].split(' ')[0]} ${colorMap[color].split(' ')[2]} dark:${colorMap[color].split(' ')[3]} bg-white dark:bg-[#121A2B] shadow-xs flex flex-col justify-between`}
     >
-      <CardContent className="p-3 flex flex-col justify-between h-full">
-        <div>
+      <CardContent className="p-3 flex flex-col justify-between h-full space-y-2">
+        <div className="min-w-0">
           <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400 whitespace-nowrap truncate">
             {label}
           </p>
@@ -1443,7 +1443,7 @@ function SummaryMiniCard({
             {value}
           </p>
         </div>
-        <p className="text-[10px] text-slate-400 mt-1 whitespace-nowrap">
+        <p className="text-[10px] text-slate-400 whitespace-nowrap truncate">
           {count} {count === 1 ? 'item' : 'itens'}
         </p>
       </CardContent>

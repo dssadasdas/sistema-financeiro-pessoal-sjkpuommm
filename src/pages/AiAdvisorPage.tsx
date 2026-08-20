@@ -820,42 +820,48 @@ ${topEvents30.join('\n')}
         {/* Saúde Financeira */}
         <Card
           className={cn(
-            'rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-5',
+            'rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-5 flex flex-col justify-between',
             health.bg,
           )}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Saúde Financeira</span>
-            <ShieldCheck className={cn('w-5 h-5', health.color)} />
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className={cn('text-2xl font-black', health.color)}>{health.label}</span>
-            <span className="text-xs font-bold font-mono text-slate-400">
-              {analytics.healthScore}/100
-            </span>
-          </div>
-          <div className="mt-2 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all', health.bar)}
-              style={{ width: `${analytics.healthScore}%` }}
-            />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                Saúde Financeira
+              </span>
+              <ShieldCheck className={cn('w-5 h-5 shrink-0', health.color)} />
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <span className={cn('text-2xl font-black whitespace-nowrap', health.color)}>
+                {health.label}
+              </span>
+              <span className="text-xs font-bold font-mono text-slate-400 whitespace-nowrap">
+                {analytics.healthScore}/100
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+              <div
+                className={cn('h-full rounded-full transition-all', health.bar)}
+                style={{ width: `${analytics.healthScore}%` }}
+              />
+            </div>
           </div>
           <div className="mt-3 space-y-1 text-[11px] text-slate-500">
             {analytics.overdueBills.length > 0 && (
-              <div className="flex items-center gap-1 text-red-600">
-                <AlertCircle className="w-3 h-3" /> {analytics.overdueBills.length} conta(s)
-                vencida(s)
+              <div className="flex items-center gap-1 text-red-600 truncate whitespace-nowrap">
+                <AlertCircle className="w-3 h-3 shrink-0" /> {analytics.overdueBills.length}{' '}
+                conta(s) vencida(s)
               </div>
             )}
             {analytics.cardsNearLimit.length > 0 && (
-              <div className="flex items-center gap-1 text-amber-600">
-                <AlertCircle className="w-3 h-3" /> {analytics.cardsNearLimit.length} cartão(ões)
-                acima de 80% do limite
+              <div className="flex items-center gap-1 text-amber-600 truncate whitespace-nowrap">
+                <AlertCircle className="w-3 h-3 shrink-0" /> {analytics.cardsNearLimit.length}{' '}
+                cartão(ões) acima de 80% do limite
               </div>
             )}
             {analytics.overdueBills.length === 0 && analytics.cardsNearLimit.length === 0 && (
-              <div className="flex items-center gap-1 text-emerald-600">
-                <CheckCircle2 className="w-3 h-3" /> Sem pendências críticas
+              <div className="flex items-center gap-1 text-emerald-600 truncate whitespace-nowrap">
+                <CheckCircle2 className="w-3 h-3 shrink-0" /> Sem pendências críticas
               </div>
             )}
           </div>

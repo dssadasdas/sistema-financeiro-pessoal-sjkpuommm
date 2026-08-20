@@ -297,7 +297,7 @@ export default function DrePage() {
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
               Receita Líquida
             </span>
-            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(dreReport.receitaLiquida, hideValues)}
             </div>
           </div>
@@ -322,7 +322,7 @@ export default function DrePage() {
                 MB: {dreReport.margemBrutaPct.toFixed(1)}%
               </Badge>
             </div>
-            <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums mt-1 whitespace-nowrap truncate">
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
               {formatCurrency(dreReport.lucroBruto, hideValues)}
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function DrePage() {
               </Badge>
             </div>
             <div
-              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1.5 whitespace-nowrap truncate ${
                 dreReport.resultadoOperacional >= 0 ? 'text-blue-600' : 'text-red-600'
               }`}
             >
@@ -373,7 +373,7 @@ export default function DrePage() {
               </Badge>
             </div>
             <div
-              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1.5 whitespace-nowrap truncate ${
                 dreReport.resultadoLiquido >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >

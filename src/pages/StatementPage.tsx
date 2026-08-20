@@ -190,7 +190,7 @@ export default function StatementPage() {
       {/* Resumo geral (apenas realizados) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
         <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap block">
             Total Recebido
           </span>
           <div className="text-xl sm:text-2xl font-bold text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
@@ -198,7 +198,7 @@ export default function StatementPage() {
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap block">
             Total Pago
           </span>
           <div className="text-xl sm:text-2xl font-bold text-orange-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
@@ -206,7 +206,7 @@ export default function StatementPage() {
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap block">
             Saldo do Período
           </span>
           <div
