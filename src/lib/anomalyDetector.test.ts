@@ -340,12 +340,20 @@ describe('ETAPA 5 — Testes do Motor de IA Financeira, Anomalias e Saúde Finan
       currentMonthKey: curMonth,
     })
 
-    // Resumo semanal é gerado normalmente sem depender de rede externa
+    // 1. Resumo semanal determinístico é gerado offline sem exceções
     const summary = generateWeeklySummary(context, new Date('2025-04-12'))
     expect(summary.income).toBe(1200)
     expect(summary.formattedSummaryText).toContain('RESUMO DA SEMANA')
 
-    // Local deterministic evaluator responde perguntas de compra e previsão
+    // 2. Saúde financeira, anomalias e oportunidades funcionam offline
+    const health = calculateHealthScore(context, curMonth)
+    expect(health.score).toBeGreaterThan(0)
+    const { anomalies } = detectAnomalies(context, curMonth)
+    expect(Array.isArray(anomalies)).toBe(true)
+    const opps = identifySavingsOpportunities(context)
+    expect(Array.isArray(opps)).toBe(true)
+
+    // 3. Avaliador local determinístico responde perguntas de simulação e previsão
     const answer = evaluateLocalDeterministicAnswer('Posso gastar R$ 500 agora?', context)
     expect(answer).not.toBeNull()
     expect(answer).toContain('Hoje você possui R$ 4.000,00')
