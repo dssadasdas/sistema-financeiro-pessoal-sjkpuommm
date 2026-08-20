@@ -111,13 +111,15 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <Tag className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Categorias</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+              Categorias
+            </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               Gerencie suas categorias personalizadas de receitas e despesas
             </p>
@@ -125,7 +127,7 @@ export default function CategoriesPage() {
         </div>
 
         {/* Resumo rápido */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
             className="text-xs px-3 py-1 font-medium bg-white dark:bg-[#121A2B] border-slate-200 dark:border-slate-800"
@@ -242,12 +244,12 @@ export default function CategoriesPage() {
           </div>
 
           {/* Filtro por tipo */}
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs self-start sm:self-auto">
-            <Filter className="w-3.5 h-3.5 text-slate-400 ml-1.5" />
+          <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs w-full sm:w-auto">
+            <Filter className="w-3.5 h-3.5 text-slate-400 ml-1 hidden sm:inline" />
             <button
               type="button"
               onClick={() => setFilterType('todos')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+              className={`flex-1 sm:flex-initial px-2 py-1 rounded-lg font-medium transition-colors text-center ${
                 filterType === 'todos'
                   ? 'bg-white dark:bg-[#121A2B] text-slate-900 dark:text-white shadow-xs font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -258,7 +260,7 @@ export default function CategoriesPage() {
             <button
               type="button"
               onClick={() => setFilterType('despesa')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+              className={`flex-1 sm:flex-initial px-2 py-1 rounded-lg font-medium transition-colors text-center ${
                 filterType === 'despesa'
                   ? 'bg-white dark:bg-[#121A2B] text-red-600 dark:text-red-400 shadow-xs font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -269,7 +271,7 @@ export default function CategoriesPage() {
             <button
               type="button"
               onClick={() => setFilterType('receita')}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+              className={`flex-1 sm:flex-initial px-2 py-1 rounded-lg font-medium transition-colors text-center ${
                 filterType === 'receita'
                   ? 'bg-white dark:bg-[#121A2B] text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'

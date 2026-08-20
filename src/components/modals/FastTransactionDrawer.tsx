@@ -476,15 +476,15 @@ export default function FastTransactionDrawer({
             <div className="flex flex-col justify-between min-h-[420px] space-y-4">
               {/* Pergunta e Valor Gigante */}
               <div className="py-2">
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
+                <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 mb-1 sm:mb-2">
                   {typeConfig.prompt}
                 </p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 dark:text-slate-500">
+                <div className="flex items-baseline gap-1.5 min-w-0 flex-wrap">
+                  <span className="text-xl sm:text-2xl font-extrabold text-slate-400 dark:text-slate-500 shrink-0">
                     R$
                   </span>
                   <span
-                    className={`text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums ${
+                    className={`text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight tabular-nums break-all ${
                       rawAmountCents > 0
                         ? 'text-slate-900 dark:text-white'
                         : 'text-slate-400 dark:text-slate-600'
@@ -632,11 +632,11 @@ export default function FastTransactionDrawer({
           {step === 2 && (
             <div className="space-y-4">
               {/* Resumo do Valor */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium shrink-0">
                   Valor selecionado:
                 </span>
-                <span className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+                <span className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tabular-nums break-all text-right">
                   {formattedValue}
                 </span>
               </div>
@@ -830,27 +830,27 @@ export default function FastTransactionDrawer({
           {step === 3 && (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Resumo do Valor + Data */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
-                <div>
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 gap-2">
+                <div className="min-w-0">
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
                     Total & Data
                   </span>
-                  <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums">
+                  <span className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tabular-nums break-all">
                     {formattedValue}
                   </span>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                     {date.split('-').reverse().join('/')}
                   </span>
                   {isParcelada && (
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
+                    <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
                       {totalInstallments}x de R${' '}
                       {(rawAmountCents / 100 / totalInstallments).toFixed(2).replace('.', ',')}
                     </span>
                   )}
                   {isRecorrente && (
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold capitalize">
+                    <span className="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold capitalize">
                       Recorrente ({recurrentFrequency})
                     </span>
                   )}

@@ -260,16 +260,16 @@ export default function CentralDeAlertas({ variant = 'header-button' }: AlertCen
 
       <DialogContent className="max-w-lg rounded-2xl bg-white dark:bg-[#121A2B] max-h-[85vh] flex flex-col p-0 overflow-hidden">
         {/* Header da Central de Alertas */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold shrink-0">
               <Bell className="w-5 h-5" />
             </div>
-            <div>
-              <DialogTitle className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <DialogTitle className="font-extrabold text-sm sm:text-base lg:text-lg text-slate-900 dark:text-white truncate">
                 Central de Alertas
               </DialogTitle>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
                 Monitor inteligente em tempo real
               </p>
             </div>
@@ -277,7 +277,7 @@ export default function CentralDeAlertas({ variant = 'header-button' }: AlertCen
           {totalAlerts > 0 && (
             <Badge
               variant="outline"
-              className={`text-xs font-bold ${
+              className={`text-xs font-bold shrink-0 ${
                 criticalCount > 0
                   ? 'bg-red-50 text-red-700 border-red-300'
                   : 'bg-emerald-50 text-emerald-700 border-emerald-300'

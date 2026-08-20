@@ -230,20 +230,20 @@ export default function CardDetailPage() {
   return (
     <div className="space-y-6">
       {/* Top Navigation */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate('/cartoes')}
-          className="rounded-xl"
+          className="rounded-xl shrink-0"
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate">
             {card.name}
           </h2>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 truncate block">
             {card.bank} · Final {card.last_four}
           </span>
         </div>
@@ -280,14 +280,14 @@ export default function CardDetailPage() {
         </div>
 
         {/* Resumo da Fatura & Ações */}
-        <Card className="lg:col-span-2 rounded-2xl border-slate-200 dark:border-slate-800 p-6 flex flex-col justify-between bg-white dark:bg-[#121A2B] shadow-sm">
+        <Card className="lg:col-span-2 rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-6 flex flex-col justify-between bg-white dark:bg-[#121A2B] shadow-sm">
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div>
                 <span className="text-xs text-slate-400 font-semibold uppercase">
                   Fatura Atual ({activeInvoice?.reference || 'Atual'})
                 </span>
-                <div className="text-3xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tabular-nums mt-1 break-words">
                   {formatCurrency(activeInvoice?.total || card.current_invoice_total, hideValues)}
                 </div>
               </div>
@@ -307,16 +307,16 @@ export default function CardDetailPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
               <div>
                 <span className="text-slate-400">Limite Total:</span>
-                <div className="font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                <div className="font-bold text-slate-700 dark:text-slate-300 tabular-nums break-words">
                   {formatCurrency(card.limit, hideValues)}
                 </div>
               </div>
               <div>
                 <span className="text-slate-400">Limite Disponível:</span>
-                <div className="font-bold text-emerald-600 tabular-nums">
+                <div className="font-bold text-emerald-600 tabular-nums break-words">
                   {formatCurrency(card.available_limit, hideValues)}
                 </div>
               </div>
@@ -332,11 +332,11 @@ export default function CardDetailPage() {
           </div>
 
           {/* Botões */}
-          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 onClick={() => setImportModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-sm"
+                className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-sm justify-center"
               >
                 <TrendingUp className="w-4 h-4" /> Importar Fatura
               </Button>
@@ -347,7 +347,7 @@ export default function CardDetailPage() {
                   variant="outline"
                   className="rounded-xl text-xs text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/60 dark:hover:bg-red-950/40"
                 >
-                  Limpar Importação
+                  Limpar
                 </Button>
               )}
             </div>
@@ -358,7 +358,7 @@ export default function CardDetailPage() {
                   setSelectedPayAccount(accounts[0]?.id || '')
                   setPayModalOpen(true)
                 }}
-                className="bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold gap-1.5"
+                className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold gap-1.5 justify-center"
               >
                 <DollarSign className="w-4 h-4" /> Pagar Fatura
               </Button>
@@ -639,18 +639,18 @@ export default function CardDetailPage() {
               )}
             </div>
 
-            <DialogFooter className="pt-2 gap-2">
+            <DialogFooter className="pt-2 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setPayModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handlePayInvoice}
                 disabled={payLoading || !selectedPayAccount}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold gap-1.5 justify-center"
               >
                 {payLoading ? (
                   <>

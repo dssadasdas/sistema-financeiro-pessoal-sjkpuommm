@@ -260,28 +260,29 @@ export default function BarcodeScannerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
       <div className="bg-white dark:bg-[#121A2B] rounded-3xl w-full max-w-lg border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold shadow-xs">
-              <Maximize2 className="w-5 h-5" />
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Maximize2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm sm:text-base lg:text-lg text-slate-900 dark:text-white truncate">
                 Código de Barras do Boleto
               </h3>
-              <p className="text-xs text-slate-500">Câmera, colagem rápida ou digitação</p>
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                Câmera, colagem rápida ou digitação
+              </p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="rounded-xl text-slate-400 hover:text-slate-600"
+            className="rounded-xl text-slate-400 hover:text-slate-600 shrink-0"
           >
             <X className="w-5 h-5" />
           </Button>
         </div>
-
         {/* Mode Selector Tabs */}
         <div className="p-3 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 flex gap-1.5">
           <button
@@ -421,12 +422,12 @@ export default function BarcodeScannerModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+        <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
           <Button
             type="button"
             variant="ghost"
             onClick={onClose}
-            className="rounded-xl text-xs font-semibold"
+            className="w-full sm:w-auto rounded-xl text-xs font-semibold"
           >
             Cancelar
           </Button>
@@ -436,7 +437,7 @@ export default function BarcodeScannerModal({
               type="button"
               disabled={!manualCode.trim()}
               onClick={handleConfirmManual}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 justify-center"
             >
               <Check className="w-4 h-4" /> Aplicar Código
             </Button>
@@ -445,7 +446,7 @@ export default function BarcodeScannerModal({
               type="button"
               variant="outline"
               onClick={() => setActiveMode('paste')}
-              className="rounded-xl text-xs font-bold"
+              className="w-full sm:w-auto rounded-xl text-xs font-bold justify-center"
             >
               Digitar Manualmente
             </Button>

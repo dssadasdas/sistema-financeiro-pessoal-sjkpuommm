@@ -322,19 +322,19 @@ export default function TransactionModal({
             )}
           </div>
 
-          <DialogFooter className="pt-3 gap-2">
+          <DialogFooter className="pt-3 gap-2 flex-col-reverse sm:flex-row">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl"
+              className="w-full sm:w-auto rounded-xl"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
             >
               {loading ? 'Salvando...' : 'Salvar Lançamento'}
             </Button>

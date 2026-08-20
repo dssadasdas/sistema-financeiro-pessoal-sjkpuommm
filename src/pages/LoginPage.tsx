@@ -93,9 +93,11 @@ export default function LoginPage() {
         </div>
 
         <Card className="rounded-3xl border-white/40 shadow-2xl bg-white">
-          <CardContent className="p-7">
-            <h1 className="text-2xl font-bold text-slate-900 text-center">Entrar na sua conta</h1>
-            <p className="text-sm text-slate-500 text-center mt-1.5 mb-6">
+          <CardContent className="p-5 sm:p-7">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 text-center">
+              Entrar na sua conta
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 text-center mt-1.5 mb-6">
               Bem-vindo de volta! Acesse seu painel financeiro.
             </p>
 

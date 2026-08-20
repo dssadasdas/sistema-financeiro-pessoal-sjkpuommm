@@ -90,11 +90,11 @@ export default function SignupPage() {
         </div>
 
         <Card className="rounded-3xl border-white/40 dark:border-slate-800 shadow-2xl bg-white dark:bg-[#121a2b]">
-          <CardContent className="p-7">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white text-center">
+          <CardContent className="p-5 sm:p-7">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white text-center">
               Criar sua conta
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mt-1.5 mb-6">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 text-center mt-1.5 mb-6">
               Comece a organizar suas finanças em poucos minutos.
             </p>
             {generalError && (

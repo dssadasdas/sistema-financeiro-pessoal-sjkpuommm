@@ -199,7 +199,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <div
-                className={`text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight ${
+                className={`text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight break-all sm:break-normal ${
                   totalCurrentBalance >= 0
                     ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-red-600 dark:text-red-400'
@@ -223,7 +223,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400 break-all sm:break-normal">
                 +{formatCurrency(monthIncomeReceived, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Receitas pagas no mês</p>
@@ -242,7 +242,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold tabular-nums tracking-tight text-red-600 dark:text-red-400">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight text-red-600 dark:text-red-400 break-all sm:break-normal">
                 −{formatCurrency(monthExpensePaid, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Despesas pagas no mês</p>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-blue-600 dark:text-blue-400">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-blue-600 dark:text-blue-400 break-all sm:break-normal">
                 {formatCurrency(totalAReceber, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Pendentes / previstos</p>
@@ -283,7 +283,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-orange-600 dark:text-orange-400">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-orange-600 dark:text-orange-400 break-all sm:break-normal">
                 {formatCurrency(totalAPagar, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Despesas pendentes</p>
@@ -304,7 +304,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-purple-600 dark:text-purple-400">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-purple-600 dark:text-purple-400 break-all sm:break-normal">
                 {formatCurrency(totalFaturasAbertas, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">Cartões de crédito</p>
@@ -323,7 +323,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
+              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400 break-all sm:break-normal">
                 {formatCurrency(totalComprometido, hideValues)}
               </div>
               <p className="text-[11px] text-slate-400 mt-1">A pagar + faturas abertas</p>
@@ -425,7 +425,7 @@ export default function DashboardPage() {
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1 min-w-0">
             {/* Health Score Pill */}
-            <div className="flex items-center gap-3.5 bg-white dark:bg-slate-900/90 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl px-4 py-2.5 shadow-2xs shrink-0">
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-900/90 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl px-3.5 py-2.5 shadow-2xs shrink-0 w-full sm:w-auto justify-between sm:justify-start">
               <div className="flex flex-col justify-center">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap leading-none mb-1">
                   Saúde Financeira
@@ -455,28 +455,28 @@ export default function DashboardPage() {
             </div>
 
             {/* Insight prioritário (máx 1) */}
-            <div className="min-w-0 flex-1 text-xs">
+            <div className="min-w-0 flex-1 text-xs w-full sm:w-auto">
               {topPriorityInsight ? (
-                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-slate-800 dark:text-slate-200 min-w-0">
                   <Badge
                     variant="outline"
                     className="text-[10px] font-bold shrink-0 whitespace-nowrap px-2 py-0.5 border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {'priority' in topPriorityInsight ? topPriorityInsight.priority : 'INSIGHT'}
                   </Badge>
-                  <span className="font-semibold shrink-0 whitespace-nowrap text-slate-900 dark:text-white">
+                  <span className="font-semibold text-slate-900 dark:text-white">
                     {topPriorityInsight.title}:
                   </span>
-                  <span className="text-slate-600 dark:text-slate-300 truncate font-normal">
+                  <span className="text-slate-600 dark:text-slate-300 font-normal break-words">
                     {topPriorityInsight.description}
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-emerald-700 dark:text-emerald-300 min-w-0">
                   <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-0 text-[10px] font-bold shrink-0 whitespace-nowrap px-2 py-0.5">
                     POSITIVO
                   </Badge>
-                  <span className="truncate font-medium">
+                  <span className="font-medium break-words">
                     Suas métricas financeiras e fluxo de caixa estão em ótimo equilíbrio.
                   </span>
                 </div>
@@ -488,7 +488,7 @@ export default function DashboardPage() {
             <Button
               size="sm"
               onClick={() => navigate('/ia-financeira')}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-xs whitespace-nowrap"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-xs whitespace-nowrap justify-center"
             >
               Conversar com a IA <ChevronRight className="w-3.5 h-3.5" />
             </Button>

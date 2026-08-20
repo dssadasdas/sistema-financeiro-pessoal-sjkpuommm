@@ -229,16 +229,18 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Lançamentos</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            Lançamentos
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500">
             Acompanhe e gerencie todas as receitas, despesas e ajustes
           </p>
         </div>
         <Button
           onClick={handleCreate}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 justify-center"
         >
           <Plus className="w-4 h-4" /> Nova Transação
         </Button>
@@ -500,10 +502,10 @@ export default function TransactionsPage() {
                         </div>
 
                         {/* Direita: Valor + Ações */}
-                        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
                           <div className="text-right">
                             <div
-                              className={`text-sm sm:text-base font-extrabold tabular-nums ${
+                              className={`text-xs sm:text-sm md:text-base font-extrabold tabular-nums break-words ${
                                 isReceita
                                   ? 'text-emerald-600'
                                   : isDespesa
@@ -517,7 +519,7 @@ export default function TransactionsPage() {
                             <button
                               onClick={() => handleToggleStatus(tx)}
                               disabled={isLoadingThis}
-                              className="text-[10px] text-slate-400 hover:text-emerald-600 underline block ml-auto disabled:opacity-50"
+                              className="text-[10px] text-slate-400 hover:text-emerald-600 underline block ml-auto disabled:opacity-50 whitespace-nowrap"
                             >
                               {isRealizado
                                 ? 'Realizado'
@@ -533,7 +535,7 @@ export default function TransactionsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-slate-400"
+                                className="h-8 w-8 text-slate-400 shrink-0"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>

@@ -226,13 +226,15 @@ export default function GoalsPage() {
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
             <Target className="w-5 h-5" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Metas Financeiras</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+              Metas Financeiras
+            </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               Acompanhe seu progresso e guarde dinheiro para realizar seus sonhos
             </p>
@@ -241,7 +243,7 @@ export default function GoalsPage() {
 
         <Button
           onClick={handleOpenCreate}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 h-10"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 h-10 justify-center"
         >
           <Plus className="w-4 h-4" /> Nova Meta
         </Button>
@@ -542,12 +544,12 @@ export default function GoalsPage() {
               />
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="pt-3 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setCreateModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
                 disabled={creating}
               >
                 Cancelar
@@ -555,7 +557,7 @@ export default function GoalsPage() {
               <Button
                 type="submit"
                 disabled={creating || !goalName.trim() || !targetValue}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {creating ? (
                   <>
@@ -640,12 +642,12 @@ export default function GoalsPage() {
               />
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="pt-3 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setContribModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
                 disabled={contributing}
               >
                 Cancelar
@@ -653,7 +655,7 @@ export default function GoalsPage() {
               <Button
                 type="submit"
                 disabled={contributing || !contribValue}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {contributing ? (
                   <>

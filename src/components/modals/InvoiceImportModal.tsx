@@ -575,9 +575,9 @@ export default function InvoiceImportModal({
             )}
 
             {/* Tabela editável */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0 font-bold">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto overflow-y-auto max-h-64 scrollbar-thin">
+              <table className="w-full min-w-[560px] text-left text-xs">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0 font-bold z-10">
                   <tr>
                     <th className="p-2.5">Data</th>
                     <th className="p-2.5">Descrição</th>
@@ -602,7 +602,7 @@ export default function InvoiceImportModal({
                         <Input
                           value={it.description}
                           onChange={(e) => handleUpdateItem(it.id, 'description', e.target.value)}
-                          className="h-7 text-xs rounded-md"
+                          className="h-7 text-xs rounded-md min-w-[120px]"
                         />
                       </td>
                       <td className="p-2">
@@ -629,7 +629,7 @@ export default function InvoiceImportModal({
                               alert(`Regra salva: "${it.description}" → ${it.category}`)
                             }}
                             title="Salvar como regra de aprendizado"
-                            className="p-1 rounded text-slate-400 hover:text-emerald-600"
+                            className="p-1 rounded text-slate-400 hover:text-emerald-600 shrink-0"
                           >
                             <BookmarkPlus className="w-3.5 h-3.5" />
                           </button>
@@ -659,7 +659,7 @@ export default function InvoiceImportModal({
                           variant="ghost"
                           size="icon"
                           onClick={() => handleRemoveItem(it.id)}
-                          className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                          className="h-7 w-7 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 shrink-0"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>

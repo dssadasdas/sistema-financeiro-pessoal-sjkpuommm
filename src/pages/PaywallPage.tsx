@@ -351,12 +351,12 @@ export default function PaywallPage() {
                 </p>
 
                 {/* Forma de pagamento suportada (hint) */}
-                <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-400 dark:text-slate-500">
                   <div className="flex items-center gap-1.5">
-                    <CreditCard className="w-3 h-3" /> Stripe · cartão de crédito
+                    <CreditCard className="w-3 h-3 shrink-0" /> Stripe · cartão de crédito
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Landmark className="w-3 h-3" /> Mercado Pago · PIX / boleto
+                    <Landmark className="w-3 h-3 shrink-0" /> Mercado Pago · PIX / boleto
                   </div>
                 </div>
               </CardContent>

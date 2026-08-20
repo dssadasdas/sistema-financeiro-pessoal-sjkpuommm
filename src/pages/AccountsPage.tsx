@@ -347,17 +347,19 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Contas Bancárias</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            Contas Bancárias
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500">
             Saldo total patrimonial:{' '}
-            <span className="font-bold text-emerald-600">
+            <span className="font-bold text-emerald-600 break-words">
               {formatCurrency(totalBalance, hideValues)}
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {accounts.length >= 2 && (
             <Button
               variant="outline"
@@ -370,14 +372,14 @@ export default function AccountsPage() {
                 setError('')
                 setTransferModalOpen(true)
               }}
-              className="rounded-xl font-semibold text-xs sm:text-sm gap-1.5 h-10 border-slate-200 dark:border-slate-800"
+              className="flex-1 sm:flex-initial rounded-xl font-semibold text-xs sm:text-sm gap-1.5 h-10 border-slate-200 dark:border-slate-800 justify-center"
             >
               <ArrowRightLeft className="w-4 h-4 text-emerald-600" /> Transferir
             </Button>
           )}
           <Button
             onClick={handleOpenCreate}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 h-10"
+            className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 h-10 justify-center"
           >
             <Plus className="w-4 h-4" /> Nova Conta
           </Button>
@@ -459,7 +461,7 @@ export default function AccountsPage() {
                       Saldo Atual
                     </span>
                     <div
-                      className={`text-2xl font-black tabular-nums ${
+                      className={`text-xl sm:text-2xl font-black tabular-nums break-words ${
                         positive ? 'text-emerald-600' : 'text-red-600'
                       }`}
                     >
@@ -641,19 +643,19 @@ export default function AccountsPage() {
               )}
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="pt-3 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {loading ? (
                   <>
@@ -724,18 +726,18 @@ export default function AccountsPage() {
               />
             </div>
 
-            <DialogFooter className="pt-2 gap-2">
+            <DialogFooter className="pt-2 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setAdjustModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleAdjust}
                 disabled={adjustLoading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {adjustLoading ? (
                   <>
@@ -799,7 +801,7 @@ export default function AccountsPage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Valor (R$) *</Label>
                 <Input
@@ -841,19 +843,19 @@ export default function AccountsPage() {
               duplicação de receitas ou despesas nos relatórios.
             </div>
 
-            <DialogFooter className="pt-2 gap-2">
+            <DialogFooter className="pt-2 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setTransferModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={transferLoading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {transferLoading ? (
                   <>

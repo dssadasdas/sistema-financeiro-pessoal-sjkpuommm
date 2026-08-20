@@ -325,12 +325,14 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
           <SettingsIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{headerTitle}</h2>
+        <div className="min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+            {headerTitle}
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             Gerencie seu perfil, aparência, segurança e assinatura.
           </p>

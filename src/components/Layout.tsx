@@ -268,14 +268,14 @@ export default function Layout() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs sm:text-sm md:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums truncate">
                 {formatCurrency(totalCurrentBalance, hideValues)}
               </span>
               <button
                 type="button"
                 onClick={toggleHideValues}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
                 title={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
                 aria-label={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
               >
@@ -302,7 +302,7 @@ export default function Layout() {
         </header>
 
         {/* Content - padding 16px mobile, 20px tablet (768-1023), 24px desktop */}
-        <main className="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-5 lg:p-6 pb-28 lg:pb-8">
+        <main className="flex-1 w-full max-w-[1280px] mx-auto p-3 sm:p-4 md:p-5 lg:p-6 pb-28 lg:pb-8 min-w-0">
           <Outlet />
         </main>
       </div>
@@ -443,21 +443,21 @@ export default function Layout() {
             </DrawerHeader>
           </div>
 
-          <div className="p-6 pt-2 pb-8">
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="p-4 sm:p-6 pt-2 pb-8">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               {/* Tile 1: Adicionar Despesa */}
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('despesa')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group min-w-0"
               >
-                <div className="w-12 h-12 rounded-full border-2 border-rose-500/60 bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition-all mb-3">
-                  <ArrowDownCircle className="w-6 h-6 stroke-[2.2]" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-rose-500/60 bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition-all mb-2 sm:mb-3 shrink-0">
+                  <ArrowDownCircle className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
+                <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center truncate max-w-full">
                   adicionar
                 </span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5 truncate max-w-full">
                   despesa
                 </span>
               </button>
@@ -466,15 +466,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('transferencia')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group min-w-0"
               >
-                <div className="w-12 h-12 rounded-full border-2 border-blue-500/60 bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all mb-3">
-                  <TransferIcon className="w-6 h-6 stroke-[2.2]" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-blue-500/60 bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all mb-2 sm:mb-3 shrink-0">
+                  <TransferIcon className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
+                <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center truncate max-w-full">
                   criar uma
                 </span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5 truncate max-w-full">
                   transferência
                 </span>
               </button>
@@ -483,15 +483,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('receita')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group min-w-0"
               >
-                <div className="w-12 h-12 rounded-full border-2 border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all mb-3">
-                  <ArrowUpCircle className="w-6 h-6 stroke-[2.2]" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all mb-2 sm:mb-3 shrink-0">
+                  <ArrowUpCircle className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
+                <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center truncate max-w-full">
                   adicionar
                 </span>
-                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
+                <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5 truncate max-w-full">
                   receita
                 </span>
               </button>

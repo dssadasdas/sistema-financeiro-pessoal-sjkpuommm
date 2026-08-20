@@ -606,11 +606,13 @@ ${topEvents30.join('\n')}
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">IA Financeira</h2>
-            <Badge className="bg-emerald-500 text-white gap-1.5 text-[11px] font-bold py-0.5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+              IA Financeira
+            </h2>
+            <Badge className="bg-emerald-500 text-white gap-1.5 text-[11px] font-bold py-0.5 shrink-0">
               {/* Indicador "conectado" — bolinha verde com pulso */}
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-200 opacity-75 animate-ping" />
@@ -619,7 +621,7 @@ ${topEvents30.join('\n')}
               <Sparkles className="w-3 h-3 fill-current" /> IA Generativa
             </Badge>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Análise inteligente em tempo real com IA generativa, baseada nos seus dados reais
           </p>
         </div>
@@ -749,7 +751,9 @@ ${topEvents30.join('\n')}
               <ShieldCheck className={cn('w-5 h-5 shrink-0', health.color)} />
             </div>
             <div className="mt-3 flex items-baseline justify-between gap-2">
-              <span className={cn('text-2xl font-black whitespace-nowrap', health.color)}>
+              <span
+                className={cn('text-xl sm:text-2xl font-black whitespace-nowrap', health.color)}
+              >
                 {health.label}
               </span>
               <span className="text-xs font-bold font-mono text-slate-400 whitespace-nowrap">
@@ -765,19 +769,19 @@ ${topEvents30.join('\n')}
           </div>
           <div className="mt-3 space-y-1 text-[11px] text-slate-500">
             {analytics.overdueBills.length > 0 && (
-              <div className="flex items-center gap-1 text-red-600 truncate whitespace-nowrap">
+              <div className="flex items-center gap-1 text-red-600 break-words">
                 <AlertCircle className="w-3 h-3 shrink-0" /> {analytics.overdueBills.length}{' '}
                 conta(s) vencida(s)
               </div>
             )}
             {analytics.cardsNearLimit.length > 0 && (
-              <div className="flex items-center gap-1 text-amber-600 truncate whitespace-nowrap">
+              <div className="flex items-center gap-1 text-amber-600 break-words">
                 <AlertCircle className="w-3 h-3 shrink-0" /> {analytics.cardsNearLimit.length}{' '}
                 cartão(ões) acima de 80% do limite
               </div>
             )}
             {analytics.overdueBills.length === 0 && analytics.cardsNearLimit.length === 0 && (
-              <div className="flex items-center gap-1 text-emerald-600 truncate whitespace-nowrap">
+              <div className="flex items-center gap-1 text-emerald-600 break-words">
                 <CheckCircle2 className="w-3 h-3 shrink-0" /> Sem pendências críticas
               </div>
             )}

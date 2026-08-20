@@ -69,23 +69,30 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0b1120] text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-[#0f1626]/80 border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-              <Wallet className="w-5 h-5" />
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="font-extrabold text-2xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+            <span className="font-extrabold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
               Semeia
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Link to="/login">
-              <Button variant="ghost" className="font-medium text-slate-600 hover:text-emerald-600">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="font-medium text-slate-600 hover:text-emerald-600 text-xs sm:text-sm px-2.5 sm:px-4"
+              >
                 Já tenho conta
               </Button>
             </Link>
             <Link to="/registro">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm shadow-emerald-600/30">
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm shadow-emerald-600/30 text-xs sm:text-sm px-3 sm:px-4"
+              >
                 Começar agora
               </Button>
             </Link>

@@ -368,16 +368,18 @@ export default function CardsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Cartões de Crédito</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+            Cartões de Crédito
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500">
             Acompanhe faturas abertas, limites disponíveis e compras por emissor
           </p>
         </div>
         <Button
           onClick={handleOpenCreate}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5"
+          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 justify-center"
         >
           <Plus className="w-4 h-4" /> Novo Cartão
         </Button>
@@ -413,7 +415,7 @@ export default function CardsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Banco Emissor</Label>
                 <Select value={bank} onValueChange={(v) => setBank(v as BankName)}>
@@ -448,7 +450,7 @@ export default function CardsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="card-limit">Limite (R$) *</Label>
                 <Input
@@ -504,19 +506,19 @@ export default function CardsPage() {
               />
             </div>
 
-            <DialogFooter className="pt-3 gap-2">
+            <DialogFooter className="pt-3 gap-2 flex-col-reverse sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setModalOpen(false)}
-                className="rounded-xl"
+                className="w-full sm:w-auto rounded-xl"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5 justify-center"
               >
                 {loading ? (
                   <>
