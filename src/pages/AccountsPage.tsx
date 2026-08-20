@@ -596,7 +596,6 @@ export default function AccountsPage() {
                   onAdjustBalance={handleOpenAdjust}
                   onTransfer={handleOpenTransfer}
                   onSetPrimary={handleSetPrimary}
-                  onToggleArchive={handleToggleArchive}
                   onDelete={(target) => {
                     setDeleteBlocked(false)
                     setDeleteAccountTarget(target)

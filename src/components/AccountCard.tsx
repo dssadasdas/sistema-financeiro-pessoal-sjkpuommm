@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Star,
   Layers,
-  Archive,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -48,7 +47,6 @@ interface AccountCardProps {
   onAdjustBalance: (account: Account) => void
   onTransfer: (account: Account) => void
   onSetPrimary: (account: Account) => void
-  onToggleArchive?: (account: Account) => void
   onDelete: (account: Account) => void
 }
 
@@ -63,7 +61,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
   onAdjustBalance,
   onTransfer,
   onSetPrimary,
-  onToggleArchive,
   onDelete,
 }) => {
   // Controle de visibilidade individual do saldo do card
@@ -224,16 +221,6 @@ export const AccountCard: React.FC<AccountCardProps> = ({
                   >
                     <Star className="w-3.5 h-3.5" />
                     Definir como Principal
-                  </DropdownMenuItem>
-                )}
-
-                {onToggleArchive && (
-                  <DropdownMenuItem
-                    onClick={() => onToggleArchive(account)}
-                    className="cursor-pointer text-xs font-medium py-2 gap-2 text-slate-600 dark:text-slate-400"
-                  >
-                    <Archive className="w-3.5 h-3.5" />
-                    {isArchived ? 'Desarquivar conta' : 'Arquivar conta'}
                   </DropdownMenuItem>
                 )}
 
