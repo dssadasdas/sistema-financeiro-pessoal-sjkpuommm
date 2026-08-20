@@ -3,30 +3,35 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate } from '@/lib/constants'
-import { LoadingState, ErrorState, EmptyState } from '@/components/States'
+import { LoadingState, ErrorState } from '@/components/States'
+import pb from '@/lib/pocketbase/client'
 import {
   Wallet,
   TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  CreditCard as CreditCardIcon,
   AlertTriangle,
   AlertCircle,
   Flame,
   Info,
   ChevronRight,
   Sparkles,
-  FileText,
-  Target,
   CheckCircle2,
-  Lock,
+  Plus,
+  Minus,
+  ArrowLeftRight,
+  Barcode,
+  Eye,
+  EyeOff,
+  Check,
+  ShieldCheck,
+  Activity,
+  Calendar,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { calculateCashFlowProjection } from '@/lib/projectionEngine'
 import {
   calculateHealthScore,
@@ -35,6 +40,48 @@ import {
   FinancialContextData,
 } from '@/lib/anomalyDetector'
 import { useSmartAlerts, getLevelConfig } from '@/components/CentralDeAlertas'
+import FastTransactionDrawer from '@/components/modals/FastTransactionDrawer'
+import BarcodeScannerModal from '@/components/modals/BarcodeScannerModal'
+
+function DashboardUserAvatar({
+  user,
+  size = 'w-10 h-10',
+  textSize = 'text-sm',
+}: {
+  user: {
+    id?: string
+    name?: string
+    display_name?: string
+    avatar?: string
+    email?: string
+  } | null
+  size?: string
+  textSize?: string
+}) {
+  const avatarUrl =
+    user?.avatar && user?.id ? pb.files.getURL(user, user.avatar, { thumb: '100x100' }) : null
+
+  const displayName = user?.display_name || user?.name || user?.email || 'U'
+  const initials = displayName.trim().slice(0, 2).toUpperCase()
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName}
+        className={`${size} rounded-full object-cover border border-emerald-500/30 shrink-0`}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`${size} rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold ${textSize} border border-emerald-500/30 shrink-0 select-none`}
+    >
+      {initials}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const {
@@ -48,14 +95,28 @@ export default function DashboardPage() {
     accounts,
     creditCards,
     invoices,
+    bills,
+    recurringBills,
+    recurrences,
+    installments,
+    budgets,
+    goals,
+    investments,
     customCategories,
     isLoading,
     loadError,
     refreshAll,
   } = useFinance()
 
-  const { user, hideValues } = useAuth()
+  const { user, hideValues, toggleHideValues } = useAuth()
   const navigate = useNavigate()
+
+  // Modais de Ações Rápidas
+  const [fastDrawerOpen, setFastDrawerOpen] = useState(false)
+  const [fastDrawerType, setFastDrawerType] = useState<
+    'receita' | 'despesa' | 'transferencia' | 'ajuste'
+  >('despesa')
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false)
 
   // 1. Saudação dinâmica conforme horário + Nome do usuário
   const greeting = useMemo(() => {
@@ -66,11 +127,10 @@ export default function DashboardPage() {
   }, [])
 
   const userName = useMemo(() => {
-    if (!user?.name) return 'Usuário'
-    return user.name
-  }, [user?.name])
+    if (!user?.name && !user?.display_name) return 'Usuário'
+    return user.display_name || user.name
+  }, [user?.name, user?.display_name])
 
-  // Data por extenso capitalizada: "Agosto de 2026"
   const currentMonthYear = useMemo(() => {
     const now = new Date()
     const month = now.toLocaleDateString('pt-BR', { month: 'long' })
@@ -80,34 +140,55 @@ export default function DashboardPage() {
 
   const currentMonthKey = useMemo(() => new Date().toISOString().slice(0, 7), [])
 
-  // Valores calculados dos 7 cards do Dashboard
-  const totalAReceber = monthIncomePending
+  // 2. Valores calculados dos 4 cards compactos
+  // Entradas = soma de receitas do mês atual
+  // Saídas = soma de despesas do mês atual
+  // A pagar = contas a pagar pendentes
+  // A receber = contas a receber pendentes
+  const totalEntradasMes = monthIncomeReceived + monthIncomePending
+  const totalSaidasMes = monthExpensePaid + monthExpensePending
   const totalAPagar = monthExpensePending
-  const totalFaturasAbertas = monthOpenInvoicesTotal
-  const totalComprometido = totalAPagar + totalFaturasAbertas
+  const totalAReceber = monthIncomePending
 
-  // 3. Central de Alertas (máx 2)
-  const allAlerts = useSmartAlerts()
-  const topAlerts = useMemo(() => allAlerts.slice(0, 2), [allAlerts])
+  // 4. "Este mês": Receitas (realizadas/mês), Despesas (realizadas/mês), Resultado
+  const mesReceitas = monthIncomeReceived
+  const mesDespesas = monthExpensePaid
+  const mesResultado = mesReceitas - mesDespesas
+  const totalMovimentado = mesReceitas + mesDespesas
+  const percentReceitas = totalMovimentado > 0 ? (mesReceitas / totalMovimentado) * 100 : 50
 
-  // 4. Semeia IA (Saúde Financeira e Insights)
+  // 5. Contexto Semeia IA (Saúde Financeira, Anomalias, Oportunidades)
   const iaContext: FinancialContextData = useMemo(
     () => ({
       accounts,
       transactions,
-      bills: [],
-      recurringBills: [],
-      recurrences: [],
-      installments: [],
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
       invoices,
       creditCards,
-      budgets: [],
-      goals: [],
-      investments: [],
+      budgets,
+      goals,
+      investments,
       customCategories,
       currentMonthKey,
     }),
-    [accounts, transactions, invoices, creditCards, customCategories, currentMonthKey],
+    [
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
+      invoices,
+      creditCards,
+      budgets,
+      goals,
+      investments,
+      customCategories,
+      currentMonthKey,
+    ],
   )
 
   const healthScore = useMemo(
@@ -123,19 +204,33 @@ export default function DashboardPage() {
   const opportunities = useMemo(() => identifySavingsOpportunities(iaContext), [iaContext])
   const topPriorityInsight = anomalies[0] || opportunities[0] || null
 
-  // 5. Previsão 30 dias (Fluxo de Caixa local a partir de contas, transações e faturas)
+  // 5. Previsão 30 dias (Fluxo de Caixa)
   const forecast30 = useMemo(() => {
     return calculateCashFlowProjection({
       accounts,
       transactions,
-      bills: [],
-      recurringBills: [],
-      recurrences: [],
-      installments: [],
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
       invoices,
       days: 30,
     })
-  }, [accounts, transactions, invoices])
+  }, [accounts, transactions, bills, recurringBills, recurrences, installments, invoices])
+
+  // 6. Central de Alertas (máx 2 prioritários)
+  const allAlerts = useSmartAlerts()
+  const top2Alerts = useMemo(() => allAlerts.slice(0, 2), [allAlerts])
+
+  const handleOpenAction = (actionType: 'receita' | 'despesa' | 'transferencia') => {
+    setFastDrawerType(actionType)
+    setFastDrawerOpen(true)
+  }
+
+  const handleBoletoDetected = (code: string) => {
+    // Ao detectar boleto, pode abrir para registrar ou navegar
+    navigate('/transacoes')
+  }
 
   if (isLoading) {
     return <LoadingState message="Carregando seu resumo financeiro..." />
@@ -151,194 +246,373 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* 1. CABEÇALHO COM SAUDAÇÃO */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            {greeting}, {userName}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-            {currentMonthYear}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-xs font-semibold text-emerald-700 dark:text-emerald-300 shadow-xs">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span>Atualizado</span>
+    <div className="space-y-4 sm:space-y-5 pb-6">
+      {/* ========================================================================= */}
+      {/* 1. SAUDAÇÃO + SALDO DISPONÍVEL */}
+      {/* ========================================================================= */}
+      <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          {/* Saudação e Usuário */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to="/perfil" className="shrink-0 hover:opacity-90 transition-opacity">
+              <DashboardUserAvatar user={user} size="w-11 h-11" textSize="text-sm" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white truncate">
+                {greeting}, {userName}
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {currentMonthYear}
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* 2. CARDS PRINCIPAIS DE RESUMO */}
-      <div className="space-y-4">
-        {/* PRIMEIRA LINHA (3 cards) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Card 1: Saldo disponível */}
-          <Card
-            onClick={() => navigate('/contas')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">
+          {/* Saldo disponível com olho para ocultar/mostrar */}
+          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/80">
+            <div className="text-left sm:text-right">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block leading-tight">
                 Saldo disponível
               </span>
-              <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                  totalCurrentBalance >= 0
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
-                    : 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400'
-                }`}
-              >
-                <Wallet className="w-4 h-4" />
+              <div className="flex items-center gap-2 mt-0.5">
+                <span
+                  className={`text-xl sm:text-2xl md:text-3xl font-black tabular-nums tracking-tight ${
+                    totalCurrentBalance >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {formatCurrency(totalCurrentBalance, hideValues)}
+                </span>
+                <button
+                  type="button"
+                  onClick={toggleHideValues}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                  title={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
+                  aria-label={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
+                >
+                  {hideValues ? (
+                    <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ) : (
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                  )}
+                </button>
               </div>
             </div>
-            <div>
-              <div
-                className={`text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight break-all sm:break-normal ${
-                  totalCurrentBalance >= 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                }`}
-              >
-                {formatCurrency(totalCurrentBalance, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Consolidado em todas as contas</p>
-            </div>
-          </Card>
-
-          {/* Card 2: Recebido */}
-          <Card
-            onClick={() => navigate('/transacoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">Recebido</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 flex items-center justify-center">
-                <ArrowUpRight className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400 break-all sm:break-normal">
-                +{formatCurrency(monthIncomeReceived, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Receitas pagas no mês</p>
-            </div>
-          </Card>
-
-          {/* Card 3: Gastos pagos */}
-          <Card
-            onClick={() => navigate('/transacoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between md:col-span-2 lg:col-span-1"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">Gastos pagos</span>
-              <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400 flex items-center justify-center">
-                <ArrowDownRight className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold tabular-nums tracking-tight text-red-600 dark:text-red-400 break-all sm:break-normal">
-                −{formatCurrency(monthExpensePaid, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Despesas pagas no mês</p>
-            </div>
-          </Card>
+          </div>
         </div>
+      </Card>
 
-        {/* SEGUNDA LINHA (4 cards) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: A receber */}
-          <Card
-            onClick={() => navigate('/transacoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">A receber</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5" />
-              </div>
+      {/* ========================================================================= */}
+      {/* 2. 4 CARDS COMPACTOS: ENTRADAS | SAÍDAS | A PAGAR | A RECEBER */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        {/* ENTRADAS */}
+        <Card
+          onClick={() => navigate('/transacoes')}
+          className="rounded-xl sm:rounded-2xl border-slate-200/90 dark:border-slate-800 p-3 sm:p-3.5 bg-white dark:bg-[#121A2B] shadow-2xs hover:shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700/60 transition-all cursor-pointer flex flex-col justify-between min-w-0"
+        >
+          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+              Entradas
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-blue-600 dark:text-blue-400 break-all sm:break-normal">
-                {formatCurrency(totalAReceber, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Pendentes / previstos</p>
-            </div>
-          </Card>
+          </div>
+          <div className="text-base sm:text-lg md:text-xl font-black tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400 truncate">
+            {formatCurrency(totalEntradasMes, hideValues)}
+          </div>
+        </Card>
 
-          {/* Card 2: A pagar */}
-          <Card
-            onClick={() => navigate('/transacoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">A pagar</span>
-              <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-400 flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5" />
-              </div>
+        {/* SAÍDAS */}
+        <Card
+          onClick={() => navigate('/transacoes')}
+          className="rounded-xl sm:rounded-2xl border-slate-200/90 dark:border-slate-800 p-3 sm:p-3.5 bg-white dark:bg-[#121A2B] shadow-2xs hover:shadow-sm hover:border-red-300 dark:hover:border-red-700/60 transition-all cursor-pointer flex flex-col justify-between min-w-0"
+        >
+          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+              Saídas
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+              <ArrowDownRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-orange-600 dark:text-orange-400 break-all sm:break-normal">
-                {formatCurrency(totalAPagar, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Despesas pendentes</p>
-            </div>
-          </Card>
+          </div>
+          <div className="text-base sm:text-lg md:text-xl font-black tabular-nums tracking-tight text-red-600 dark:text-red-400 truncate">
+            {formatCurrency(totalSaidasMes, hideValues)}
+          </div>
+        </Card>
 
-          {/* Card 3: Faturas abertas */}
-          <Card
-            onClick={() => navigate('/cartoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">
-                Faturas abertas
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400 flex items-center justify-center">
-                <CreditCardIcon className="w-3.5 h-3.5" />
-              </div>
+        {/* A PAGAR */}
+        <Card
+          onClick={() => navigate('/transacoes')}
+          className="rounded-xl sm:rounded-2xl border-slate-200/90 dark:border-slate-800 p-3 sm:p-3.5 bg-white dark:bg-[#121A2B] shadow-2xs hover:shadow-sm hover:border-orange-300 dark:hover:border-orange-700/60 transition-all cursor-pointer flex flex-col justify-between min-w-0"
+        >
+          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+              A Pagar
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-purple-600 dark:text-purple-400 break-all sm:break-normal">
-                {formatCurrency(totalFaturasAbertas, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Cartões de crédito</p>
-            </div>
-          </Card>
+          </div>
+          <div className="text-base sm:text-lg md:text-xl font-black tabular-nums tracking-tight text-orange-600 dark:text-orange-400 truncate">
+            {formatCurrency(totalAPagar, hideValues)}
+          </div>
+        </Card>
 
-          {/* Card 4: Comprometido */}
-          <Card
-            onClick={() => navigate('/transacoes')}
-            className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
-              <span className="font-semibold text-slate-600 dark:text-slate-300">Comprometido</span>
-              <div className="w-7 h-7 rounded-lg bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400 flex items-center justify-center">
-                <Lock className="w-3.5 h-3.5" />
-              </div>
+        {/* A RECEBER */}
+        <Card
+          onClick={() => navigate('/transacoes')}
+          className="rounded-xl sm:rounded-2xl border-slate-200/90 dark:border-slate-800 p-3 sm:p-3.5 bg-white dark:bg-[#121A2B] shadow-2xs hover:shadow-sm hover:border-blue-300 dark:hover:border-blue-700/60 transition-all cursor-pointer flex flex-col justify-between min-w-0"
+        >
+          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-1">
+            <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+              A Receber
+            </span>
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400 break-all sm:break-normal">
-                {formatCurrency(totalComprometido, hideValues)}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">A pagar + faturas abertas</p>
-            </div>
-          </Card>
-        </div>
+          </div>
+          <div className="text-base sm:text-lg md:text-xl font-black tabular-nums tracking-tight text-blue-600 dark:text-blue-400 truncate">
+            {formatCurrency(totalAReceber, hideValues)}
+          </div>
+        </Card>
       </div>
 
-      {/* 3. SEÇÃO DE ALERTAS (compacta) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
+      {/* ========================================================================= */}
+      {/* 3. AÇÕES RÁPIDAS (4 botões compactos) */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+        {/* + Receita */}
+        <Button
+          type="button"
+          onClick={() => handleOpenAction('receita')}
+          variant="outline"
+          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-slate-200/90 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
+        >
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+          </div>
+          <span className="truncate">Receita</span>
+        </Button>
+
+        {/* - Despesa */}
+        <Button
+          type="button"
+          onClick={() => handleOpenAction('despesa')}
+          variant="outline"
+          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-red-50 dark:hover:bg-red-950/40 border-slate-200/90 dark:border-slate-800 hover:border-red-300 dark:hover:border-red-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
+        >
+          <div className="w-6 h-6 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+            <Minus className="w-3.5 h-3.5 stroke-[3]" />
+          </div>
+          <span className="truncate">Despesa</span>
+        </Button>
+
+        {/* Transferir */}
+        <Button
+          type="button"
+          onClick={() => handleOpenAction('transferencia')}
+          variant="outline"
+          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-blue-50 dark:hover:bg-blue-950/40 border-slate-200/90 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
+        >
+          <div className="w-6 h-6 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <ArrowLeftRight className="w-3.5 h-3.5 stroke-[2.5]" />
+          </div>
+          <span className="truncate">Transferir</span>
+        </Button>
+
+        {/* Boleto */}
+        <Button
+          type="button"
+          onClick={() => setBarcodeModalOpen(true)}
+          variant="outline"
+          className="h-11 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121A2B] hover:bg-purple-50 dark:hover:bg-purple-950/40 border-slate-200/90 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700/60 text-slate-800 dark:text-slate-100 font-bold text-xs sm:text-sm gap-2 shadow-2xs transition-all justify-center px-3"
+        >
+          <div className="w-6 h-6 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <Barcode className="w-3.5 h-3.5 stroke-[2.5]" />
+          </div>
+          <span className="truncate">Boleto</span>
+        </Button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 4. "ESTE MÊS" + 5. PREVISÃO & SAÚDE FINANCEIRA */}
+      {/* Grid inteligente no desktop: 2 colunas lado a lado */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        {/* 4. BLOCO COMPACTO "ESTE MÊS" */}
+        <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Este mês</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/transacoes')}
+                className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 h-7 px-2 gap-0.5"
+              >
+                Ver relatório →
+              </Button>
+            </div>
+
+            {/* Valores horizontais */}
+            <div className="grid grid-cols-3 gap-2 py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 text-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                  Receitas
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums block truncate mt-0.5">
+                  {formatCurrency(mesReceitas, hideValues)}
+                </span>
+              </div>
+              <div className="border-x border-slate-200/70 dark:border-slate-800">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                  Despesas
+                </span>
+                <span className="text-xs sm:text-sm font-extrabold text-red-600 dark:text-red-400 tabular-nums block truncate mt-0.5">
+                  {formatCurrency(mesDespesas, hideValues)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                  Resultado
+                </span>
+                <span
+                  className={`text-xs sm:text-sm font-black tabular-nums block truncate mt-0.5 ${
+                    mesResultado >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {mesResultado >= 0 ? '+' : ''}
+                  {formatCurrency(mesResultado, hideValues)}
+                </span>
+              </div>
+            </div>
+
+            {/* Barra visual pequena de proporção Receitas x Despesas */}
+            <div className="mt-3 space-y-1">
+              <div className="h-2 w-full rounded-full bg-red-200 dark:bg-red-950/60 overflow-hidden flex">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-500 rounded-l-full"
+                  style={{ width: `${Math.min(100, Math.max(0, percentReceitas))}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-slate-400 font-medium px-0.5">
+                <span>
+                  Receitas {totalMovimentado > 0 ? `${percentReceitas.toFixed(0)}%` : '0%'}
+                </span>
+                <span>
+                  Despesas {totalMovimentado > 0 ? `${(100 - percentReceitas).toFixed(0)}%` : '0%'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* 5. PREVISÃO + SAÚDE FINANCEIRA (combinados em UMA área) */}
+        <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Previsão & Saúde
+                </h2>
+              </div>
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-bold border-0 px-2 py-0.5 ${
+                  healthScore.level === 'excelente'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                    : healthScore.level === 'boa'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-950/80 dark:text-green-300'
+                      : healthScore.level === 'atencao'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300'
+                }`}
+              >
+                {healthScore.levelLabel}
+              </Badge>
+            </div>
+
+            {/* Grid lado a lado: Previsão (esquerda) + Saúde (direita) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Lado esquerdo: Previsão */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                  <span className="uppercase tracking-wider">Previsão</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Hoje:</span>
+                    <strong className="text-slate-800 dark:text-slate-200 tabular-nums">
+                      {formatCurrency(forecast30.startingBalance, hideValues)}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">30 dias:</span>
+                    <strong
+                      className={`tabular-nums font-black ${
+                        forecast30.isPositive
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {formatCurrency(forecast30.projectedEndBalance, hideValues)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lado direito: Saúde Financeira */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                  <span className="uppercase tracking-wider">Saúde</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Score:</span>
+                    <strong className="text-slate-900 dark:text-white tabular-nums font-black">
+                      {healthScore.score}/100
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between truncate">
+                    {forecast30.risk.hasRisk ? (
+                      <span className="text-red-600 dark:text-red-400 font-bold text-[11px] flex items-center gap-1 truncate">
+                        ⚠️ Risco{' '}
+                        {forecast30.risk.firstNegativeDayLabel
+                          ? `em ${forecast30.risk.firstNegativeDayLabel}`
+                          : 'em 30 dias'}
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center gap-1 truncate">
+                        ✓ Fluxo saudável
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 6. ALERTAS PRIORITÁRIOS (máximo 2) */}
+      {/* ========================================================================= */}
+      <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-500" />
-              Alertas Importantes
+            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+            <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Atenção
             </h2>
             {allAlerts.length > 0 && (
               <Badge variant="secondary" className="text-[10px] font-bold px-1.5 py-0">
@@ -350,216 +624,121 @@ export default function DashboardPage() {
             variant="ghost"
             size="sm"
             onClick={() => navigate('/transacoes')}
-            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 h-8 px-2.5 gap-1"
+            className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 h-7 px-2 gap-0.5"
           >
-            Ver transações <ChevronRight className="w-3.5 h-3.5" />
+            Ver todos os alertas →
           </Button>
         </div>
 
-        {topAlerts.length === 0 ? (
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-[#121A2B] shadow-xs flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Nenhum alerta crítico no momento
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                Suas contas, faturas e limites estão em dia e sob controle.
-              </p>
-            </div>
-          </Card>
+        {top2Alerts.length === 0 ? (
+          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-medium">✓ Nenhum alerta prioritário no momento.</span>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {topAlerts.map((alert) => {
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {top2Alerts.map((alert) => {
               const cfg = getLevelConfig(alert.level)
-              const isRisk = alert.level === 'critical' || alert.id.includes('forecast-negative')
               return (
                 <div
                   key={alert.id}
                   onClick={() => navigate(alert.targetPath)}
-                  className={`p-4 rounded-2xl border ${cfg.border} bg-white dark:bg-[#121A2B] hover:shadow-md transition-all cursor-pointer flex items-start justify-between gap-3 group ${
-                    isRisk ? 'ring-1 ring-red-500/30' : ''
-                  }`}
+                  className={`p-3 rounded-xl border ${cfg.border} bg-white dark:bg-[#121A2B] hover:shadow-xs transition-all cursor-pointer flex items-center justify-between gap-2.5 group`}
                 >
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="mt-0.5 shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="shrink-0">
                       {alert.level === 'critical' ? (
                         <Flame className="w-4 h-4 text-red-600 dark:text-red-400" />
                       ) : alert.level === 'high' ? (
                         <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                      ) : alert.level === 'warning' ? (
-                        <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                       ) : (
-                        <Info className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                        <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-bold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">
-                          {alert.title}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] py-0 px-1.5 font-bold ${cfg.badge}`}
-                        >
-                          {cfg.label}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
-                        {alert.description}
+                    <div className="min-w-0 flex-1 text-xs">
+                      <p className="font-bold text-slate-900 dark:text-white truncate group-hover:text-emerald-600 transition-colors">
+                        ⚠ {alert.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {alert.value ? `${formatCurrency(alert.value)} — ` : ''}
+                        {alert.badgeText ||
+                          (alert.date ? formatDate(alert.date) : alert.description)}
                       </p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-all shrink-0" />
                 </div>
               )
             })}
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* 4. WIDGET "SEMEIA IA" */}
-      <Card className="rounded-2xl border-emerald-200 dark:border-emerald-800/80 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-slate-50 dark:from-emerald-950/40 dark:via-[#121A2B] dark:to-slate-900/40 shadow-xs p-5">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1 min-w-0">
-            {/* Health Score Pill */}
-            <div className="flex items-center gap-3 bg-white dark:bg-slate-900/90 border border-emerald-200/80 dark:border-emerald-900/60 rounded-2xl px-3.5 py-2.5 shadow-2xs shrink-0 w-full sm:w-auto justify-between sm:justify-start">
-              <div className="flex flex-col justify-center">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap leading-none mb-1">
-                  Saúde Financeira
-                </span>
-                <div
-                  className={`text-2xl font-black tabular-nums leading-none flex items-baseline gap-0.5 ${healthScore.color}`}
-                >
-                  <span>{healthScore.score}</span>
-                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
-                    /100
-                  </span>
-                </div>
-              </div>
-              <Badge
-                className={`text-[11px] font-bold border-0 capitalize py-1 px-2.5 shrink-0 whitespace-nowrap self-center shadow-none ${
-                  healthScore.level === 'excelente'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200'
-                    : healthScore.level === 'boa'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/80 dark:text-green-200'
-                      : healthScore.level === 'atencao'
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/80 dark:text-amber-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/80 dark:text-red-200'
-                }`}
-              >
-                {healthScore.levelLabel}
-              </Badge>
+      {/* ========================================================================= */}
+      {/* 7. SEMEIA IA — INSIGHT MAIS IMPORTANTE */}
+      {/* ========================================================================= */}
+      <Card className="rounded-2xl border-emerald-200/90 dark:border-emerald-800/80 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-slate-50 dark:from-emerald-950/40 dark:via-[#121A2B] dark:to-slate-900/40 shadow-xs p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+              <Sparkles className="w-4 h-4" />
             </div>
-
-            {/* Insight prioritário (máx 1) */}
-            <div className="min-w-0 flex-1 text-xs w-full sm:w-auto">
-              {topPriorityInsight ? (
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-slate-800 dark:text-slate-200 min-w-0">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                  SEMEIA IA ✦
+                </span>
+                {topPriorityInsight && 'priority' in topPriorityInsight && (
                   <Badge
                     variant="outline"
-                    className="text-[10px] font-bold shrink-0 whitespace-nowrap px-2 py-0.5 border-emerald-500/40 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="text-[9px] py-0 px-1.5 font-bold border-emerald-400 text-emerald-700 dark:text-emerald-300"
                   >
-                    {'priority' in topPriorityInsight ? topPriorityInsight.priority : 'INSIGHT'}
+                    {topPriorityInsight.priority}
                   </Badge>
-                  <span className="font-semibold text-slate-900 dark:text-white">
-                    {topPriorityInsight.title}:
-                  </span>
-                  <span className="text-slate-600 dark:text-slate-300 font-normal break-words">
-                    {topPriorityInsight.description}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-emerald-700 dark:text-emerald-300 min-w-0">
-                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-0 text-[10px] font-bold shrink-0 whitespace-nowrap px-2 py-0.5">
-                    POSITIVO
-                  </Badge>
-                  <span className="font-medium break-words">
-                    Suas métricas financeiras e fluxo de caixa estão em ótimo equilíbrio.
-                  </span>
-                </div>
-              )}
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 line-clamp-2">
+                {topPriorityInsight ? (
+                  <>
+                    <strong className="font-bold text-slate-900 dark:text-white">
+                      {topPriorityInsight.title}:{' '}
+                    </strong>
+                    <span className="text-slate-600 dark:text-slate-300 font-normal">
+                      {topPriorityInsight.description}
+                    </span>
+                  </>
+                ) : (
+                  'Suas métricas e fluxo de caixa estão em ótimo equilíbrio neste mês.'
+                )}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-stretch sm:self-end lg:self-center justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-emerald-100/50 dark:border-emerald-900/30">
-            <Button
-              size="sm"
-              onClick={() => navigate('/ia-financeira')}
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-xs whitespace-nowrap justify-center"
-            >
-              Conversar com a IA <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* 5. WIDGET PREVISÃO 30 DIAS (calculado localmente a partir de transações, contas e faturas) */}
-      <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-xs p-5 bg-white dark:bg-[#121A2B]">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2.5">
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
-                forecast30.risk.hasRisk
-                  ? 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400'
-                  : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Previsão 30 dias</h3>
-              <p className="text-[11px] text-slate-400">Fluxo de caixa projetado</p>
-            </div>
-          </div>
-
-          <Badge
-            className={`text-[10px] font-bold border-0 ${
-              forecast30.risk.hasRisk
-                ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
-            }`}
+          <Button
+            size="sm"
+            onClick={() => navigate('/ia-financeira')}
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-8 px-3.5 gap-1 shadow-xs shrink-0 justify-center"
           >
-            {forecast30.risk.hasRisk ? '⚠️ Risco de Caixa' : '✅ Saudável'}
-          </Badge>
-        </div>
-
-        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block mb-0.5">
-              Saldo Atual
-            </span>
-            <span className="text-sm font-bold text-slate-800 dark:text-slate-200 tabular-nums">
-              {formatCurrency(forecast30.startingBalance, hideValues)}
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block mb-0.5">
-              Movimentações Previstas
-            </span>
-            <span className="text-xs sm:text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-300">
-              +{formatCurrency(forecast30.totalIncome, hideValues)} / −
-              {formatCurrency(forecast30.totalExpense, hideValues)}
-            </span>
-          </div>
-          <div className="sm:text-right">
-            <span className="text-[10px] text-slate-400 uppercase font-semibold block mb-0.5">
-              Saldo Projetado (30d)
-            </span>
-            <span
-              className={`text-sm sm:text-base font-extrabold tabular-nums ${
-                forecast30.isPositive
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
-              }`}
-            >
-              {formatCurrency(forecast30.projectedEndBalance, hideValues)}
-            </span>
-          </div>
+            Ver análise →
+          </Button>
         </div>
       </Card>
+
+      {/* ========================================================================= */}
+      {/* MODAIS ATIVADOS PELAS AÇÕES RÁPIDAS */}
+      {/* ========================================================================= */}
+      <FastTransactionDrawer
+        open={fastDrawerOpen}
+        onOpenChange={setFastDrawerOpen}
+        initialType={fastDrawerType}
+        onSuccess={refreshAll}
+      />
+
+      <BarcodeScannerModal
+        open={barcodeModalOpen}
+        onClose={() => setBarcodeModalOpen(false)}
+        onDetected={handleBoletoDetected}
+      />
     </div>
   )
 }
