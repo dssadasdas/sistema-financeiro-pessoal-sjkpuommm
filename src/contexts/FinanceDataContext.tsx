@@ -527,20 +527,20 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     // Cálculo do valor atual
-    if (
-      [
-        'bitcoin',
-        'ethereum',
-        'cripto_alt',
-        'acao',
-        'fii',
-        'etf',
-        'bdr',
-        'fiagro',
-        'acao_us',
-        'etf_internacional',
-      ].includes(inv.type) ||
-      group === 'cripto' ||
+    const isCryptoAsset =
+      ['bitcoin', 'ethereum', 'cripto_alt'].includes(inv.type) || group === 'cripto'
+
+    if (isCryptoAsset) {
+      if (qty > 0 && price > 0) {
+        current = qty * price
+      } else if (price > 0) {
+        current = price
+      } else {
+        // Se current_price for 0 / indisponível, manter applied sem ganho/perda e NUNCA aplicar CDI
+        current = applied
+      }
+    } else if (
+      ['acao', 'fii', 'etf', 'bdr', 'fiagro', 'acao_us', 'etf_internacional'].includes(inv.type) ||
       group === 'renda_variavel'
     ) {
       if (qty > 0 && price > 0) {
@@ -549,7 +549,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         current = price
       }
     } else if (
-      [
+      ([
         'cdb',
         'rdb',
         'lci',
@@ -565,7 +565,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         'cdi100',
         'renda_fixa',
       ].includes(inv.type) ||
-      group === 'renda_fixa'
+        group === 'renda_fixa') &&
+      !isCryptoAsset
     ) {
       if (inv.yield_type === 'cdi_pct' || inv.type === 'cdi100') {
         const pctCdi = yieldRate > 0 ? yieldRate / 100 : 1.0
@@ -1316,6 +1317,19 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       user: user.id,
     })
     await fetchAllData()
+
+    // Se o tipo for cripto, disparar refreshAllPrices automaticamente para obter a cotação imediatamente
+    const isCrypto =
+      data.type === 'bitcoin' ||
+      data.type === 'ethereum' ||
+      data.type === 'cripto_alt' ||
+      data.category_group === 'cripto'
+    if (isCrypto) {
+      refreshAllPrices().catch((err) =>
+        console.warn('Erro ao atualizar preços após cadastro de cripto:', err),
+      )
+    }
+
     return rec
   }
 

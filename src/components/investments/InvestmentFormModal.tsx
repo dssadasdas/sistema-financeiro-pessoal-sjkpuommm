@@ -739,14 +739,15 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                       Quantidade
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
-                      placeholder="Ex: 100 ou 0.05"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 100 ou 0,05"
                       value={quantity}
                       onChange={(e) => {
-                        setQuantity(e.target.value)
-                        const q = parseFloat(e.target.value) || 0
-                        const p = parseFloat(unitPrice) || 0
+                        const val = e.target.value
+                        setQuantity(val)
+                        const q = parseFloat(val.replace(',', '.')) || 0
+                        const p = parseFloat(unitPrice.replace(',', '.')) || 0
                         if (q > 0 && p > 0) {
                           setAppliedValue(String((q * p).toFixed(2)))
                         }
@@ -760,14 +761,15 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                       Preço Médio de Compra (R$)
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
-                      placeholder="Ex: 28.50"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 28,50"
                       value={unitPrice}
                       onChange={(e) => {
-                        setUnitPrice(e.target.value)
-                        const p = parseFloat(e.target.value) || 0
-                        const q = parseFloat(quantity) || 0
+                        const val = e.target.value
+                        setUnitPrice(val)
+                        const p = parseFloat(val.replace(',', '.')) || 0
+                        const q = parseFloat(quantity.replace(',', '.')) || 0
                         if (q > 0 && p > 0) {
                           setAppliedValue(String((q * p).toFixed(2)))
                         }
@@ -781,8 +783,8 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                       Valor Total Aplicado (R$)
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="Calculado automaticamente"
                       value={appliedValue}
                       onChange={(e) => setAppliedValue(e.target.value)}
@@ -797,9 +799,9 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                     Valor Aplicado (R$) *
                   </Label>
                   <Input
-                    type="number"
-                    step="any"
-                    placeholder="Ex: 5000.00"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 5000,00"
                     value={appliedValue}
                     onChange={(e) => setAppliedValue(e.target.value)}
                     className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
@@ -836,9 +838,9 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                       Taxa Contratada ({yieldType === 'cdi_pct' ? '%' : '% a.a.'})
                     </Label>
                     <Input
-                      type="number"
-                      step="any"
-                      placeholder="Ex: 110 ou 12.5"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Ex: 110 ou 12,5"
                       value={yieldRate}
                       onChange={(e) => setYieldRate(e.target.value)}
                       className="mt-1 text-sm"
@@ -905,8 +907,8 @@ export default function InvestmentFormModal({ open, onOpenChange, investmentToEd
                     Saldo / Valor Atual (R$)
                   </Label>
                   <Input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="Se diferente do aplicado"
                     value={currentPrice}
                     onChange={(e) => setCurrentPrice(e.target.value)}
