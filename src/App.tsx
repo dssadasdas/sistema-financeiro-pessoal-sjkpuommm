@@ -32,6 +32,8 @@ import InstallmentsPage from '@/pages/InstallmentsPage'
 import BudgetPage from '@/pages/BudgetPage'
 import GoalsPage from '@/pages/GoalsPage'
 import ForecastPage from '@/pages/ForecastPage'
+import DrePage from '@/pages/DrePage'
+import ComparativePage from '@/pages/ComparativePage'
 import InvestmentsPage from '@/pages/InvestmentsPage'
 import ReportsPage from '@/pages/ReportsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
@@ -168,6 +170,8 @@ export default function App() {
                   <Route path="/orcamentos" element={<Navigate to="/orcamento" replace />} />
                   <Route path="/metas" element={<GoalsPage />} />
                   <Route path="/previsao" element={<ForecastPage />} />
+                  <Route path="/dre" element={<DrePage />} />
+                  <Route path="/comparativo" element={<ComparativePage />} />
                   <Route path="/investimentos" element={<InvestmentsPage />} />
                   <Route path="/relatorios" element={<ReportsPage />} />
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />

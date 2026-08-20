@@ -11,7 +11,14 @@ import {
   Sparkles,
   Award,
   CalendarClock,
+  Download,
+  FileText,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { exportDrePdf, exportComparativePdf } from '@/lib/pdfExporter'
+import { calculateDreReport, calculateMonthlyComparative } from '@/lib/dreEngine'
+import { useToast } from '@/hooks/use-toast'
+import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { LoadingState, ErrorState } from '@/components/States'
@@ -48,11 +55,21 @@ const MONTHS_PT_SHORT = [
 ]
 
 export default function ReportsPage() {
-  const { transactions, bills, isLoading, loadError, refreshAll } = useFinance()
-  const { hideValues } = useAuth()
+  const { transactions, bills, customCategories, isLoading, loadError, refreshAll } = useFinance()
+  const { user, hideValues } = useAuth()
+  const { toast } = useToast()
   const chart = useChartTheme()
 
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7))
+
+  const handleExportQuickPdf = () => {
+    const dre = calculateDreReport(transactions, { month: selectedMonth, customCategories })
+    exportDrePdf(dre, user?.name || 'Usuário')
+    toast({
+      title: 'Relatório Exportado',
+      description: 'DRE e Relatório Executivo gerados em PDF para impressão.',
+    })
+  }
 
   // Transações do mês selecionado
   const monthTxns = useMemo(() => {
@@ -300,12 +317,31 @@ export default function ReportsPage() {
           </p>
         </div>
 
-        <Input
-          type="month"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          className="h-10 w-44 rounded-xl font-bold text-xs"
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="h-10 w-40 rounded-xl font-bold text-xs"
+          />
+          <Button
+            onClick={handleExportQuickPdf}
+            variant="outline"
+            size="sm"
+            className="h-10 rounded-xl font-bold text-xs gap-1.5 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-600" /> Exportar PDF
+          </Button>
+          <Button
+            asChild
+            size="sm"
+            className="h-10 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+          >
+            <Link to="/dre">
+              <FileText className="w-3.5 h-3.5" /> Ver DRE Completa
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Resumo em Linguagem Simples */}

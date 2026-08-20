@@ -35,6 +35,30 @@ export type PlanType = 'mensal' | 'anual'
 export type SubscriptionStatus = 'ativa' | 'bloqueada'
 export type SubscriptionProvider = 'stripe' | 'mercadopago'
 
+export type DreGroup =
+  | 'receita_bruta'
+  | 'deducoes'
+  | 'cmv'
+  | 'despesas_administrativas'
+  | 'despesas_comerciais'
+  | 'pessoal'
+  | 'ocupacao'
+  | 'despesas_financeiras'
+  | 'outras_operacionais'
+  | 'outras_receitas_despesas'
+
+export interface CategoryItem {
+  id: string
+  user?: string
+  name: string
+  type: 'receita' | 'despesa'
+  dre_group: DreGroup
+  color?: string
+  icon?: string
+  created?: string
+  updated?: string
+}
+
 // Tipos da integração de pagamentos (frontend) — espelham os valores usados
 // pelas rotas de checkout do backend e pelo contexto de auth.
 export type PaymentProvider = 'stripe' | 'mercadopago'
@@ -134,6 +158,7 @@ export interface Transaction {
   transfer_group_id?: string
   source?: TransactionSource
   paid_at?: string
+  dre_group?: DreGroup
   created: string
   updated: string
   expand?: {

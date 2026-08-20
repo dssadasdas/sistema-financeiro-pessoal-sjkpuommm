@@ -16,6 +16,8 @@ import {
   GoalContribution,
   Investment,
   CategorizationRule,
+  CategoryItem,
+  DreGroup,
 } from '@/types/finance'
 
 interface FinanceDataContextType {
@@ -32,6 +34,7 @@ interface FinanceDataContextType {
   goalContributions: GoalContribution[]
   investments: Investment[]
   rules: CategorizationRule[]
+  customCategories: CategoryItem[]
   isLoading: boolean
   loadError: boolean
   refreshAll: () => Promise<void>
@@ -109,6 +112,12 @@ interface FinanceDataContextType {
 
   saveRule: (keyword: string, category: string) => Promise<CategorizationRule>
   deleteRule: (id: string) => Promise<void>
+
+  saveCategoryDreGroup: (
+    categoryName: string,
+    dreGroup: DreGroup,
+    type?: 'receita' | 'despesa',
+  ) => Promise<CategoryItem>
 }
 
 const FinanceDataContext = createContext<FinanceDataContextType | undefined>(undefined)
@@ -128,6 +137,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [goalContributions, setGoalContributions] = useState<GoalContribution[]>([])
   const [investments, setInvestments] = useState<Investment[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
+  const [customCategories, setCustomCategories] = useState<CategoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
@@ -168,6 +178,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         goalContRes,
         invtRes,
         ruleRes,
+        catRes,
       ] = await Promise.all([
         pb.collection('accounts').getFullList<Account>({ sort: 'name' }),
         pb.collection('credit_cards').getFullList<CreditCard>({ sort: 'name' }),
@@ -195,6 +206,10 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pb.collection('goal_contributions').getFullList<GoalContribution>({ sort: '-date' }),
         pb.collection('investments').getFullList<Investment>({ sort: 'name' }),
         pb.collection('categorization_rules').getFullList<CategorizationRule>({ sort: 'keyword' }),
+        pb
+          .collection('categories')
+          .getFullList<CategoryItem>({ sort: 'name' })
+          .catch(() => [] as CategoryItem[]),
       ])
 
       setAccounts(accRes)
@@ -210,6 +225,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setGoalContributions(goalContRes)
       setInvestments(invtRes)
       setRules(ruleRes)
+      setCustomCategories(catRes)
     } catch (err) {
       console.error('Erro ao buscar dados financeiros:', err)
       setLoadError(true)
@@ -239,6 +255,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       'goal_contributions',
       'investments',
       'categorization_rules',
+      'categories',
     ]
 
     collections.forEach((col) => {
@@ -1037,6 +1054,33 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await fetchAllData()
   }
 
+  const saveCategoryDreGroup = async (
+    categoryName: string,
+    dreGroup: DreGroup,
+    type: 'receita' | 'despesa' = 'despesa',
+  ) => {
+    if (!user) throw new Error('Não autenticado')
+    const existing = customCategories.find(
+      (c) => c.name.trim().toLowerCase() === categoryName.trim().toLowerCase(),
+    )
+    let rec: CategoryItem
+    if (existing) {
+      rec = await pb.collection('categories').update<CategoryItem>(existing.id, {
+        dre_group: dreGroup,
+        type,
+      })
+    } else {
+      rec = await pb.collection('categories').create<CategoryItem>({
+        user: user.id,
+        name: categoryName.trim(),
+        dre_group: dreGroup,
+        type,
+      })
+    }
+    await fetchAllData()
+    return rec
+  }
+
   return (
     <FinanceDataContext.Provider
       value={{
@@ -1053,6 +1097,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         goalContributions,
         investments: investmentsWithMetrics,
         rules,
+        customCategories,
         isLoading,
         loadError,
         refreshAll: fetchAllData,
@@ -1117,6 +1162,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         saveRule,
         deleteRule,
+        saveCategoryDreGroup,
       }}
     >
       {children}

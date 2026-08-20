@@ -61,6 +61,8 @@ const navItems: NavItem[] = [
   { label: 'Metas', path: '/metas', icon: Target },
   { label: 'Investimentos', path: '/investimentos', icon: TrendingUp },
   { label: 'Previsão Financeira', path: '/previsao', icon: TrendingUp },
+  { label: 'DRE Demonstrativo', path: '/dre', icon: FileText },
+  { label: 'Comparativo Mensal', path: '/comparativo', icon: ArrowLeftRight },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
 ]
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T02:19:12.695Z",
+  "generatedAt": "2026-08-20T02:27:13.760Z",
   "collections": [
     {
       "name": "users",
@@ -434,6 +434,24 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "dre_group",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "receita_bruta",
+            "deducoes",
+            "cmv",
+            "despesas_administrativas",
+            "despesas_comerciais",
+            "pessoal",
+            "ocupacao",
+            "despesas_financeiras",
+            "outras_operacionais",
+            "outras_receitas_despesas"
+          ]
         }
       ],
       "indexes": [
@@ -1477,6 +1495,84 @@
       "indexes": [
         "CREATE INDEX idx_ai_advisor_user_created ON ai_advisor_requests (user, created DESC)"
       ]
+    },
+    {
+      "name": "categories",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["receita", "despesa"]
+        },
+        {
+          "name": "dre_group",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "receita_bruta",
+            "deducoes",
+            "cmv",
+            "despesas_administrativas",
+            "despesas_comerciais",
+            "pessoal",
+            "ocupacao",
+            "despesas_financeiras",
+            "outras_operacionais",
+            "outras_receitas_despesas"
+          ]
+        },
+        {
+          "name": "color",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "icon",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_categories_user ON categories (user)"]
     }
   ]
 }

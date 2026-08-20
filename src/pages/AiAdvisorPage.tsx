@@ -5,6 +5,11 @@ import { formatCurrency, formatDate, formatMonthYear } from '@/lib/constants'
 import { askAiAgent, askAiAgentStream, consumeAiStream } from '@/lib/aiAdvisor'
 import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
 import {
+  calculateDreReport,
+  calculateMonthlyComparative,
+  calculateComparativeHistory,
+} from '@/lib/dreEngine'
+import {
   Sparkles,
   TrendingUp,
   AlertTriangle,
@@ -100,6 +105,13 @@ const CHAT_SUGGESTIONS = [
   'Qual será meu pior dia financeiro nos próximos 60 dias?',
   'Posso gastar R$ 2.000 agora sem comprometer minhas contas?',
   'Quanto tenho de compromissos nos próximos 30 dias?',
+  'Qual foi meu lucro este mês?',
+  'Minha situação melhorou em relação ao mês passado?',
+  'Qual despesa mais aumentou?',
+  'Qual minha margem líquida?',
+  'Onde estou gastando mais?',
+  'Compare meus últimos 6 meses.',
+  'Qual foi meu melhor mês?',
 ]
 
 const AUTO_ANALYSIS_MESSAGE =
@@ -131,6 +143,7 @@ export default function AiAdvisorPage() {
     investments,
     totalInvested,
     totalInvestmentsResult,
+    customCategories,
     isLoading,
     loadError,
     refreshAll,
@@ -163,8 +176,15 @@ export default function AiAdvisorPage() {
     error: boolean
   }>({ content: '', loading: false, error: false })
 
-  // Constrói o contexto resumido da projeção financeira (Etapa 3) para alimentar o prompt da IA
-  const projectionContextString = useMemo(() => {
+  // Constrói o contexto contábil real e auditado (Etapa 3 Projeção + Etapa 4 DRE / Comparativo)
+  const combinedFinancialContextString = useMemo(() => {
+    const currentMonthKey = new Date().toISOString().slice(0, 7)
+    const dreCur = calculateDreReport(transactions, { month: currentMonthKey, customCategories })
+    const compCur = calculateMonthlyComparative(transactions, currentMonthKey, customCategories)
+    const hist6m = calculateComparativeHistory(transactions, currentMonthKey, 6, customCategories)
+
+    // Acha melhor mês nos últimos 6 meses
+    const bestMonth = [...hist6m].sort((a, b) => b.resultado - a.resultado)[0]
     const p30 = calculateCashFlowProjection({
       accounts,
       transactions,
@@ -204,16 +224,47 @@ export default function AiAdvisorPage() {
       )
 
     return `
+[DADOS CONTÁBEIS DRE E RESULTADO REAL (ETAPA 4)]:
+- Período: ${dreCur.periodLabel}
+- Receita Bruta: ${formatCurrency(dreCur.receitaBruta)}
+- Deduções: ${formatCurrency(dreCur.deducoes)}
+- Receita Líquida: ${formatCurrency(dreCur.receitaLiquida)}
+- CMV / Custos: ${formatCurrency(dreCur.cmv)}
+- Lucro Bruto: ${formatCurrency(dreCur.lucroBruto)} (Margem Bruta: ${dreCur.margemBrutaPct.toFixed(1)}%)
+- Despesas Operacionais: ${formatCurrency(dreCur.despesasOperacionaisTotal)}
+- Resultado Operacional: ${formatCurrency(dreCur.resultadoOperacional)} (Margem Operacional: ${dreCur.margemOperacionalPct.toFixed(1)}%)
+- Resultado Líquido: ${formatCurrency(dreCur.resultadoLiquido)} (Margem Líquida: ${dreCur.margemLiquidaPct.toFixed(1)}%)
+- Taxa de Economia: ${dreCur.margemEconomiaPct.toFixed(1)}%
+
+[COMPARATIVO COM O MÊS ANTERIOR]:
+- Mês Atual (${compCur.currentMonthLabel}) vs Mês Anterior (${compCur.previousMonthLabel}):
+  * Receitas: ${formatCurrency(compCur.incomeCurrent)} vs ${formatCurrency(compCur.incomePrevious)} (Variação: ${compCur.incomeVariationPct >= 0 ? '+' : ''}${compCur.incomeVariationPct.toFixed(1)}%)
+  * Despesas: ${formatCurrency(compCur.expenseCurrent)} vs ${formatCurrency(compCur.expensePrevious)} (Variação: ${compCur.expenseVariationPct >= 0 ? '+' : ''}${compCur.expenseVariationPct.toFixed(1)}%)
+  * Resultado Líquido: ${formatCurrency(compCur.resultCurrent)} vs ${formatCurrency(compCur.resultPrevious)} (Diferença: ${compCur.resultDiff >= 0 ? '+' : ''}${formatCurrency(compCur.resultDiff)})
+  * Maior gasto atual: ${compCur.topExpenseCategory ? `${compCur.topExpenseCategory.category} (${formatCurrency(compCur.topExpenseCategory.value)}, ${compCur.topExpenseCategory.percentage.toFixed(1)}% do total)` : 'Nenhum'}
+  * Despesa que mais aumentou: ${compCur.fastestGrowingCategory ? `${compCur.fastestGrowingCategory.category} (+${formatCurrency(compCur.fastestGrowingCategory.diff)}, +${compCur.fastestGrowingCategory.pct.toFixed(1)}%)` : 'Nenhuma'}
+  * Despesa que mais reduziu: ${compCur.fastestFallingCategory ? `${compCur.fastestFallingCategory.category} (${formatCurrency(compCur.fastestFallingCategory.diff)}, ${compCur.fastestFallingCategory.pct.toFixed(1)}%)` : 'Nenhuma'}
+  * Melhor mês dos últimos 6 meses: ${bestMonth ? `${bestMonth.label} com resultado de ${formatCurrency(bestMonth.resultado)}` : 'N/A'}
+
+[PROJEÇÃO DE FLUXO DE CAIXA (ETAPA 3)]:
 - Saldo consolidado inicial hoje: ${formatCurrency(p30.startingBalance)}
 - Projeção 30 dias: Entradas ${formatCurrency(p30.totalIncome)}, Saídas ${formatCurrency(p30.totalExpense)}, Saldo final previsto: ${formatCurrency(p30.projectedEndBalance)} (${p30.isPositive ? 'Positivo' : 'Negativo'})
   Risco 30d: ${p30.risk.hasRisk ? `Déficit a partir de ${formatDate(p30.risk.firstNegativeDate || '')} (${formatCurrency(p30.risk.firstNegativeBalance || 0)}), maior déficit: ${formatCurrency(p30.risk.maxDeficit)}` : 'Sem risco previsto'}
 - Projeção 60 dias: Entradas ${formatCurrency(p60.totalIncome)}, Saídas ${formatCurrency(p60.totalExpense)}, Saldo final previsto: ${formatCurrency(p60.projectedEndBalance)}
-  Risco 60d: ${p60.risk.hasRisk ? `Pior dia/maior déficit: ${formatDate(p60.risk.maxDeficitDate || '')} (−${formatCurrency(p60.risk.maxDeficit)})` : 'Sem risco'}
 - Projeção 90 dias: Saldo final previsto: ${formatCurrency(p90.projectedEndBalance)}
 - Principais eventos previstos nos próximos 30 dias:
 ${topEvents30.join('\n')}
     `.trim()
-  }, [accounts, transactions, bills, recurringBills, recurrences, installments, invoices])
+  }, [
+    accounts,
+    transactions,
+    bills,
+    recurringBills,
+    recurrences,
+    installments,
+    invoices,
+    customCategories,
+  ])
 
   const runAutoAnalysis = useCallback(async () => {
     setAutoAnalysis({ content: '', loading: true, error: false })
@@ -221,13 +272,13 @@ ${topEvents30.join('\n')}
       const { content } = await askAiAgent(
         AUTO_ANALYSIS_MESSAGE,
         undefined,
-        projectionContextString,
+        combinedFinancialContextString,
       )
       setAutoAnalysis({ content, loading: false, error: false })
     } catch {
       setAutoAnalysis({ content: '', loading: false, error: true })
     }
-  }, [projectionContextString])
+  }, [combinedFinancialContextString])
 
   useEffect(() => {
     if (isLoading || loadError) return
@@ -431,7 +482,7 @@ ${topEvents30.join('\n')}
         const { content } = await askAiAgent(
           QUICK_QUESTION_TEXT[id],
           undefined,
-          projectionContextString,
+          combinedFinancialContextString,
         )
         setQuickAnswers((prev) => ({
           ...prev,
@@ -518,7 +569,7 @@ ${topEvents30.join('\n')}
         const { stream, conversationId } = await askAiAgentStream(
           trimmed,
           conversationIdRef.current ?? undefined,
-          projectionContextString,
+          combinedFinancialContextString,
         )
         if (conversationId) conversationIdRef.current = conversationId
 

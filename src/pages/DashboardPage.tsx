@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import TransactionModal from '@/components/modals/TransactionModal'
 import { calculateCashFlowProjection } from '@/lib/projectionEngine'
+import { calculateMonthlyComparative } from '@/lib/dreEngine'
+import { FileText } from 'lucide-react'
 
 const MONTHS_PT = [
   'Jan',
@@ -61,6 +63,7 @@ export default function DashboardPage() {
     recurrences,
     installments: financeInstallments,
     invoices,
+    customCategories,
     isLoading,
     loadError,
     refreshAll,
@@ -75,7 +78,13 @@ export default function DashboardPage() {
   // so this page does not need its own subscriptions (avoids duplicate fetchAllData calls).
 
   const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long' })
+  const currentMonthKey = useMemo(() => new Date().toISOString().slice(0, 7), [])
   const savingsAmount = monthIncomeReceived - monthExpensePaid
+
+  // Widget Resultado do Mês (DRE & Comparativo)
+  const monthDreComp = useMemo(() => {
+    return calculateMonthlyComparative(transactions, currentMonthKey, customCategories)
+  }, [transactions, currentMonthKey, customCategories])
 
   // Projeção do fluxo de caixa de 30 dias usando o motor central da Etapa 3
   const forecast30 = useMemo(() => {
@@ -245,6 +254,90 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* Widget "Resultado do Mês" (Etapa 4 - DRE & Comparativo) */}
+      <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-indigo-500/5 dark:from-emerald-950/20 dark:via-[#121A2B] dark:to-indigo-950/20">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold flex-shrink-0">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Resultado do Mês ({monthDreComp.currentMonthLabel})
+                </span>
+                <Badge
+                  className={`text-[10px] font-bold border-0 ${
+                    monthDreComp.resultCurrent >= 0
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+                  }`}
+                >
+                  {monthDreComp.resultCurrent >= 0 ? 'Lucro Líquido' : 'Déficit no Período'}
+                </Badge>
+              </div>
+
+              <div className="flex items-baseline gap-4 sm:gap-6 mt-1 flex-wrap text-xs sm:text-sm">
+                <div>
+                  <span className="text-[11px] text-slate-400">Receitas: </span>
+                  <span className="font-bold text-emerald-600 tabular-nums">
+                    +{formatCurrency(monthDreComp.incomeCurrent, hideValues)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400">Despesas: </span>
+                  <span className="font-bold text-orange-600 tabular-nums">
+                    −{formatCurrency(monthDreComp.expenseCurrent, hideValues)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400">Resultado: </span>
+                  <span
+                    className={`font-black tabular-nums ${
+                      monthDreComp.resultCurrent >= 0 ? 'text-emerald-600' : 'text-red-600'
+                    }`}
+                  >
+                    {monthDreComp.resultCurrent >= 0 ? '+' : ''}
+                    {formatCurrency(monthDreComp.resultCurrent, hideValues)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400">vs. Mês anterior: </span>
+                  <span
+                    className={`font-bold tabular-nums ${
+                      monthDreComp.resultDiff >= 0 ? 'text-emerald-600' : 'text-red-600'
+                    }`}
+                  >
+                    {monthDreComp.resultDiff >= 0 ? '+' : ''}
+                    {monthDreComp.resultVariationPct.toFixed(1)}% (
+                    {monthDreComp.resultDiff >= 0 ? '+' : ''}
+                    {formatCurrency(monthDreComp.resultDiff, hideValues)})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-stretch lg:self-auto justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/comparativo')}
+              className="text-xs font-bold rounded-xl h-9 px-3 gap-1"
+            >
+              Comparativo
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => navigate('/dre')}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-sm"
+            >
+              Ver relatório completo <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Hero Saldo + Investimentos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

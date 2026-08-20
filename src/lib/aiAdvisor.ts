@@ -23,10 +23,10 @@ function authHeaders(): Record<string, string> {
 export async function askAiAgent(
   message: string,
   conversationId?: string,
-  projectionContext?: string,
+  extraContext?: string,
 ): Promise<{ content: string; conversationId: string }> {
-  const fullMessage = projectionContext
-    ? `${message}\n\n[CONTEXTO DO MOTOR DE PROJEÇÃO FINANCEIRA (DADOS REAIS DA ETAPA 3)]:\n${projectionContext}`
+  const fullMessage = extraContext
+    ? `${message}\n\n[CONTEXTO CONTÁBIL / DRE / PROJEÇÃO (DADOS REAIS E MATEMÁTICOS DAS ETAPAS 3 E 4)]:\n${extraContext}`
     : message
 
   const res = await fetch(`${BASE_URL}/backend/v1/ai/ask`, {
@@ -53,10 +53,10 @@ export async function askAiAgent(
 export async function askAiAgentStream(
   message: string,
   conversationId?: string,
-  projectionContext?: string,
+  extraContext?: string,
 ): Promise<{ stream: ReadableStream<Uint8Array>; conversationId: string }> {
-  const fullMessage = projectionContext
-    ? `${message}\n\n[CONTEXTO DO MOTOR DE PROJEÇÃO FINANCEIRA (DADOS REAIS DA ETAPA 3)]:\n${projectionContext}`
+  const fullMessage = extraContext
+    ? `${message}\n\n[CONTEXTO CONTÁBIL / DRE / PROJEÇÃO (DADOS REAIS E MATEMÁTICOS DAS ETAPAS 3 E 4)]:\n${extraContext}`
     : message
 
   const res = await fetch(`${BASE_URL}/backend/v1/ai/ask-stream`, {
