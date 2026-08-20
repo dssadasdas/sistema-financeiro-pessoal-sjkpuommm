@@ -29,7 +29,11 @@ export function ThemeProvider({
     } catch {
       /* storage indisponível */
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : defaultTheme
+    if (typeof window !== 'undefined') {
+      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      return isSystemDark ? 'dark' : 'light'
+    }
+    return defaultTheme
   })
 
   useEffect(() => {

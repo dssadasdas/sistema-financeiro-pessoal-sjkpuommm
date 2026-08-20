@@ -431,10 +431,10 @@ export default function Layout() {
 
       {/* Drawer de Ações Rápidas (Bottom Sheet com 3 botões grandes inspirados na referência) */}
       <Drawer open={actionsDrawerOpen} onOpenChange={setActionsDrawerOpen}>
-        <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-[#0f172a] text-white p-0 shadow-2xl overflow-hidden">
+        <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] text-slate-900 dark:text-white p-0 shadow-2xl overflow-hidden">
           <div className="pt-3 pb-2 px-6">
             <DrawerHeader className="p-0 text-center">
-              <DrawerTitle className="text-sm font-semibold text-slate-400">
+              <DrawerTitle className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Lançamento Rápido
               </DrawerTitle>
               <DrawerDescription className="sr-only">
@@ -449,15 +449,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('despesa')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
               >
                 <div className="w-12 h-12 rounded-full border-2 border-rose-500/60 bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition-all mb-3">
                   <ArrowDownCircle className="w-6 h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
                   adicionar
                 </span>
-                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
                   despesa
                 </span>
               </button>
@@ -466,15 +466,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('transferencia')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
               >
                 <div className="w-12 h-12 rounded-full border-2 border-blue-500/60 bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all mb-3">
                   <TransferIcon className="w-6 h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
                   criar uma
                 </span>
-                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
                   transferência
                 </span>
               </button>
@@ -483,15 +483,15 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => handleOpenFastAction('receita')}
-                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 active:scale-95 transition-all group"
               >
                 <div className="w-12 h-12 rounded-full border-2 border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all mb-3">
                   <ArrowUpCircle className="w-6 h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                <span className="text-[11px] font-normal text-slate-500 dark:text-slate-300 leading-tight text-center">
                   adicionar
                 </span>
-                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white leading-tight text-center mt-0.5">
                   receita
                 </span>
               </button>

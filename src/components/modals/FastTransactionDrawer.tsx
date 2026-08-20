@@ -367,7 +367,7 @@ export default function FastTransactionDrawer({
     receita: {
       title: 'Adicionar Receita',
       prompt: 'qual o valor da sua receita?',
-      colorText: 'text-emerald-500 dark:text-emerald-400',
+      colorText: 'text-emerald-600 dark:text-emerald-400',
       bgBadge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
       icon: ArrowUpRight,
       actionBtn:
@@ -379,7 +379,7 @@ export default function FastTransactionDrawer({
     despesa: {
       title: 'Adicionar Despesa',
       prompt: 'qual o valor da sua despesa?',
-      colorText: 'text-rose-500 dark:text-rose-400',
+      colorText: 'text-rose-600 dark:text-rose-400',
       bgBadge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
       icon: ArrowDownLeft,
       actionBtn: 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-rose-600/30',
@@ -390,7 +390,7 @@ export default function FastTransactionDrawer({
     transferencia: {
       title: 'Criar Transferência',
       prompt: 'qual o valor da transferência?',
-      colorText: 'text-blue-500 dark:text-blue-400',
+      colorText: 'text-blue-600 dark:text-blue-400',
       bgBadge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       icon: ArrowLeftRight,
       actionBtn: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30',
@@ -401,7 +401,7 @@ export default function FastTransactionDrawer({
     ajuste: {
       title: 'Ajuste de Saldo',
       prompt: 'qual o valor do ajuste?',
-      colorText: 'text-blue-500 dark:text-blue-400',
+      colorText: 'text-blue-600 dark:text-blue-400',
       bgBadge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       icon: Repeat,
       actionBtn: 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-blue-600/30',
@@ -415,16 +415,16 @@ export default function FastTransactionDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-[#0f172a] text-white shadow-2xl p-0 overflow-hidden max-h-[92vh]">
+      <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] text-slate-900 dark:text-white shadow-2xl p-0 overflow-hidden max-h-[92vh]">
         {/* Top bar com indicador de arrastar, botão voltar e progresso de passos */}
-        <div className="pt-3 pb-2.5 px-6 flex items-center justify-between border-b border-slate-800/60">
+        <div className="pt-3 pb-2.5 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleGoBack}
-                className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 -ml-1"
+                className="h-8 w-8 rounded-full text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 -ml-1"
                 aria-label="Voltar passo"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -434,7 +434,9 @@ export default function FastTransactionDrawer({
               <span className={`p-1.5 rounded-lg ${typeConfig.bgBadge} border`}>
                 <TypeIcon className="w-4 h-4" />
               </span>
-              <span className="font-semibold text-sm text-slate-200">{typeConfig.title}</span>
+              <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">
+                {typeConfig.title}
+              </span>
             </div>
           </div>
 
@@ -449,17 +451,19 @@ export default function FastTransactionDrawer({
                       ? 'w-5 bg-emerald-500'
                       : s < step
                         ? 'w-2 bg-emerald-500/60'
-                        : 'w-2 bg-slate-700'
+                        : 'w-2 bg-slate-200 dark:bg-slate-700'
                   }`}
                 />
               ))}
             </div>
-            <span className="text-xs text-slate-400 font-medium ml-1">Passo {step} de 3</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-1">
+              Passo {step} de 3
+            </span>
           </div>
         </div>
 
         {error && (
-          <div className="mx-6 mt-3 p-2.5 text-xs text-rose-300 bg-rose-950/60 border border-rose-800/80 rounded-xl">
+          <div className="mx-6 mt-3 p-2.5 text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-xl">
             {error}
           </div>
         )}
@@ -472,12 +476,18 @@ export default function FastTransactionDrawer({
             <div className="flex flex-col justify-between min-h-[420px] space-y-4">
               {/* Pergunta e Valor Gigante */}
               <div className="py-2">
-                <p className="text-sm font-medium text-slate-300 mb-2">{typeConfig.prompt}</p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
+                  {typeConfig.prompt}
+                </p>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-400">R$</span>
+                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-400 dark:text-slate-500">
+                    R$
+                  </span>
                   <span
                     className={`text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums ${
-                      rawAmountCents > 0 ? 'text-white' : 'text-slate-500'
+                      rawAmountCents > 0
+                        ? 'text-slate-900 dark:text-white'
+                        : 'text-slate-400 dark:text-slate-600'
                     }`}
                   >
                     {(rawAmountCents / 100).toLocaleString('pt-BR', {
@@ -494,7 +504,7 @@ export default function FastTransactionDrawer({
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-slate-300 font-bold text-base flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-slate-700 dark:text-slate-300 font-bold text-base flex items-center justify-center transition-all border border-slate-200/60 dark:border-transparent"
                 >
                   AC
                 </button>
@@ -504,7 +514,7 @@ export default function FastTransactionDrawer({
                     // Dividir por 2
                     setRawAmountCents((prev) => Math.floor(prev / 2))
                   }}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-slate-300 font-bold text-base flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-slate-700 dark:text-slate-300 font-bold text-base flex items-center justify-center transition-all border border-slate-200/60 dark:border-transparent"
                 >
                   ½
                 </button>
@@ -514,14 +524,14 @@ export default function FastTransactionDrawer({
                     // Duplicar
                     setRawAmountCents((prev) => prev * 2)
                   }}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-slate-300 font-bold text-base flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-slate-700 dark:text-slate-300 font-bold text-base flex items-center justify-center transition-all border border-slate-200/60 dark:border-transparent"
                 >
                   2x
                 </button>
                 <button
                   type="button"
                   onClick={handleBackspace}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-rose-400 font-bold text-lg flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-rose-600 dark:text-rose-400 font-bold text-lg flex items-center justify-center transition-all border border-slate-200/60 dark:border-transparent"
                   aria-label="Apagar dígito"
                 >
                   <Delete className="w-5 h-5" />
@@ -533,7 +543,7 @@ export default function FastTransactionDrawer({
                     key={digit}
                     type="button"
                     onClick={() => handleNumClick(digit)}
-                    className="h-13 sm:h-14 rounded-2xl bg-slate-800/60 hover:bg-slate-700/60 active:scale-95 text-white font-bold text-xl flex items-center justify-center transition-all shadow-sm"
+                    className="h-13 sm:h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700/60 active:scale-95 text-slate-900 dark:text-white font-bold text-xl flex items-center justify-center transition-all shadow-xs border border-slate-200/60 dark:border-slate-700/40"
                   >
                     {digit}
                   </button>
@@ -541,7 +551,7 @@ export default function FastTransactionDrawer({
                 <button
                   type="button"
                   onClick={() => setRawAmountCents((prev) => prev + 1000)}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-emerald-400 font-bold text-xs flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center transition-all border border-emerald-200/60 dark:border-transparent"
                 >
                   +10
                 </button>
@@ -552,7 +562,7 @@ export default function FastTransactionDrawer({
                     key={digit}
                     type="button"
                     onClick={() => handleNumClick(digit)}
-                    className="h-13 sm:h-14 rounded-2xl bg-slate-800/60 hover:bg-slate-700/60 active:scale-95 text-white font-bold text-xl flex items-center justify-center transition-all shadow-sm"
+                    className="h-13 sm:h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700/60 active:scale-95 text-slate-900 dark:text-white font-bold text-xl flex items-center justify-center transition-all shadow-xs border border-slate-200/60 dark:border-slate-700/40"
                   >
                     {digit}
                   </button>
@@ -560,7 +570,7 @@ export default function FastTransactionDrawer({
                 <button
                   type="button"
                   onClick={() => setRawAmountCents((prev) => prev + 5000)}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-emerald-400 font-bold text-xs flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center transition-all border border-emerald-200/60 dark:border-transparent"
                 >
                   +50
                 </button>
@@ -571,7 +581,7 @@ export default function FastTransactionDrawer({
                     key={digit}
                     type="button"
                     onClick={() => handleNumClick(digit)}
-                    className="h-13 sm:h-14 rounded-2xl bg-slate-800/60 hover:bg-slate-700/60 active:scale-95 text-white font-bold text-xl flex items-center justify-center transition-all shadow-sm"
+                    className="h-13 sm:h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700/60 active:scale-95 text-slate-900 dark:text-white font-bold text-xl flex items-center justify-center transition-all shadow-xs border border-slate-200/60 dark:border-slate-700/40"
                   >
                     {digit}
                   </button>
@@ -579,7 +589,7 @@ export default function FastTransactionDrawer({
                 <button
                   type="button"
                   onClick={() => setRawAmountCents((prev) => prev + 10000)}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:scale-95 text-emerald-400 font-bold text-xs flex items-center justify-center transition-all"
+                  className="h-13 sm:h-14 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 active:scale-95 text-emerald-700 dark:text-emerald-400 font-bold text-xs flex items-center justify-center transition-all border border-emerald-200/60 dark:border-transparent"
                 >
                   +100
                 </button>
@@ -592,14 +602,14 @@ export default function FastTransactionDrawer({
                       setRawAmountCents(rawAmountCents * 100)
                     }
                   }}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/60 hover:bg-slate-700/60 active:scale-95 text-slate-300 font-bold text-base flex items-center justify-center transition-all shadow-sm"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700/60 active:scale-95 text-slate-700 dark:text-slate-300 font-bold text-base flex items-center justify-center transition-all shadow-xs border border-slate-200/60 dark:border-slate-700/40"
                 >
                   00
                 </button>
                 <button
                   type="button"
                   onClick={() => handleNumClick('0')}
-                  className="h-13 sm:h-14 rounded-2xl bg-slate-800/60 hover:bg-slate-700/60 active:scale-95 text-white font-bold text-xl flex items-center justify-center transition-all shadow-sm"
+                  className="h-13 sm:h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700/60 active:scale-95 text-slate-900 dark:text-white font-bold text-xl flex items-center justify-center transition-all shadow-xs border border-slate-200/60 dark:border-slate-700/40"
                 >
                   0
                 </button>
@@ -622,18 +632,22 @@ export default function FastTransactionDrawer({
           {step === 2 && (
             <div className="space-y-4">
               {/* Resumo do Valor */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
-                <span className="text-xs text-slate-400 font-medium">Valor selecionado:</span>
-                <span className="text-lg font-bold text-white tabular-nums">{formattedValue}</span>
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  Valor selecionado:
+                </span>
+                <span className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+                  {formattedValue}
+                </span>
               </div>
 
               {/* Seletor de Data */}
               <div className="space-y-1.5">
                 <Label
                   htmlFor="fast-date-step2"
-                  className="text-xs font-semibold text-slate-300 flex items-center gap-1.5"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
                 >
-                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>Data do lançamento</span>
                 </Label>
                 <Input
@@ -641,7 +655,7 @@ export default function FastTransactionDrawer({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white"
+                  className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                   required
                 />
               </div>
@@ -652,14 +666,15 @@ export default function FastTransactionDrawer({
                   {/* Switch Parcelado (Disponível para Despesas) */}
                   {type === 'despesa' && (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/40 hover:border-slate-300 dark:hover:border-slate-600/60 transition-colors">
                         <div className="flex items-center gap-2.5">
-                          <Layers className="w-4 h-4 text-slate-400" />
+                          <Layers className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           <div>
-                            <span className="text-sm font-medium text-slate-200 block">
-                              É <strong className="text-white">parcelado?</strong>
+                            <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                              É{' '}
+                              <strong className="text-slate-900 dark:text-white">parcelado?</strong>
                             </span>
-                            <span className="text-[11px] text-slate-400">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
                               Dividir a compra em parcelas
                             </span>
                           </div>
@@ -675,17 +690,19 @@ export default function FastTransactionDrawer({
 
                       {/* Campos extras se Parcelado estiver ligado */}
                       {isParcelada && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/40 animate-in fade-in-50 duration-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/40 animate-in fade-in-50 duration-200">
                           <div className="space-y-1">
-                            <Label className="text-xs text-slate-300">Nº de Parcelas</Label>
+                            <Label className="text-xs text-slate-700 dark:text-slate-300">
+                              Nº de Parcelas
+                            </Label>
                             <Select
                               value={String(totalInstallments)}
                               onValueChange={(val) => setTotalInstallments(Number(val))}
                             >
-                              <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-48">
+                              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-48">
                                 {[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24, 36, 48].map((n) => (
                                   <SelectItem key={n} value={String(n)}>
                                     {n}x de R${' '}
@@ -697,15 +714,17 @@ export default function FastTransactionDrawer({
                           </div>
 
                           <div className="space-y-1">
-                            <Label className="text-xs text-slate-300">Cartão de Crédito</Label>
+                            <Label className="text-xs text-slate-700 dark:text-slate-300">
+                              Cartão de Crédito
+                            </Label>
                             <Select
                               value={installmentCreditCardId}
                               onValueChange={setInstallmentCreditCardId}
                             >
-                              <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                                 <SelectValue placeholder="Selecione o cartão" />
                               </SelectTrigger>
-                              <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                                 <SelectItem value="none">Nenhum cartão</SelectItem>
                                 {creditCards.map((c) => (
                                   <SelectItem key={c.id} value={c.id}>
@@ -722,14 +741,15 @@ export default function FastTransactionDrawer({
 
                   {/* Switch Recorrente (Para Despesas e Receitas) */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                    <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/40 hover:border-slate-300 dark:hover:border-slate-600/60 transition-colors">
                       <div className="flex items-center gap-2.5">
-                        <Repeat className="w-4 h-4 text-slate-400" />
+                        <Repeat className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                         <div>
-                          <span className="text-sm font-medium text-slate-200 block">
-                            É <strong className="text-white">recorrente?</strong>
+                          <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                            É{' '}
+                            <strong className="text-slate-900 dark:text-white">recorrente?</strong>
                           </span>
-                          <span className="text-[11px] text-slate-400">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
                             Repetir automaticamente periodicamente
                           </span>
                         </div>
@@ -745,18 +765,20 @@ export default function FastTransactionDrawer({
 
                     {/* Frequência se Recorrente estiver ligado */}
                     {isRecorrente && (
-                      <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-700/40 animate-in fade-in-50 duration-200">
-                        <Label className="text-xs text-slate-300 mb-1.5 block">Frequência</Label>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/40 animate-in fade-in-50 duration-200">
+                        <Label className="text-xs text-slate-700 dark:text-slate-300 mb-1.5 block">
+                          Frequência
+                        </Label>
                         <Select
                           value={recurrentFrequency}
                           onValueChange={(val: 'mensal' | 'semanal' | 'anual') =>
                             setRecurrentFrequency(val)
                           }
                         >
-                          <SelectTrigger className="h-10 rounded-xl bg-slate-800 border-slate-700 text-white">
+                          <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                             <SelectItem value="mensal">Mensal (todo mês)</SelectItem>
                             <SelectItem value="semanal">Semanal (toda semana)</SelectItem>
                             <SelectItem value="anual">Anual (todo ano)</SelectItem>
@@ -768,9 +790,11 @@ export default function FastTransactionDrawer({
                 </div>
               ) : (
                 /* Informação para Transferência no Passo 2 */
-                <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/40 text-xs text-slate-300 space-y-1">
-                  <p className="font-semibold text-white">Transferência entre contas</p>
-                  <p className="text-slate-400">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/40 text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    Transferência entre contas
+                  </p>
+                  <p className="text-slate-500 dark:text-slate-400">
                     Defina a data acima e prossiga para o próximo passo para selecionar a conta de
                     origem e destino.
                   </p>
@@ -792,7 +816,7 @@ export default function FastTransactionDrawer({
                   type="button"
                   variant="outline"
                   onClick={handleGoBack}
-                  className="w-full h-11 rounded-2xl border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent"
+                  className="w-full h-11 rounded-2xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-transparent"
                 >
                   Voltar ao Valor
                 </Button>
@@ -806,25 +830,27 @@ export default function FastTransactionDrawer({
           {step === 3 && (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Resumo do Valor + Data */}
-              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60">
                 <div>
-                  <span className="text-[11px] text-slate-400 block">Total & Data</span>
-                  <span className="text-base font-bold text-white tabular-nums">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                    Total & Data
+                  </span>
+                  <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums">
                     {formattedValue}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-slate-300 font-medium">
+                  <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                     {date.split('-').reverse().join('/')}
                   </span>
                   {isParcelada && (
-                    <span className="text-[11px] text-emerald-400 block font-semibold">
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold">
                       {totalInstallments}x de R${' '}
                       {(rawAmountCents / 100 / totalInstallments).toFixed(2).replace('.', ',')}
                     </span>
                   )}
                   {isRecorrente && (
-                    <span className="text-[11px] text-emerald-400 block font-semibold capitalize">
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block font-semibold capitalize">
                       Recorrente ({recurrentFrequency})
                     </span>
                   )}
@@ -833,7 +859,10 @@ export default function FastTransactionDrawer({
 
               {/* Título / Descrição */}
               <div className="space-y-1.5">
-                <Label htmlFor="fast-desc-step3" className="text-xs font-semibold text-slate-300">
+                <Label
+                  htmlFor="fast-desc-step3"
+                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
                   Título / Descrição
                 </Label>
                 <Input
@@ -847,7 +876,7 @@ export default function FastTransactionDrawer({
                   }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white placeholder:text-slate-500 focus-visible:ring-emerald-500"
+                  className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-emerald-500"
                   autoFocus
                 />
               </div>
@@ -856,15 +885,15 @@ export default function FastTransactionDrawer({
               {type === 'transferencia' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                       Conta de Origem
                     </Label>
                     <Select value={accountId} onValueChange={setAccountId}>
-                      <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                      <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                         <SelectValue placeholder="Selecione origem" />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                         {accounts.map((acc) => (
                           <SelectItem key={acc.id} value={acc.id}>
                             {acc.name} ({acc.bank})
@@ -875,15 +904,15 @@ export default function FastTransactionDrawer({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       Conta de Destino
                     </Label>
                     <Select value={targetAccountId} onValueChange={setTargetAccountId}>
-                      <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                      <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                         <SelectValue placeholder="Selecione destino" />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                      <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                         {accounts.map((acc) => (
                           <SelectItem key={acc.id} value={acc.id}>
                             {acc.name} ({acc.bank})
@@ -899,15 +928,15 @@ export default function FastTransactionDrawer({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Categoria */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                        <Tag className="w-3.5 h-3.5 text-emerald-400" />
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         Categoria
                       </Label>
                       <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                        <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                           <SelectValue placeholder="Selecione a categoria" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-800 text-white max-h-56">
+                        <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-56">
                           {relevantCategories.map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               {cat}
@@ -920,15 +949,15 @@ export default function FastTransactionDrawer({
 
                     {/* Conta Bancária */}
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                         Conta Bancária
                       </Label>
                       <Select value={accountId} onValueChange={setAccountId}>
-                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                        <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                           <SelectValue placeholder="Selecione conta" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                        <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                           <SelectItem value="none">Nenhuma conta</SelectItem>
                           {accounts.map((acc) => (
                             <SelectItem key={acc.id} value={acc.id}>
@@ -943,15 +972,15 @@ export default function FastTransactionDrawer({
                   {/* Cartão de Crédito (apenas para despesas avulsas/não parceladas, ou se quiser vincular) */}
                   {type === 'despesa' && !isParcelada && (
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                        <CreditCardIcon className="w-3.5 h-3.5 text-slate-400" />
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <CreditCardIcon className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                         Cartão de Crédito (opcional)
                       </Label>
                       <Select value={creditCardId} onValueChange={setCreditCardId}>
-                        <SelectTrigger className="h-11 rounded-2xl bg-slate-800/80 border-slate-700 text-white">
+                        <SelectTrigger className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
                           <SelectValue placeholder="Selecione o cartão" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                        <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                           <SelectItem value="none">Nenhum cartão</SelectItem>
                           {creditCards.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
@@ -968,20 +997,21 @@ export default function FastTransactionDrawer({
               {/* Switch "Já recebi" / "Já paguei" */}
               {type !== 'transferencia' && !isRecorrente && (
                 <div className="pt-1">
-                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-800/50 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+                  <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/40 hover:border-slate-300 dark:hover:border-slate-600/60 transition-colors">
                     <div className="flex items-center gap-2.5">
                       {isPaid ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       ) : (
-                        <Clock className="w-4 h-4 text-slate-400" />
+                        <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                       )}
                       <div>
-                        <span className="text-sm font-medium text-slate-200 block">
-                          {typeConfig.paidLabel} <strong className="text-white">?</strong>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                          {typeConfig.paidLabel}{' '}
+                          <strong className="text-slate-900 dark:text-white">?</strong>
                         </span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
                           {isPaid ? (
-                            <span className="text-emerald-400 font-medium">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                               Lançamento efetivado no saldo
                             </span>
                           ) : (
@@ -1018,7 +1048,7 @@ export default function FastTransactionDrawer({
                   type="button"
                   variant="outline"
                   onClick={handleGoBack}
-                  className="w-full h-11 rounded-2xl border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 bg-transparent"
+                  className="w-full h-11 rounded-2xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 bg-transparent"
                 >
                   Voltar às Configurações
                 </Button>
