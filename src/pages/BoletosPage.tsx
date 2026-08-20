@@ -477,65 +477,70 @@ export default function BoletosPage() {
 
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500 font-semibold">Total a Pagar</span>
-            <Badge variant="outline" className="text-[10px] font-bold bg-slate-50">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-slate-500 font-semibold whitespace-nowrap">
+              Total a Pagar
+            </span>
+            <Badge
+              variant="outline"
+              className="text-[10px] font-bold bg-slate-50 whitespace-nowrap"
+            >
               {stats.countPagar} boletos
             </Badge>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1.5 whitespace-nowrap truncate">
             {formatCurrency(stats.totalPagar, hideValues)}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-red-600 font-semibold flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> Vencidos
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-red-600 font-semibold flex items-center gap-1 whitespace-nowrap">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> Vencidos
             </span>
             <Badge
               variant="outline"
-              className="text-[10px] font-bold bg-red-50 text-red-700 border-red-300"
+              className="text-[10px] font-bold bg-red-50 text-red-700 border-red-300 whitespace-nowrap"
             >
               {stats.countVencido}
             </Badge>
           </div>
-          <div className="text-2xl font-black text-red-600 tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-black text-red-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             {formatCurrency(stats.totalVencido, hideValues)}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-amber-600 font-semibold flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> Vence Hoje
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-amber-600 font-semibold flex items-center gap-1 whitespace-nowrap">
+              <Clock className="w-3.5 h-3.5 flex-shrink-0" /> Vence Hoje
             </span>
             <Badge
               variant="outline"
-              className="text-[10px] font-bold bg-amber-50 text-amber-700 border-amber-300"
+              className="text-[10px] font-bold bg-amber-50 text-amber-700 border-amber-300 whitespace-nowrap"
             >
               {stats.countVenceHoje}
             </Badge>
           </div>
-          <div className="text-2xl font-black text-amber-600 tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-black text-amber-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             {formatCurrency(stats.totalVenceHoje, hideValues)}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Pagos
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 whitespace-nowrap">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> Pagos
             </span>
             <Badge
               variant="outline"
-              className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border-emerald-300"
+              className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border-emerald-300 whitespace-nowrap"
             >
               {stats.countPago}
             </Badge>
           </div>
-          <div className="text-2xl font-black text-emerald-600 tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             {formatCurrency(stats.totalPago, hideValues)}
           </div>
         </Card>

@@ -145,31 +145,33 @@ export default function ComparativePage() {
       {/* 3 Cards de Comparativo: Receitas / Despesas / Resultado */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 1. Receitas */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-            Receitas
-          </span>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
-            {formatCurrency(comp.incomeCurrent, hideValues)}
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Receitas
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+              {formatCurrency(comp.incomeCurrent, hideValues)}
+            </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-            <div className="flex items-center justify-between text-slate-500">
-              <span>{comp.previousMonthLabel}:</span>
-              <span className="font-semibold">
+            <div className="flex items-center justify-between text-slate-500 gap-1">
+              <span className="truncate">{comp.previousMonthLabel}:</span>
+              <span className="font-semibold whitespace-nowrap">
                 {formatCurrency(comp.incomePrevious, hideValues)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Variação:</span>
+            <div className="flex items-center justify-between gap-1">
+              <span className="whitespace-nowrap">Variação:</span>
               <span
-                className={`font-bold flex items-center gap-0.5 ${
+                className={`font-bold flex items-center gap-0.5 whitespace-nowrap truncate ${
                   comp.incomeDiff >= 0 ? 'text-emerald-600' : 'text-red-600'
                 }`}
               >
                 {comp.incomeDiff >= 0 ? (
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />
                 ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5" />
+                  <ArrowDownRight className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
                 {comp.incomeDiff >= 0 ? '+' : ''}
                 {formatCurrency(comp.incomeDiff, hideValues)} (
@@ -181,31 +183,33 @@ export default function ComparativePage() {
         </Card>
 
         {/* 2. Despesas */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-            Despesas Totais
-          </span>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
-            {formatCurrency(comp.expenseCurrent, hideValues)}
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Despesas Totais
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+              {formatCurrency(comp.expenseCurrent, hideValues)}
+            </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-            <div className="flex items-center justify-between text-slate-500">
-              <span>{comp.previousMonthLabel}:</span>
-              <span className="font-semibold">
+            <div className="flex items-center justify-between text-slate-500 gap-1">
+              <span className="truncate">{comp.previousMonthLabel}:</span>
+              <span className="font-semibold whitespace-nowrap">
                 {formatCurrency(comp.expensePrevious, hideValues)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Variação:</span>
+            <div className="flex items-center justify-between gap-1">
+              <span className="whitespace-nowrap">Variação:</span>
               <span
-                className={`font-bold flex items-center gap-0.5 ${
+                className={`font-bold flex items-center gap-0.5 whitespace-nowrap truncate ${
                   comp.expenseDiff <= 0 ? 'text-emerald-600' : 'text-red-600'
                 }`}
               >
                 {comp.expenseDiff > 0 ? (
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />
                 ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5" />
+                  <ArrowDownRight className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
                 {comp.expenseDiff >= 0 ? '+' : ''}
                 {formatCurrency(comp.expenseDiff, hideValues)} (
@@ -217,36 +221,38 @@ export default function ComparativePage() {
         </Card>
 
         {/* 3. Resultado Líquido */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-            Resultado Líquido
-          </span>
-          <div
-            className={`text-2xl font-black tabular-nums mt-1 ${
-              comp.resultCurrent >= 0 ? 'text-emerald-600' : 'text-red-600'
-            }`}
-          >
-            {comp.resultCurrent >= 0 ? '+' : ''}
-            {formatCurrency(comp.resultCurrent, hideValues)}
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Resultado Líquido
+            </span>
+            <div
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+                comp.resultCurrent >= 0 ? 'text-emerald-600' : 'text-red-600'
+              }`}
+            >
+              {comp.resultCurrent >= 0 ? '+' : ''}
+              {formatCurrency(comp.resultCurrent, hideValues)}
+            </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-            <div className="flex items-center justify-between text-slate-500">
-              <span>{comp.previousMonthLabel}:</span>
-              <span className="font-semibold">
+            <div className="flex items-center justify-between text-slate-500 gap-1">
+              <span className="truncate">{comp.previousMonthLabel}:</span>
+              <span className="font-semibold whitespace-nowrap">
                 {formatCurrency(comp.resultPrevious, hideValues)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Variação:</span>
+            <div className="flex items-center justify-between gap-1">
+              <span className="whitespace-nowrap">Variação:</span>
               <span
-                className={`font-bold flex items-center gap-0.5 ${
+                className={`font-bold flex items-center gap-0.5 whitespace-nowrap truncate ${
                   comp.resultDiff >= 0 ? 'text-emerald-600' : 'text-red-600'
                 }`}
               >
                 {comp.resultDiff >= 0 ? (
-                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />
                 ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5" />
+                  <ArrowDownRight className="w-3.5 h-3.5 flex-shrink-0" />
                 )}
                 {comp.resultDiff >= 0 ? '+' : ''}
                 {formatCurrency(comp.resultDiff, hideValues)} (

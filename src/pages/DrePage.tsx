@@ -292,86 +292,96 @@ export default function DrePage() {
       {/* 4 Cards de Indicadores Principais (Margens & Lucro) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Receita Líquida */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-            Receita Líquida
-          </span>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
-            {formatCurrency(dreReport.receitaLiquida, hideValues)}
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap block">
+              Receita Líquida
+            </span>
+            <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1 whitespace-nowrap truncate">
+              {formatCurrency(dreReport.receitaLiquida, hideValues)}
+            </div>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span>Receita Bruta: {formatCurrency(dreReport.receitaBruta, hideValues)}</span>
-            <span className="text-orange-600 font-medium">
+          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 gap-1">
+            <span className="truncate">
+              Bruta: {formatCurrency(dreReport.receitaBruta, hideValues)}
+            </span>
+            <span className="text-orange-600 font-medium whitespace-nowrap">
               −{formatCurrency(dreReport.deducoes, hideValues)}
             </span>
           </div>
         </Card>
 
         {/* Lucro Bruto & Margem Bruta */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              Lucro Bruto
-            </span>
-            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[10px]">
-              MB: {dreReport.margemBrutaPct.toFixed(1)}%
-            </Badge>
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+                Lucro Bruto
+              </span>
+              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[10px] whitespace-nowrap">
+                MB: {dreReport.margemBrutaPct.toFixed(1)}%
+              </Badge>
+            </div>
+            <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums mt-1 whitespace-nowrap truncate">
+              {formatCurrency(dreReport.lucroBruto, hideValues)}
+            </div>
           </div>
-          <div className="text-2xl font-black text-emerald-600 tabular-nums mt-1">
-            {formatCurrency(dreReport.lucroBruto, hideValues)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 whitespace-nowrap truncate">
             CMV / Custos: −{formatCurrency(dreReport.cmv, hideValues)}
           </div>
         </Card>
 
         {/* Resultado Operacional & Margem Operacional */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              Res. Operacional
-            </span>
-            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-bold text-[10px]">
-              MO: {dreReport.margemOperacionalPct.toFixed(1)}%
-            </Badge>
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+                Res. Operacional
+              </span>
+              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-bold text-[10px] whitespace-nowrap">
+                MO: {dreReport.margemOperacionalPct.toFixed(1)}%
+              </Badge>
+            </div>
+            <div
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+                dreReport.resultadoOperacional >= 0 ? 'text-blue-600' : 'text-red-600'
+              }`}
+            >
+              {formatCurrency(dreReport.resultadoOperacional, hideValues)}
+            </div>
           </div>
-          <div
-            className={`text-2xl font-black tabular-nums mt-1 ${
-              dreReport.resultadoOperacional >= 0 ? 'text-blue-600' : 'text-red-600'
-            }`}
-          >
-            {formatCurrency(dreReport.resultadoOperacional, hideValues)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 whitespace-nowrap truncate">
             Desp. Operacionais: −{formatCurrency(dreReport.despesasOperacionaisTotal, hideValues)}
           </div>
         </Card>
 
         {/* Resultado Líquido & Margem Líquida */}
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              Resultado Líquido
-            </span>
-            <Badge
-              className={`font-bold text-[10px] ${
-                dreReport.resultadoLiquido >= 0
-                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+                Resultado Líquido
+              </span>
+              <Badge
+                className={`font-bold text-[10px] whitespace-nowrap ${
+                  dreReport.resultadoLiquido >= 0
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                }`}
+              >
+                ML: {dreReport.margemLiquidaPct.toFixed(1)}%
+              </Badge>
+            </div>
+            <div
+              className={`text-xl sm:text-2xl font-black tabular-nums mt-1 whitespace-nowrap truncate ${
+                dreReport.resultadoLiquido >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >
-              ML: {dreReport.margemLiquidaPct.toFixed(1)}%
-            </Badge>
+              {dreReport.resultadoLiquido >= 0 ? '+' : ''}
+              {formatCurrency(dreReport.resultadoLiquido, hideValues)}
+            </div>
           </div>
-          <div
-            className={`text-2xl font-black tabular-nums mt-1 ${
-              dreReport.resultadoLiquido >= 0 ? 'text-emerald-600' : 'text-red-600'
-            }`}
-          >
-            {dreReport.resultadoLiquido >= 0 ? '+' : ''}
-            {formatCurrency(dreReport.resultadoLiquido, hideValues)}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 whitespace-nowrap truncate">
             Taxa de Economia: {dreReport.margemEconomiaPct.toFixed(1)}% da receita
           </div>
         </Card>

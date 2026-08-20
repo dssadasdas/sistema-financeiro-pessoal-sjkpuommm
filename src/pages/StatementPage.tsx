@@ -188,29 +188,29 @@ export default function StatementPage() {
       </div>
 
       {/* Resumo geral (apenas realizados) */}
-      <div className="grid grid-cols-3 gap-3 print:hidden">
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
             Total Recebido
           </span>
-          <div className="text-lg sm:text-xl font-bold text-emerald-600 tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             +{formatCurrency(totalIncome, hideValues)}
           </div>
         </div>
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
             Total Pago
           </span>
-          <div className="text-lg sm:text-xl font-bold text-orange-600 tabular-nums mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-orange-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             −{formatCurrency(totalExpense, hideValues)}
           </div>
         </div>
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
             Saldo do Período
           </span>
           <div
-            className={`text-lg sm:text-xl font-bold tabular-nums mt-1 ${
+            className={`text-xl sm:text-2xl font-bold tabular-nums mt-1.5 whitespace-nowrap truncate ${
               totalBalance >= 0 ? 'text-emerald-600' : 'text-red-600'
             }`}
           >

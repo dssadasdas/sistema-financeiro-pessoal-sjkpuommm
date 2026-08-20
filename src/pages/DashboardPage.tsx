@@ -652,76 +652,100 @@ export default function DashboardPage() {
       </Card>
 
       {/* Grid de 4 Cards: Receitas, Despesas, A Receber, A Pagar (2 colunas no mobile/tablet, 4 no desktop) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Receitas Recebidas */}
         <Card
           onClick={() => navigate('/transacoes')}
-          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B]"
+          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="truncate">Receitas Recebidas</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center flex-shrink-0">
-              <ArrowUpRight className="w-4 h-4" />
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 truncate whitespace-nowrap">
+                Receitas Recebidas
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <ArrowUpRight className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-emerald-600 tabular-nums whitespace-nowrap truncate mt-1">
+              +{formatCurrency(monthIncomeReceived, hideValues)}
             </div>
           </div>
-          <div className="text-lg sm:text-xl font-bold text-emerald-600 tabular-nums">
-            +{formatCurrency(monthIncomeReceived, hideValues)}
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Realizadas no mês</span>
+          <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap">
+            Realizadas no mês
+          </span>
         </Card>
 
         {/* Despesas Pagas */}
         <Card
           onClick={() => navigate('/transacoes')}
-          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B]"
+          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="truncate">Despesas Pagas</span>
-            <div className="w-7 h-7 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center flex-shrink-0">
-              <ArrowDownRight className="w-4 h-4" />
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 truncate whitespace-nowrap">
+                Despesas Pagas
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center flex-shrink-0">
+                <ArrowDownRight className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-orange-600 tabular-nums whitespace-nowrap truncate mt-1">
+              −{formatCurrency(monthExpensePaid, hideValues)}
             </div>
           </div>
-          <div className="text-lg sm:text-xl font-bold text-orange-600 tabular-nums">
-            −{formatCurrency(monthExpensePaid, hideValues)}
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Pagas no mês</span>
+          <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap">
+            Pagas no mês
+          </span>
         </Card>
 
         {/* A Receber */}
         <Card
           onClick={() => navigate('/transacoes')}
-          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B]"
+          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="truncate">A Receber</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4" />
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 truncate whitespace-nowrap">
+                A Receber
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-700 dark:text-slate-300 tabular-nums whitespace-nowrap truncate mt-1">
+              {formatCurrency(monthIncomePending + monthBillsToReceive, hideValues)}
             </div>
           </div>
-          <div className="text-lg sm:text-xl font-bold text-slate-700 dark:text-slate-300 tabular-nums">
-            {formatCurrency(monthIncomePending + monthBillsToReceive, hideValues)}
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Receitas previstas</span>
+          <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap">
+            Receitas previstas
+          </span>
         </Card>
 
         {/* A Pagar */}
         <Card
           onClick={() => navigate('/contas-a-pagar')}
-          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B]"
+          className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer bg-white dark:bg-[#121A2B] flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-            <span className="truncate">A Pagar</span>
-            <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-4 h-4" />
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400 truncate whitespace-nowrap">
+                A Pagar
+              </span>
+              <div className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold text-red-600 tabular-nums whitespace-nowrap truncate mt-1">
+              {formatCurrency(
+                monthBillsToPay + monthExpensePending + monthOpenInvoicesTotal,
+                hideValues,
+              )}
             </div>
           </div>
-          <div className="text-lg sm:text-xl font-bold text-red-600 tabular-nums">
-            {formatCurrency(
-              monthBillsToPay + monthExpensePending + monthOpenInvoicesTotal,
-              hideValues,
-            )}
-          </div>
-          <span className="text-[11px] text-slate-400 mt-1 block">Compromissos em aberto</span>
+          <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap">
+            Compromissos em aberto
+          </span>
         </Card>
       </div>
 

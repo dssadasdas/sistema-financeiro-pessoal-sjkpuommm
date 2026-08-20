@@ -389,48 +389,54 @@ function WeeklySummaryView({
 
         {/* 3 Métricas Principais */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-              <span>Entrou na Semana</span>
-              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-1">
+                <span className="whitespace-nowrap truncate font-semibold">Entrou na Semana</span>
+                <ArrowUpRight className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums whitespace-nowrap truncate mt-1">
+                +{formatCurrency(summary.income, hideValues)}
+              </div>
             </div>
-            <div className="text-xl font-black text-emerald-600 tabular-nums">
-              +{formatCurrency(summary.income, hideValues)}
-            </div>
-            <span className="text-[11px] text-slate-400">
-              Receitas vs semana anterior ({summary.incomeVariationPct >= 0 ? '+' : ''}
+            <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap truncate">
+              vs semana anterior ({summary.incomeVariationPct >= 0 ? '+' : ''}
               {summary.incomeVariationPct.toFixed(1)}%)
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-              <span>Saiu na Semana</span>
-              <ArrowDownRight className="w-4 h-4 text-orange-600" />
+          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-1">
+                <span className="whitespace-nowrap truncate font-semibold">Saiu na Semana</span>
+                <ArrowDownRight className="w-4 h-4 text-orange-600 flex-shrink-0" />
+              </div>
+              <div className="text-xl sm:text-2xl font-black text-orange-600 tabular-nums whitespace-nowrap truncate mt-1">
+                −{formatCurrency(summary.expense, hideValues)}
+              </div>
             </div>
-            <div className="text-xl font-black text-orange-600 tabular-nums">
-              −{formatCurrency(summary.expense, hideValues)}
-            </div>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap truncate">
               Despesas {summary.expenseVariationPct >= 0 ? '↑' : '↓'}{' '}
               {Math.abs(summary.expenseVariationPct).toFixed(1)}% vs anterior
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-              <span>Resultado Líquido</span>
-              <TrendingUp className="w-4 h-4 text-indigo-600" />
+          <div className="p-4 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-1 gap-1">
+                <span className="whitespace-nowrap truncate font-semibold">Resultado Líquido</span>
+                <TrendingUp className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+              </div>
+              <div
+                className={`text-xl sm:text-2xl font-black tabular-nums whitespace-nowrap truncate mt-1 ${
+                  summary.result >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}
+              >
+                {summary.result >= 0 ? '+' : ''}
+                {formatCurrency(summary.result, hideValues)}
+              </div>
             </div>
-            <div
-              className={`text-xl font-black tabular-nums ${
-                summary.result >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}
-            >
-              {summary.result >= 0 ? '+' : ''}
-              {formatCurrency(summary.result, hideValues)}
-            </div>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-slate-400 mt-2 block whitespace-nowrap truncate">
               {summary.result >= 0 ? 'Fechamento positivo' : 'Déficit no período'}
             </span>
           </div>

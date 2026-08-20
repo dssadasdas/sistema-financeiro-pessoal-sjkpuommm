@@ -395,24 +395,30 @@ export default function ReportsPage() {
 
       {/* 4 Cards de Resumo Mensal */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold">Receitas Recebidas</span>
-          <div className="text-2xl font-black text-emerald-600 tabular-nums mt-1">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-slate-400 font-semibold whitespace-nowrap block">
+            Receitas Recebidas
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             +{formatCurrency(monthIncome, hideValues)}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold">Gastos Pagos</span>
-          <div className="text-2xl font-black text-orange-600 tabular-nums mt-1">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-slate-400 font-semibold whitespace-nowrap block">
+            Gastos Pagos
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-orange-600 tabular-nums mt-1.5 whitespace-nowrap truncate">
             −{formatCurrency(monthExpenses, hideValues)}
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold">Resultado do Mês</span>
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-slate-400 font-semibold whitespace-nowrap block">
+            Resultado do Mês
+          </span>
           <div
-            className={`text-2xl font-black tabular-nums mt-1 ${
+            className={`text-xl sm:text-2xl font-black tabular-nums mt-1.5 whitespace-nowrap truncate ${
               monthResult >= 0 ? 'text-emerald-600' : 'text-red-600'
             }`}
           >
@@ -421,9 +427,11 @@ export default function ReportsPage() {
           </div>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm">
-          <span className="text-xs text-slate-400 font-semibold">Taxa de Economia</span>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1">
+        <Card className="rounded-2xl border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-[#121A2B] shadow-sm flex flex-col justify-between">
+          <span className="text-xs text-slate-400 font-semibold whitespace-nowrap block">
+            Taxa de Economia
+          </span>
+          <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tabular-nums mt-1.5 whitespace-nowrap truncate">
             {savingsRate}%
           </div>
         </Card>
