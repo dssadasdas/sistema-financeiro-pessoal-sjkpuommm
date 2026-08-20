@@ -23,11 +23,16 @@ function authHeaders(): Record<string, string> {
 export async function askAiAgent(
   message: string,
   conversationId?: string,
+  projectionContext?: string,
 ): Promise<{ content: string; conversationId: string }> {
+  const fullMessage = projectionContext
+    ? `${message}\n\n[CONTEXTO DO MOTOR DE PROJEÇÃO FINANCEIRA (DADOS REAIS DA ETAPA 3)]:\n${projectionContext}`
+    : message
+
   const res = await fetch(`${BASE_URL}/backend/v1/ai/ask`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ message, conversation_id: conversationId ?? null }),
+    body: JSON.stringify({ message: fullMessage, conversation_id: conversationId ?? null }),
   })
 
   const data = await res.json().catch(() => ({}))
@@ -48,11 +53,16 @@ export async function askAiAgent(
 export async function askAiAgentStream(
   message: string,
   conversationId?: string,
+  projectionContext?: string,
 ): Promise<{ stream: ReadableStream<Uint8Array>; conversationId: string }> {
+  const fullMessage = projectionContext
+    ? `${message}\n\n[CONTEXTO DO MOTOR DE PROJEÇÃO FINANCEIRA (DADOS REAIS DA ETAPA 3)]:\n${projectionContext}`
+    : message
+
   const res = await fetch(`${BASE_URL}/backend/v1/ai/ask-stream`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ message, conversation_id: conversationId ?? null }),
+    body: JSON.stringify({ message: fullMessage, conversation_id: conversationId ?? null }),
   })
 
   if (!res.ok || !res.body) {

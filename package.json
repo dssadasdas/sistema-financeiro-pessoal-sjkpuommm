@@ -67,9 +67,10 @@
     "recharts": "^3.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.1",
-    "tesseract.js": "^5.1.1",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^5.1.1",
     "vaul": "^1.1.2",
+    "vitest": "4.1.11",
     "zod": "^4.4.3"
   },
   "devDependencies": {

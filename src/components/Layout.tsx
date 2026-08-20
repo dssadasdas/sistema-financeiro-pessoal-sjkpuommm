@@ -60,6 +60,7 @@ const navItems: NavItem[] = [
   { label: 'Orçamentos', path: '/orcamento', icon: PieChart },
   { label: 'Metas', path: '/metas', icon: Target },
   { label: 'Investimentos', path: '/investimentos', icon: TrendingUp },
+  { label: 'Previsão Financeira', path: '/previsao', icon: TrendingUp },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
 ]
 

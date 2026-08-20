@@ -3,6 +3,7 @@ import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate, formatMonthYear } from '@/lib/constants'
 import { askAiAgent, askAiAgentStream, consumeAiStream } from '@/lib/aiAdvisor'
+import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
 import {
   Sparkles,
   TrendingUp,
@@ -94,9 +95,11 @@ const QUICK_QUESTION_TEXT: Record<QuickQuestionId, string> = {
 }
 
 const CHAT_SUGGESTIONS = [
-  'Qual meu maior gasto supérfluo?',
-  'Vale a pena investir mais?',
-  'Como reduzir gastos com cartão?',
+  'Quanto terei daqui a 30 dias?',
+  'Tenho dinheiro suficiente para pagar minhas contas do próximo mês?',
+  'Qual será meu pior dia financeiro nos próximos 60 dias?',
+  'Posso gastar R$ 2.000 agora sem comprometer minhas contas?',
+  'Quanto tenho de compromissos nos próximos 30 dias?',
 ]
 
 const AUTO_ANALYSIS_MESSAGE =
@@ -120,6 +123,10 @@ export default function AiAdvisorPage() {
     accounts,
     creditCards,
     bills,
+    recurringBills,
+    recurrences,
+    installments,
+    invoices,
     budgets,
     investments,
     totalInvested,
@@ -156,15 +163,71 @@ export default function AiAdvisorPage() {
     error: boolean
   }>({ content: '', loading: false, error: false })
 
+  // Constrói o contexto resumido da projeção financeira (Etapa 3) para alimentar o prompt da IA
+  const projectionContextString = useMemo(() => {
+    const p30 = calculateCashFlowProjection({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
+      invoices,
+      days: 30,
+    })
+    const p60 = calculateCashFlowProjection({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
+      invoices,
+      days: 60,
+    })
+    const p90 = calculateCashFlowProjection({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
+      invoices,
+      days: 90,
+    })
+
+    const topEvents30 = p30.timelineEvents
+      .slice(0, 8)
+      .map(
+        (ev) =>
+          `- ${formatDate(ev.date)}: ${ev.type === 'income' ? '+' : '−'}${formatCurrency(ev.value)} (${ev.description}) → Saldo acumulado: ${formatCurrency(ev.runningBalance)}`,
+      )
+
+    return `
+- Saldo consolidado inicial hoje: ${formatCurrency(p30.startingBalance)}
+- Projeção 30 dias: Entradas ${formatCurrency(p30.totalIncome)}, Saídas ${formatCurrency(p30.totalExpense)}, Saldo final previsto: ${formatCurrency(p30.projectedEndBalance)} (${p30.isPositive ? 'Positivo' : 'Negativo'})
+  Risco 30d: ${p30.risk.hasRisk ? `Déficit a partir de ${formatDate(p30.risk.firstNegativeDate || '')} (${formatCurrency(p30.risk.firstNegativeBalance || 0)}), maior déficit: ${formatCurrency(p30.risk.maxDeficit)}` : 'Sem risco previsto'}
+- Projeção 60 dias: Entradas ${formatCurrency(p60.totalIncome)}, Saídas ${formatCurrency(p60.totalExpense)}, Saldo final previsto: ${formatCurrency(p60.projectedEndBalance)}
+  Risco 60d: ${p60.risk.hasRisk ? `Pior dia/maior déficit: ${formatDate(p60.risk.maxDeficitDate || '')} (−${formatCurrency(p60.risk.maxDeficit)})` : 'Sem risco'}
+- Projeção 90 dias: Saldo final previsto: ${formatCurrency(p90.projectedEndBalance)}
+- Principais eventos previstos nos próximos 30 dias:
+${topEvents30.join('\n')}
+    `.trim()
+  }, [accounts, transactions, bills, recurringBills, recurrences, installments, invoices])
+
   const runAutoAnalysis = useCallback(async () => {
     setAutoAnalysis({ content: '', loading: true, error: false })
     try {
-      const { content } = await askAiAgent(AUTO_ANALYSIS_MESSAGE)
+      const { content } = await askAiAgent(
+        AUTO_ANALYSIS_MESSAGE,
+        undefined,
+        projectionContextString,
+      )
       setAutoAnalysis({ content, loading: false, error: false })
     } catch {
       setAutoAnalysis({ content: '', loading: false, error: true })
     }
-  }, [])
+  }, [projectionContextString])
 
   useEffect(() => {
     if (isLoading || loadError) return
@@ -365,7 +428,11 @@ export default function AiAdvisorPage() {
       setExpandedQuestion(id)
       setQuickLoading(id)
       try {
-        const { content } = await askAiAgent(QUICK_QUESTION_TEXT[id])
+        const { content } = await askAiAgent(
+          QUICK_QUESTION_TEXT[id],
+          undefined,
+          projectionContextString,
+        )
         setQuickAnswers((prev) => ({
           ...prev,
           [id]: { content, offline: false },
@@ -451,6 +518,7 @@ export default function AiAdvisorPage() {
         const { stream, conversationId } = await askAiAgentStream(
           trimmed,
           conversationIdRef.current ?? undefined,
+          projectionContextString,
         )
         if (conversationId) conversationIdRef.current = conversationId
 

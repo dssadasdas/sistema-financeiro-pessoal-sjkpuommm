@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate } from '@/lib/constants'
+import { calculateCashFlowProjection, formatDayMonth } from '@/lib/projectionEngine'
 import {
   Bell,
   AlertTriangle,
@@ -51,7 +52,17 @@ export interface SmartAlert {
 }
 
 export function useSmartAlerts(): SmartAlert[] {
-  const { accounts, bills, transactions, invoices, budgets, goals } = useFinance()
+  const {
+    accounts,
+    bills,
+    transactions,
+    invoices,
+    budgets,
+    goals,
+    recurringBills,
+    recurrences,
+    installments,
+  } = useFinance()
 
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const currentMonthPrefix = useMemo(() => new Date().toISOString().slice(0, 7), [])
@@ -254,6 +265,125 @@ export function useSmartAlerts(): SmartAlert[] {
       }
     })
 
+    // 5. ALERTAS DE FLUXO DE CAIXA PROJETADO (ETAPA 3)
+    // Calcula a projeção financeira de 30 dias com o motor central
+    const forecast30 = calculateCashFlowProjection({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments,
+      invoices,
+      days: 30,
+    })
+
+    // 5.1 Saldo projetado ficar negativo (nível: Crítico)
+    if (forecast30.risk.hasRisk && forecast30.risk.firstNegativeDate) {
+      list.push({
+        id: 'forecast-negative-risk',
+        level: 'critical',
+        category: 'saldo',
+        title: 'Risco de Fluxo de Caixa Negativo',
+        description: `Mantendo as movimentações previstas, seu saldo poderá ficar negativo em ${formatCurrency(
+          Math.abs(forecast30.risk.firstNegativeBalance || 0),
+        )} no dia ${forecast30.risk.firstNegativeDayLabel || formatDayMonth(forecast30.risk.firstNegativeDate)}.`,
+        targetPath: '/previsao',
+        date: forecast30.risk.firstNegativeDate,
+        value: forecast30.risk.maxDeficit,
+        badgeText: 'Déficit Previsto',
+      })
+    }
+
+    // 5.2 Despesas previstas superarem receitas em mais de 30% (nível: Importante)
+    // Aplica se despesas > receitas * 1.30 e houver despesas relevantes
+    if (
+      forecast30.totalExpense > 0 &&
+      forecast30.totalExpense > forecast30.totalIncome * 1.3 &&
+      forecast30.totalExpense - forecast30.totalIncome > 200
+    ) {
+      const excessPct =
+        forecast30.totalIncome > 0
+          ? Math.round(
+              ((forecast30.totalExpense - forecast30.totalIncome) / forecast30.totalIncome) * 100,
+            )
+          : 100
+      list.push({
+        id: 'forecast-expenses-exceed-income',
+        level: 'high',
+        category: 'orcamento',
+        title: 'Despesas Superam Receitas em >30%',
+        description: `Nos próximos 30 dias, as saídas previstas (${formatCurrency(
+          forecast30.totalExpense,
+        )}) superam as entradas (${formatCurrency(forecast30.totalIncome)}) em ${excessPct}%.`,
+        targetPath: '/previsao',
+        value: forecast30.totalExpense,
+        badgeText: `+${excessPct}% saídas`,
+      })
+    }
+
+    // 5.3 Concentração grande de pagamentos (>3) na mesma data (nível: Atenção)
+    const paymentsByDate: Record<string, { count: number; total: number; descriptions: string[] }> =
+      {}
+    forecast30.timelineEvents
+      .filter((ev) => ev.type === 'expense' && !ev.isSimulation)
+      .forEach((ev) => {
+        if (!paymentsByDate[ev.date]) {
+          paymentsByDate[ev.date] = { count: 0, total: 0, descriptions: [] }
+        }
+        paymentsByDate[ev.date].count += 1
+        paymentsByDate[ev.date].total += ev.value
+        if (paymentsByDate[ev.date].descriptions.length < 3) {
+          paymentsByDate[ev.date].descriptions.push(ev.description)
+        }
+      })
+
+    Object.entries(paymentsByDate).forEach(([pDate, info]) => {
+      if (info.count > 3) {
+        list.push({
+          id: `forecast-concentrated-payments-${pDate}`,
+          level: 'warning',
+          category: 'contas',
+          title: `Concentração de Pagamentos em ${formatDayMonth(pDate)}`,
+          description: `Existem ${info.count} pagamentos agendados para ${formatDate(pDate)} totalizando ${formatCurrency(
+            info.total,
+          )} (${info.descriptions.join(', ')}...).`,
+          targetPath: '/previsao',
+          date: pDate,
+          value: info.total,
+          badgeText: `${info.count} pagamentos`,
+        })
+      }
+    })
+
+    // 5.4 Fatura futura comprometer mais de 50% do saldo atual (nível: Importante)
+    if (forecast30.startingBalance > 0) {
+      invoices.forEach((inv) => {
+        if (inv.status === 'paga') return
+        const total = Number(inv.total || 0)
+        const due = (inv.due_date || '').slice(0, 10)
+        if (total > forecast30.startingBalance * 0.5 && due >= todayStr) {
+          const pctOfBalance = Math.round((total / forecast30.startingBalance) * 100)
+          const cardName = inv.expand?.credit_card?.name || 'Cartão'
+          list.push({
+            id: `forecast-heavy-invoice-${inv.id}`,
+            level: 'high',
+            category: 'cartoes',
+            title: `Fatura Pesa ${pctOfBalance}% do Saldo Atual`,
+            description: `Fatura ${cardName} de ${formatCurrency(
+              total,
+            )} vence em ${formatDate(due)} e compromete ${pctOfBalance}% do seu saldo bancário atual (${formatCurrency(
+              forecast30.startingBalance,
+            )}).`,
+            targetPath: `/cartoes/${inv.credit_card}`,
+            date: due,
+            value: total,
+            badgeText: `${pctOfBalance}% do saldo`,
+          })
+        }
+      })
+    }
+
     // Ordenação por severidade: critical > high > warning > info
     const weight: Record<AlertLevel, number> = {
       critical: 4,
@@ -263,7 +393,19 @@ export function useSmartAlerts(): SmartAlert[] {
     }
 
     return list.sort((a, b) => weight[b.level] - weight[a.level])
-  }, [accounts, bills, transactions, invoices, budgets, goals, todayStr, currentMonthPrefix])
+  }, [
+    accounts,
+    bills,
+    transactions,
+    invoices,
+    budgets,
+    goals,
+    recurringBills,
+    recurrences,
+    installments,
+    todayStr,
+    currentMonthPrefix,
+  ])
 
   return alerts
 }

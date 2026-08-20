@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import TransactionModal from '@/components/modals/TransactionModal'
+import { calculateCashFlowProjection } from '@/lib/projectionEngine'
 
 const MONTHS_PT = [
   'Jan',
@@ -56,6 +57,10 @@ export default function DashboardPage() {
     creditCards,
     accounts,
     investments,
+    recurringBills,
+    recurrences,
+    installments: financeInstallments,
+    invoices,
     isLoading,
     loadError,
     refreshAll,
@@ -71,6 +76,20 @@ export default function DashboardPage() {
 
   const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long' })
   const savingsAmount = monthIncomeReceived - monthExpensePaid
+
+  // Projeção do fluxo de caixa de 30 dias usando o motor central da Etapa 3
+  const forecast30 = useMemo(() => {
+    return calculateCashFlowProjection({
+      accounts,
+      transactions,
+      bills,
+      recurringBills,
+      recurrences,
+      installments: financeInstallments,
+      invoices,
+      days: 30,
+    })
+  }, [accounts, transactions, bills, recurringBills, recurrences, financeInstallments, invoices])
 
   // Histórico real dos últimos 6 meses (saldo = receitas - despesas realizadas)
   const monthlyHistory = useMemo(() => {
@@ -334,6 +353,69 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* Widget Previsão 30 dias (Etapa 3 - Fluxo de Caixa Projetado) */}
+      <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-sm p-5 bg-gradient-to-br from-white via-slate-50 to-emerald-50/30 dark:from-[#121A2B] dark:via-[#121A2B] dark:to-emerald-950/20">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold flex-shrink-0 ${
+                forecast30.risk.hasRisk
+                  ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Previsão 30 dias
+                </span>
+                <Badge
+                  className={`text-[10px] font-bold border-0 ${
+                    forecast30.risk.hasRisk
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+                      : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
+                  }`}
+                >
+                  {forecast30.risk.hasRisk
+                    ? `⚠️ Risco em ${forecast30.risk.firstNegativeDayLabel || 'breve'}`
+                    : '✅ Saudável'}
+                </Badge>
+              </div>
+              <div className="flex items-baseline gap-4 mt-1 flex-wrap">
+                <div>
+                  <span className="text-[11px] text-slate-400">Saldo atual: </span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 tabular-nums">
+                    {formatCurrency(forecast30.startingBalance, hideValues)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400">Saldo projetado (30d): </span>
+                  <span
+                    className={`text-sm sm:text-base font-black tabular-nums ${
+                      forecast30.isPositive
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {formatCurrency(forecast30.projectedEndBalance, hideValues)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            size="sm"
+            onClick={() => navigate('/previsao')}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-sm self-stretch sm:self-auto"
+          >
+            Ver previsão completa <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </Card>
 
       {/* Grid de 4 Cards: Receitas, Despesas, A Receber, A Pagar (2 colunas no mobile/tablet, 4 no desktop) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
