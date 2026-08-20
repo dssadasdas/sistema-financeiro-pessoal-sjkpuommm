@@ -1342,8 +1342,62 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!user) throw new Error('Não autenticado')
     const userId = user.id
 
-    // 1. Apagar itens dependentes (filhos) primeiro
-    // 1.1 Goal contributions (filhos de goals do usuário)
+    // Helper para limpar chaves de dados financeiros do localStorage
+    // (preservando token de login, tema e preferências globais de conta)
+    const clearFinancialLocalStorage = () => {
+      const keysToRemove = [
+        'semeia_primary_account_id',
+        'semeia_archived_account_ids',
+        'semeia_accounts_sort_by',
+        'semeia_learned_category_rules',
+        'semeia_card_eye_states',
+      ]
+      keysToRemove.forEach((k) => {
+        try {
+          localStorage.removeItem(k)
+        } catch {
+          /* intentionally ignored */
+        }
+      })
+    }
+
+    // 1. TENTATIVA PRIMÁRIA: Chamar o endpoint atômico de backend
+    let endpointSuccess = false
+    try {
+      const res = await fetch(`${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/reset-user-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: pb.authStore.token,
+        },
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}))
+        if (data.success) {
+          endpointSuccess = true
+        }
+      } else {
+        console.warn('Endpoint /backend/v1/reset-user-data retornou status não-ok:', res.status)
+      }
+    } catch (endpointErr) {
+      console.warn(
+        'Falha ao chamar endpoint /backend/v1/reset-user-data, executando fallback:',
+        endpointErr,
+      )
+    }
+
+    if (endpointSuccess) {
+      clearFinancialLocalStorage()
+      await fetchAllData()
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      await fetchAllData()
+      return
+    }
+
+    // 2. FALLBACK: Execução passo a passo robusta no frontend
+    console.info('Executando reset financeiro via fallback client-side...')
+
+    // 2.1 Goal contributions (filhos de goals do usuário)
     try {
       const userGoals = await pb.collection('goals').getFullList<Goal>({
         batch: 500,
@@ -1360,15 +1414,16 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
             pb
               .collection('goal_contributions')
               .delete(c.id)
-              .catch(() => {}),
+              .catch((err) => console.warn('Falha ao deletar goal_contribution:', err)),
           ),
         )
       }
     } catch (e) {
       console.warn('Erro ao limpar contribuições de metas:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 1.2 Invoice items (filhos de invoices do usuário)
+    // 2.2 Invoice items (filhos de invoices do usuário)
     try {
       const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
         batch: 500,
@@ -1385,33 +1440,41 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
             pb
               .collection('invoice_items')
               .delete(item.id)
-              .catch(() => {}),
+              .catch((err) => console.warn('Falha ao deletar invoice_item:', err)),
           ),
         )
       }
     } catch (e) {
       console.warn('Erro ao limpar itens de faturas:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 2. Apagar transações vinculadas do usuário (deve vir antes de bills, accounts, cards, installments)
-    try {
-      const userTxns = await pb.collection('transactions').getFullList<Transaction>({
-        batch: 500,
-        filter: `user = "${userId}"`,
-      })
-      await Promise.all(
-        userTxns.map((t) =>
-          pb
-            .collection('transactions')
-            .delete(t.id)
-            .catch(() => {}),
-        ),
-      )
-    } catch (e) {
-      console.warn('Erro ao limpar transações:', e)
+    // 2.3 Apagar transações vinculadas do usuário com retry garantido (até 3 tentativas)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const userTxns = await pb.collection('transactions').getFullList<Transaction>({
+          batch: 500,
+          filter: `user = "${userId}"`,
+        })
+        if (userTxns.length === 0) break
+
+        await Promise.all(
+          userTxns.map((t) =>
+            pb
+              .collection('transactions')
+              .delete(t.id)
+              .catch((err) =>
+                console.warn(`Falha ao deletar transaction ${t.id} (tentativa ${attempt}):`, err),
+              ),
+          ),
+        )
+      } catch (e) {
+        console.warn(`Erro ao limpar transações (tentativa ${attempt}):`, e)
+      }
+      await new Promise((r) => setTimeout(r, 500))
     }
 
-    // 3. Apagar faturas (invoices)
+    // 2.4 Apagar faturas (invoices)
     try {
       const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
         batch: 500,
@@ -1422,14 +1485,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('invoices')
             .delete(inv.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar invoice:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar faturas:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 4. Apagar contas e boletos (bills)
+    // 2.5 Apagar contas e boletos (bills)
     try {
       const userBills = await pb.collection('bills').getFullList<Bill>({
         batch: 500,
@@ -1440,14 +1504,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('bills')
             .delete(b.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar bill:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar contas/boletos:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 5. Apagar contas recorrentes (recurring_bills)
+    // 2.6 Apagar contas recorrentes (recurring_bills)
     try {
       const userRecurringBills = await pb.collection('recurring_bills').getFullList<RecurringBill>({
         batch: 500,
@@ -1458,14 +1523,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('recurring_bills')
             .delete(rb.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar recurring_bill:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar contas recorrentes:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 6. Apagar recorrências (recurrences)
+    // 2.7 Apagar recorrências (recurrences)
     try {
       const userRecurrences = await pb.collection('recurrences').getFullList<Recurrence>({
         batch: 500,
@@ -1476,14 +1542,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('recurrences')
             .delete(r.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar recurrence:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar recorrências:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 7. Apagar parcelamentos (installments)
+    // 2.8 Apagar parcelamentos (installments)
     try {
       const userInstallments = await pb.collection('installments').getFullList<Installment>({
         batch: 500,
@@ -1494,14 +1561,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('installments')
             .delete(inst.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar installment:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar parcelamentos:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 8. Apagar orçamentos (budgets)
+    // 2.9 Apagar orçamentos (budgets)
     try {
       const userBudgets = await pb.collection('budgets').getFullList<Budget>({
         batch: 500,
@@ -1512,14 +1580,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('budgets')
             .delete(bg.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar budget:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar orçamentos:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 9. Apagar metas (goals)
+    // 2.10 Apagar metas (goals)
     try {
       const userGoals = await pb.collection('goals').getFullList<Goal>({
         batch: 500,
@@ -1530,14 +1599,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('goals')
             .delete(g.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar goal:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar metas:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 10. Apagar investimentos (investments)
+    // 2.11 Apagar investimentos (investments)
     try {
       const userInvestments = await pb.collection('investments').getFullList<Investment>({
         batch: 500,
@@ -1548,14 +1618,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('investments')
             .delete(inv.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar investment:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar investimentos:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 11. Apagar regras de categorização (categorization_rules)
+    // 2.12 Apagar regras de categorização (categorization_rules)
     try {
       const userRules = await pb
         .collection('categorization_rules')
@@ -1568,14 +1639,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('categorization_rules')
             .delete(r.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar categorization_rule:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar regras de categorização:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 12. Apagar categorias personalizadas (categories)
+    // 2.13 Apagar categorias personalizadas (categories)
     try {
       const userCategories = await pb.collection('categories').getFullList<CategoryItem>({
         batch: 500,
@@ -1586,14 +1658,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('categories')
             .delete(c.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar category:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar categorias personalizadas:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 13. Apagar análises semanais (weekly_analyses)
+    // 2.14 Apagar análises semanais (weekly_analyses)
     try {
       const userWeeklyAnalyses = await pb.collection('weekly_analyses').getFullList({
         batch: 500,
@@ -1604,14 +1677,15 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('weekly_analyses')
             .delete(wa.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar weekly_analysis:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar análises semanais:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 14. Apagar cartões de crédito (credit_cards)
+    // 2.15 Apagar cartões de crédito (credit_cards)
     try {
       const userCards = await pb.collection('credit_cards').getFullList<CreditCard>({
         batch: 500,
@@ -1622,34 +1696,41 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           pb
             .collection('credit_cards')
             .delete(card.id)
-            .catch(() => {}),
+            .catch((err) => console.warn('Falha ao deletar credit_card:', err)),
         ),
       )
     } catch (e) {
       console.warn('Erro ao limpar cartões:', e)
     }
+    await new Promise((r) => setTimeout(r, 500))
 
-    // 15. Apagar contas bancárias (accounts) - transações já foram removidas, então passa pelo hook de proteção
+    // 2.16 Apagar contas bancárias (accounts) usando deleteAccount com cascade para passar pelo hook com segurança
     try {
       const userAccounts = await pb.collection('accounts').getFullList<Account>({
         batch: 500,
         filter: `user = "${userId}"`,
       })
-      await Promise.all(
-        userAccounts.map((acc) =>
-          pb
+      for (const acc of userAccounts) {
+        try {
+          await deleteAccount(acc.id, { deleteLinkedTransactions: true })
+        } catch (accErr) {
+          console.warn(`Falha ao deletar conta ${acc.id} com cascade:`, accErr)
+          // Tentativa fallback direta
+          await pb
             .collection('accounts')
             .delete(acc.id)
-            .catch(() => {}),
-        ),
-      )
+            .catch((e2) => console.warn(`Falha direta conta ${acc.id}:`, e2))
+        }
+      }
     } catch (e) {
       console.warn('Erro ao limpar contas bancárias:', e)
     }
 
-    // Atualiza todo o estado local para zerar e repete com delay para garantir consistência
+    clearFinancialLocalStorage()
+
+    // Atualiza todo o estado local para zerar e repete com delay de 500ms para garantir consistência
     await fetchAllData()
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 500))
     await fetchAllData()
   }
 
