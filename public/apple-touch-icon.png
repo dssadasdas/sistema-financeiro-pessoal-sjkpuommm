@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
   <defs>
-    <linearGradient id="semeiaGradSkip" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="semeiaGrad192" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#34D399" />
       <stop offset="40%" stop-color="#059669" />
       <stop offset="100%" stop-color="#064E3B" />
     </linearGradient>
-    <filter id="shadowSkip" x="-10%" y="-10%" width="120%" height="120%">
+    <filter id="shadow192" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#022c22" flood-opacity="0.35" />
     </filter>
   </defs>
 
   <!-- Fundo arredondado elegante em verde esmeralda -->
-  <rect width="192" height="192" rx="44" fill="url(#semeiaGradSkip)" />
+  <rect width="192" height="192" rx="44" fill="url(#semeiaGrad192)" />
 
   <!-- "S" estilizado e fluido de Semeia -->
-  <g filter="url(#shadowSkip)">
+  <g filter="url(#shadow192)">
     <path
       d="M132 54C124 41 110 33 96 33C73 33 56 48 56 67C56 87 72 96 99 103C122 109 136 119 136 138C136 158 117 172 94 172C73 172 58 160 51 146"
       fill="none"

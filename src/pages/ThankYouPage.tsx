@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, Loader2, XCircle, Wallet, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, XCircle, AlertCircle } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 import { getMercadoPagoStatus } from '@/lib/payments'
 
 type Status = 'processing' | 'success' | 'failed' | 'canceled'
@@ -236,8 +237,8 @@ export default function ThankYouPage() {
       <Card className="max-w-md w-full border-emerald-200 dark:border-emerald-900/50 shadow-xl bg-white dark:bg-[#121a2b]">
         <CardContent className="p-8 text-center">
           <div className="flex justify-center mb-5">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg mb-2">
-              <Wallet className="w-7 h-7" />
+            <div className="mb-2">
+              <SemeiaLogo size="xl" showText={false} />
             </div>
           </div>
 

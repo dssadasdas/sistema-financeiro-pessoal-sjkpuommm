@@ -15,6 +15,7 @@ import {
   CreditCard,
   Landmark,
 } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 import { useToast } from '@/hooks/use-toast'
 import type { PaymentProvider } from '@/lib/payments'
 
@@ -114,13 +115,10 @@ export default function PaywallPage() {
       <div className="w-full max-w-4xl py-8">
         {/* Cabeçalho */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 font-black text-2xl">
-              S
-            </div>
-            <span className="font-extrabold text-3xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-              Semeia
-            </span>
+          <div className="inline-flex items-center mb-3">
+            <Link to="/">
+              <SemeiaLogo size="lg" />
+            </Link>
           </div>
 
           <Badge className="mb-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">

@@ -1,7 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Wallet,
   CreditCard,
   Target,
   PieChart,
@@ -12,7 +11,9 @@ import {
   CheckCircle2,
   ArrowRight,
   Lock,
+  Wallet,
 } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -70,13 +71,10 @@ export default function LandingPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-[#0f1626]/80 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
-              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
-            <span className="font-extrabold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
-              Semeia
-            </span>
+          <div className="flex items-center min-w-0">
+            <Link to="/" className="flex items-center">
+              <SemeiaLogo size="md" />
+            </Link>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Link to="/login">
@@ -392,10 +390,8 @@ export default function LandingPage() {
       <footer className="mt-auto py-8 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
-              <Wallet className="w-3.5 h-3.5" />
-            </div>
-            <span className="font-bold text-slate-700">Semeia</span>
+            <SemeiaLogo size="xs" showText={false} />
+            <span className="font-bold text-slate-700 dark:text-slate-200">Semeia</span>
             <span>· Sistema Financeiro Pessoal</span>
           </div>
           <div className="flex items-center gap-4">

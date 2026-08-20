@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
-import { Wallet, Lock, Mail, Eye, EyeOff, Loader2, AlertCircle, User } from 'lucide-react'
+import { Lock, Mail, Eye, EyeOff, Loader2, AlertCircle, User } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -81,11 +82,8 @@ export default function SignupPage() {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-6">
-          <Link to="/" className="inline-flex items-center gap-2.5 mb-2">
-            <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur border border-white/30 flex items-center justify-center text-white shadow-lg">
-              <Wallet className="w-6 h-6" />
-            </div>
-            <span className="font-extrabold text-2xl tracking-tight text-white">Semeia</span>
+          <Link to="/" className="inline-flex items-center mb-2">
+            <SemeiaLogo size="lg" variant="glass" textClassName="text-white" />
           </Link>
         </div>
 

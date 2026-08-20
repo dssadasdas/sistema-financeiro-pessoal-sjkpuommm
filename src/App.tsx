@@ -9,7 +9,8 @@ import { FinanceDataProvider } from '@/contexts/FinanceDataContext'
 import Layout from '@/components/Layout'
 import PageTitle from '@/components/PageTitle'
 import { useMobileViewportStabilizer } from '@/hooks/use-mobile-viewport'
-import { Wallet, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 
 // Páginas Públicas
 import LandingPage from '@/pages/LandingPage'
@@ -35,8 +36,8 @@ import ProfilePage from '@/pages/ProfilePage'
 function FullScreenLoader() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F6F7F9] dark:bg-[#0b1120]">
-      <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg mb-4">
-        <Wallet className="w-6 h-6" />
+      <div className="mb-4">
+        <SemeiaLogo size="lg" showText={false} />
       </div>
       <Loader2 className="w-5 h-5 text-emerald-600 animate-spin" />
     </div>

@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="semeiaGradIco" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="semeiaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#10B981" />
       <stop offset="50%" stop-color="#059669" />
       <stop offset="100%" stop-color="#047857" />
     </linearGradient>
-    <filter id="shadowIco" x="-10%" y="-10%" width="120%" height="120%">
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
       <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#064e3b" flood-opacity="0.3" />
     </filter>
   </defs>
 
   <!-- Fundo arredondado em verde esmeralda vibrante -->
-  <rect width="64" height="64" rx="16" fill="url(#semeiaGradIco)" />
+  <rect width="64" height="64" rx="16" fill="url(#semeiaGrad)" />
 
   <!-- "S" estilizado e fluido de Semeia -->
   <path
@@ -22,9 +22,9 @@
     stroke-linecap="round"
     stroke-linejoin="round"
     transform="scale(0.85) translate(5, 5)"
-    filter="url(#shadowIco)"
+    filter="url(#shadow)"
   />
 
   <!-- Broto/ponto que simboliza a semente -->
-  <circle cx="45" cy="18" r="3.2" fill="#FFFFFF" filter="url(#shadowIco)" />
+  <circle cx="45" cy="18" r="3.2" fill="#FFFFFF" filter="url(#shadow)" />
 </svg>

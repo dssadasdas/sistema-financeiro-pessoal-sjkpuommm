@@ -22,11 +22,11 @@ import {
   Eye,
   EyeOff,
   Plus,
-  Wallet,
   Home,
   Repeat,
   User,
 } from 'lucide-react'
+import { SemeiaLogo } from '@/components/SemeiaLogo'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -262,13 +262,10 @@ export default function Layout() {
       {/* Sidebar Desktop (apenas 1024px+) */}
       <aside className="hidden lg:flex flex-col w-[264px] flex-shrink-0 h-screen sticky top-0 bg-white dark:bg-[#0f1626] border-r border-slate-200 dark:border-slate-800">
         {/* Logo */}
-        <div className="h-16 px-5 flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-sm">
-            <Wallet className="w-5 h-5" />
-          </div>
-          <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-            Semeia
-          </span>
+        <div className="h-16 px-5 flex items-center border-b border-slate-100 dark:border-slate-800">
+          <Link to="/inicio" className="flex items-center">
+            <SemeiaLogo size="md" />
+          </Link>
         </div>
 
         {/* Greeting / Profile Link */}
@@ -362,13 +359,8 @@ export default function Layout() {
             }}
           >
             <div className="h-16 px-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white">
-                  <Wallet className="w-5 h-5" />
-                </div>
-                <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
-                  Semeia
-                </span>
+              <div className="flex items-center">
+                <SemeiaLogo size="md" />
               </div>
               <Button
                 variant="ghost"
