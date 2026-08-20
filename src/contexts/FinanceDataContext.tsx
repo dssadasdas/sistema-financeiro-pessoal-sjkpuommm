@@ -118,6 +118,12 @@ interface FinanceDataContextType {
     dreGroup: DreGroup,
     type?: 'receita' | 'despesa',
   ) => Promise<CategoryItem>
+  createCategory: (
+    name: string,
+    type: 'receita' | 'despesa',
+    color?: string,
+  ) => Promise<CategoryItem>
+  deleteCategory: (id: string) => Promise<void>
   resetAllUserData: () => Promise<void>
 }
 
@@ -183,13 +189,11 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ] = await Promise.all([
         pb.collection('accounts').getFullList<Account>({ batch: 500, sort: 'name' }),
         pb.collection('credit_cards').getFullList<CreditCard>({ batch: 500, sort: 'name' }),
-        pb
-          .collection('transactions')
-          .getFullList<Transaction>({
-            batch: 500,
-            sort: '-date,created',
-            expand: 'account,credit_card',
-          }),
+        pb.collection('transactions').getFullList<Transaction>({
+          batch: 500,
+          sort: '-date,created',
+          expand: 'account,credit_card',
+        }),
         pb
           .collection('invoices')
           .getFullList<Invoice>({ batch: 500, sort: '-reference', expand: 'credit_card' }),
@@ -198,13 +202,11 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           sort: 'due_date',
           expand: 'account,recurring_bill',
         }),
-        pb
-          .collection('recurring_bills')
-          .getFullList<RecurringBill>({
-            batch: 500,
-            sort: 'next_date',
-            expand: 'account,credit_card',
-          }),
+        pb.collection('recurring_bills').getFullList<RecurringBill>({
+          batch: 500,
+          sort: 'next_date',
+          expand: 'account,credit_card',
+        }),
         pb
           .collection('recurrences')
           .getFullList<Recurrence>({ batch: 500, sort: 'due_day', expand: 'account' }),
@@ -1207,6 +1209,45 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await fetchAllData()
   }
 
+  const createCategory = async (
+    name: string,
+    type: 'receita' | 'despesa',
+    color?: string,
+  ): Promise<CategoryItem> => {
+    if (!user) throw new Error('Não autenticado')
+    const trimmedName = name.trim()
+    if (!trimmedName) throw new Error('Nome da categoria é obrigatório')
+
+    const defaultDreGroup: DreGroup = type === 'receita' ? 'receita_bruta' : 'outras_operacionais'
+
+    const existing = customCategories.find(
+      (c) => c.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    )
+
+    let rec: CategoryItem
+    if (existing) {
+      rec = await pb.collection('categories').update<CategoryItem>(existing.id, {
+        type,
+        ...(color ? { color } : {}),
+      })
+    } else {
+      rec = await pb.collection('categories').create<CategoryItem>({
+        user: user.id,
+        name: trimmedName,
+        type,
+        dre_group: defaultDreGroup,
+        ...(color ? { color } : {}),
+      })
+    }
+    await fetchAllData()
+    return rec
+  }
+
+  const deleteCategory = async (id: string): Promise<void> => {
+    await pb.collection('categories').delete(id)
+    await fetchAllData()
+  }
+
   const saveCategoryDreGroup = async (
     categoryName: string,
     dreGroup: DreGroup,
@@ -1631,6 +1672,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         saveRule,
         deleteRule,
         saveCategoryDreGroup,
+        createCategory,
+        deleteCategory,
         resetAllUserData,
       }}
     >
