@@ -11,13 +11,14 @@ routerAdd(
 
     const accountId = e.request.pathValue('id')
 
-    // Verificar posse da conta
-    let account
-    try {
-      account = $app.dao().findRecordById('accounts', accountId)
-    } catch {
+    // Verificar posse da conta consultando o banco real (evita cache corrompido do DAO)
+    const records = $app
+      .dao()
+      .findRecordsByFilter('accounts', 'id = {:id}', undefined, 1, { id: accountId })
+    if (records.length === 0) {
       return e.notFoundError('Conta não encontrada')
     }
+    const account = records[0]
 
     if (account.getString('user') !== userId) {
       return e.forbiddenError('Conta não pertence ao usuário')
@@ -90,8 +91,13 @@ routerAdd(
       $app.dao().saveRecord(r)
     }
 
-    // 5. Deletar a conta via DAO
-    $app.dao().deleteRecord(account)
+    // 5. Deletar a conta via raw SQL (evita bloqueio do hook onRecordDeleteRequest e bypass do cache)
+    $app
+      .dao()
+      .db()
+      .newQuery('DELETE FROM accounts WHERE id = {:id}')
+      .bind({ id: accountId })
+      .execute()
 
     return e.json(200, { success: true, deletedTransactions: deletedCount, accountId })
   },
