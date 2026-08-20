@@ -86,6 +86,21 @@ export function buildComprehensiveFinancialContext(context: FinancialContextData
     .filter((t) => t.type === 'despesa')
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
+  // 6. Investimentos
+  const investmentsList = context.investments || []
+  const totalInvestedVal = investmentsList.reduce((acc, i) => acc + Number(i.applied_value || 0), 0)
+  const totalCurrentInvested = investmentsList.reduce(
+    (acc, i) => acc + Number(i.current_total_value || i.applied_value || 0),
+    0,
+  )
+  const totalInvestProfit = totalCurrentInvested - totalInvestedVal
+  const investmentsSummary = investmentsList
+    .map(
+      (inv) =>
+        `  * ${inv.name} (${inv.type}): Aplicado ${formatCurrency(inv.applied_value)} | Atual ${formatCurrency(inv.current_total_value || inv.applied_value)} (${(inv.profit_loss_pct || 0) >= 0 ? '+' : ''}${(inv.profit_loss_pct || 0).toFixed(1)}%)`,
+    )
+    .join('\n')
+
   return `
 [SAÚDE FINANCEIRA]:
 - Pontuação: ${health.score}/100 (${health.levelLabel.toUpperCase()})
@@ -95,6 +110,10 @@ ${health.factors.map((f) => `  * ${f.factor}: ${f.score}/${f.maxScore} pts (${f.
 [SALDO CONSOLIDADO E POR BANCO]:
 - Saldo Consolidado Hoje: ${formatCurrency(totalBalance)}
 ${accountsBreakdown || '  * Nenhuma conta cadastrada'}
+
+[INVESTIMENTOS E PATRIMÔNIO]:
+- Total Investido: ${formatCurrency(totalInvestedVal)} | Valor Atual: ${formatCurrency(totalCurrentInvested)} | Resultado: ${formatCurrency(totalInvestProfit)}
+${investmentsSummary || '  * Nenhum investimento cadastrado'}
 
 [MÊS ATUAL]:
 - Receitas realizadas: ${formatCurrency(monthIncome)}
@@ -168,6 +187,22 @@ export function evaluateLocalDeterministicAnswer(
       .reduce((a, t) => a + Number(t.value || 0), 0)
     const res = inc - exp
     return `No mês atual, você recebeu ${formatCurrency(inc)} e gastou ${formatCurrency(exp)}, resultando em ${res >= 0 ? 'saldo positivo' : 'déficit'} de ${formatCurrency(res)}.`
+  }
+
+  // 4. "Quanto tenho investido?" ou "Total em investimentos"
+  if (
+    msgLower.includes('quanto tenho investido') ||
+    msgLower.includes('total investido') ||
+    msgLower.includes('meus investimentos')
+  ) {
+    const invs = context.investments || []
+    const totalCurrent = invs.reduce(
+      (sum, i) => sum + (i.current_total_value || i.applied_value || 0),
+      0,
+    )
+    const totalApplied = invs.reduce((sum, i) => sum + (i.applied_value || 0), 0)
+    const diff = totalCurrent - totalApplied
+    return `Você possui atualmente ${formatCurrency(totalCurrent)} em investimentos (total aplicado: ${formatCurrency(totalApplied)}), com resultado acumulado de ${diff >= 0 ? '+' : ''}${formatCurrency(diff)}.`
   }
 
   return null

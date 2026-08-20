@@ -12,6 +12,7 @@ import {
   CreditCard,
   Tag,
   Target,
+  TrendingUp,
   Sparkles,
   Settings,
   LogOut,
@@ -59,6 +60,7 @@ const navItems: NavItem[] = [
   { label: 'Cartões', path: '/cartoes', icon: CreditCard },
   { label: 'Categorias', path: '/categorias', icon: Tag },
   { label: 'Metas', path: '/metas', icon: Target },
+  { label: 'Investimentos', path: '/investimentos', icon: TrendingUp },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
 ]
 
@@ -252,6 +254,7 @@ export default function Layout() {
     if (location.pathname.startsWith('/configuracoes')) return 'Configurações'
     if (location.pathname.startsWith('/categorias')) return 'Categorias'
     if (location.pathname.startsWith('/metas')) return 'Metas Financeiras'
+    if (location.pathname.startsWith('/investimentos')) return 'Investimentos'
     return 'Semeia'
   }
 
@@ -442,7 +445,7 @@ export default function Layout() {
         </div>
 
         <NavLink
-          to="/cartoes"
+          to="/investimentos"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center w-14 h-full text-[10px] font-medium transition-colors ${
               isActive
@@ -451,8 +454,8 @@ export default function Layout() {
             }`
           }
         >
-          <CreditCard className="w-5 h-5 mb-0.5" />
-          <span>Cartões</span>
+          <TrendingUp className="w-5 h-5 mb-0.5" />
+          <span>Investimentos</span>
         </NavLink>
 
         <NavLink

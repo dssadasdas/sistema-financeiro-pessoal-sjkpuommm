@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T12:14:18.696Z",
+  "generatedAt": "2026-08-20T12:33:13.611Z",
   "collections": [
     {
       "name": "users",
@@ -1104,7 +1104,43 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["bitcoin", "ethereum", "acao", "fii", "renda_fixa", "cdi100"]
+          "selectValues": [
+            "bitcoin",
+            "ethereum",
+            "acao",
+            "fii",
+            "renda_fixa",
+            "cdi100",
+            "cdb",
+            "rdb",
+            "lci",
+            "lca",
+            "tesouro_selic",
+            "tesouro_prefixado",
+            "tesouro_ipca",
+            "debentures",
+            "cri",
+            "cra",
+            "letras_financeiras",
+            "poupanca",
+            "etf",
+            "bdr",
+            "fiagro",
+            "fundo_rf",
+            "fundo_multimercado",
+            "fundo_acoes",
+            "fundo_cambial",
+            "fundo_imobiliario",
+            "pgbl",
+            "vgbl",
+            "acao_us",
+            "etf_internacional",
+            "ouro",
+            "dolar",
+            "euro",
+            "ativo_personalizado",
+            "cripto_alt"
+          ]
         },
         {
           "name": "symbol",
@@ -1167,6 +1203,65 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "institution",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "maturity_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "liquidity",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "yield_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["cdi_pct", "prefixado", "ipca_mais", "manual", "variavel"]
+        },
+        {
+          "name": "yield_rate",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tax_regime",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["regressivo", "isento", "sem_ir"]
+        },
+        {
+          "name": "category_group",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "renda_fixa",
+            "renda_variavel",
+            "fundos",
+            "cripto",
+            "previdencia",
+            "internacional",
+            "outros"
+          ]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_investments_user ON investments (user)"]
@@ -1669,6 +1764,158 @@
       ],
       "indexes": [
         "CREATE INDEX idx_weekly_analyses_user_week ON weekly_analyses (user, week_start)"
+      ]
+    },
+    {
+      "name": "investment_contributions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "investment",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "investments"
+        },
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unit_price",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["compra", "venda"]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_inv_contrib_investment ON investment_contributions (investment)",
+        "CREATE INDEX idx_inv_contrib_user ON investment_contributions (user)"
+      ]
+    },
+    {
+      "name": "investment_earnings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && user = @request.auth.id",
+        "view": "@request.auth.id != '' && user = @request.auth.id",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != '' && user = @request.auth.id",
+        "delete": "@request.auth.id != '' && user = @request.auth.id"
+      },
+      "fields": [
+        {
+          "name": "investment",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "investments"
+        },
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "value",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["dividendo", "jcp", "rendimento_fii", "cupom", "juros", "outro"]
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_inv_earnings_investment ON investment_earnings (investment)",
+        "CREATE INDEX idx_inv_earnings_user ON investment_earnings (user)"
       ]
     }
   ]

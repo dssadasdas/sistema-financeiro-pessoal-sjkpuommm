@@ -15,6 +15,9 @@ import {
   Goal,
   GoalContribution,
   Investment,
+  InvestmentContribution,
+  InvestmentEarning,
+  InvestmentCategoryGroup,
   CategorizationRule,
   CategoryItem,
   DreGroup,
@@ -33,6 +36,8 @@ interface FinanceDataContextType {
   goals: Goal[]
   goalContributions: GoalContribution[]
   investments: Investment[]
+  contributions: InvestmentContribution[]
+  earnings: InvestmentEarning[]
   rules: CategorizationRule[]
   customCategories: CategoryItem[]
   isLoading: boolean
@@ -48,7 +53,17 @@ interface FinanceDataContextType {
   monthExpensePending: number
   monthOpenInvoicesTotal: number
   totalInvested: number
+  totalInvestmentsCurrent: number
   totalInvestmentsResult: number
+  rentabilidadeMes: number
+  rentabilidadeAno: number
+  totalProventos: number
+  indicators: {
+    cdi: number
+    ipca: number
+    dolar: number
+    euro: number
+  }
 
   // Actions
   createTransaction: (data: Partial<Transaction>) => Promise<Transaction>
@@ -108,7 +123,12 @@ interface FinanceDataContextType {
   createInvestment: (data: Partial<Investment>) => Promise<Investment>
   updateInvestment: (id: string, data: Partial<Investment>) => Promise<Investment>
   deleteInvestment: (id: string) => Promise<void>
+  createContribution: (data: Partial<InvestmentContribution>) => Promise<InvestmentContribution>
+  deleteContribution: (id: string) => Promise<void>
+  createEarning: (data: Partial<InvestmentEarning>) => Promise<InvestmentEarning>
+  deleteEarning: (id: string) => Promise<void>
   refreshCryptoQuotes: () => Promise<void>
+  refreshAllPrices: () => Promise<{ updated: number; failed: number }>
 
   saveRule: (keyword: string, category: string) => Promise<CategorizationRule>
   deleteRule: (id: string) => Promise<void>
@@ -143,8 +163,16 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [goals, setGoals] = useState<Goal[]>([])
   const [goalContributions, setGoalContributions] = useState<GoalContribution[]>([])
   const [investments, setInvestments] = useState<Investment[]>([])
+  const [contributions, setContributions] = useState<InvestmentContribution[]>([])
+  const [earnings, setEarnings] = useState<InvestmentEarning[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [customCategories, setCustomCategories] = useState<CategoryItem[]>([])
+  const [indicators, setIndicators] = useState({
+    cdi: 13.65,
+    ipca: 0.42,
+    dolar: 5.75,
+    euro: 6.15,
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
 
@@ -162,6 +190,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setGoals([])
       setGoalContributions([])
       setInvestments([])
+      setContributions([])
+      setEarnings([])
       setRules([])
       setIsLoading(false)
       setLoadError(false)
@@ -184,6 +214,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         goalRes,
         goalContRes,
         invtRes,
+        contribRes,
+        earnRes,
         ruleRes,
         catRes,
       ] = await Promise.all([
@@ -220,6 +252,14 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           .getFullList<GoalContribution>({ batch: 500, sort: '-date' }),
         pb.collection('investments').getFullList<Investment>({ batch: 500, sort: 'name' }),
         pb
+          .collection('investment_contributions')
+          .getFullList<InvestmentContribution>({ batch: 500, sort: '-date' })
+          .catch(() => [] as InvestmentContribution[]),
+        pb
+          .collection('investment_earnings')
+          .getFullList<InvestmentEarning>({ batch: 500, sort: '-date' })
+          .catch(() => [] as InvestmentEarning[]),
+        pb
           .collection('categorization_rules')
           .getFullList<CategorizationRule>({ batch: 500, sort: 'keyword' }),
         pb
@@ -240,6 +280,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setGoals(goalRes)
       setGoalContributions(goalContRes)
       setInvestments(invtRes)
+      setContributions(contribRes)
+      setEarnings(earnRes)
       setRules(ruleRes)
       setCustomCategories(catRes)
     } catch (err) {
@@ -270,6 +312,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       'goals',
       'goal_contributions',
       'investments',
+      'investment_contributions',
+      'investment_earnings',
       'categorization_rules',
       'categories',
     ]
@@ -410,9 +454,58 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     0,
   )
 
-  // 4. Investments total
+  // 4. Investments total & metrics
+  const defaultCategoryForType = (type: string): InvestmentCategoryGroup => {
+    if (
+      [
+        'cdb',
+        'rdb',
+        'lci',
+        'lca',
+        'tesouro_selic',
+        'tesouro_prefixado',
+        'tesouro_ipca',
+        'debentures',
+        'cri',
+        'cra',
+        'letras_financeiras',
+        'poupanca',
+        'cdi100',
+        'renda_fixa',
+      ].includes(type)
+    ) {
+      return 'renda_fixa'
+    }
+    if (['acao', 'fii', 'etf', 'bdr', 'fiagro'].includes(type)) {
+      return 'renda_variavel'
+    }
+    if (
+      [
+        'fundo_rf',
+        'fundo_multimercado',
+        'fundo_acoes',
+        'fundo_cambial',
+        'fundo_imobiliario',
+      ].includes(type)
+    ) {
+      return 'fundos'
+    }
+    if (['bitcoin', 'ethereum', 'cripto_alt'].includes(type)) {
+      return 'cripto'
+    }
+    if (['pgbl', 'vgbl'].includes(type)) {
+      return 'previdencia'
+    }
+    if (['acao_us', 'etf_internacional', 'dolar', 'euro'].includes(type)) {
+      return 'internacional'
+    }
+    return 'outros'
+  }
+
+  const today = new Date()
   let totalInvested = 0
   let totalInvestmentsCurrent = 0
+
   const investmentsWithMetrics: Investment[] = investments.map((inv) => {
     const applied = Number(inv.applied_value || 0)
     totalInvested += applied
@@ -420,33 +513,138 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     let current = applied
     const qty = Number(inv.quantity || 0)
     const price = Number(inv.current_price || 0)
+    const yieldRate = Number(inv.yield_rate || 0)
+    const group = inv.category_group || defaultCategoryForType(inv.type)
 
+    // Dias desde a aplicação
+    let daysSinceApp = 30
+    if (inv.application_date) {
+      const appDate = new Date(inv.application_date)
+      if (!isNaN(appDate.getTime())) {
+        const diffTime = Math.max(0, today.getTime() - appDate.getTime())
+        daysSinceApp = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+      }
+    }
+
+    // Cálculo do valor atual
     if (
-      inv.type === 'bitcoin' ||
-      inv.type === 'ethereum' ||
-      inv.type === 'acao' ||
-      inv.type === 'fii'
+      [
+        'bitcoin',
+        'ethereum',
+        'cripto_alt',
+        'acao',
+        'fii',
+        'etf',
+        'bdr',
+        'fiagro',
+        'acao_us',
+        'etf_internacional',
+      ].includes(inv.type) ||
+      group === 'cripto' ||
+      group === 'renda_variavel'
     ) {
       if (qty > 0 && price > 0) {
         current = qty * price
+      } else if (price > 0) {
+        current = price
       }
-    } else if (inv.type === 'cdi100' || inv.type === 'renda_fixa') {
-      current = price > 0 ? price : applied * 1.094
+    } else if (
+      [
+        'cdb',
+        'rdb',
+        'lci',
+        'lca',
+        'tesouro_selic',
+        'tesouro_prefixado',
+        'tesouro_ipca',
+        'debentures',
+        'cri',
+        'cra',
+        'letras_financeiras',
+        'poupanca',
+        'cdi100',
+        'renda_fixa',
+      ].includes(inv.type) ||
+      group === 'renda_fixa'
+    ) {
+      if (inv.yield_type === 'cdi_pct' || inv.type === 'cdi100') {
+        const pctCdi = yieldRate > 0 ? yieldRate / 100 : 1.0
+        const cdiAnnual = (indicators.cdi || 13.65) / 100
+        current = applied * (1 + (cdiAnnual * pctCdi * daysSinceApp) / 365)
+      } else if (inv.yield_type === 'prefixado' || inv.type === 'tesouro_prefixado') {
+        const rate = yieldRate > 0 ? yieldRate / 100 : 0.12
+        current = applied * Math.pow(1 + rate, daysSinceApp / 365)
+      } else if (inv.yield_type === 'ipca_mais' || inv.type === 'tesouro_ipca') {
+        const ipcaAnnual = ((indicators.ipca || 0.42) * 12) / 100
+        const spread = yieldRate > 0 ? yieldRate / 100 : 0.06
+        current = applied * Math.pow(1 + ipcaAnnual + spread, daysSinceApp / 365)
+      } else if (price > 0) {
+        current = price
+      } else if (inv.type === 'renda_fixa') {
+        current = applied * 1.094
+      }
+    } else if (price > 0) {
+      current = price
     }
-
     totalInvestmentsCurrent += current
     const profit_loss = current - applied
     const profit_loss_pct = applied > 0 ? (profit_loss / applied) * 100 : 0
 
+    // Dias até o vencimento
+    let days_until_maturity: number | undefined
+    if (inv.maturity_date) {
+      const matDate = new Date(inv.maturity_date)
+      if (!isNaN(matDate.getTime())) {
+        const diff = matDate.getTime() - today.getTime()
+        days_until_maturity = Math.ceil(diff / (1000 * 60 * 60 * 24))
+      }
+    }
+
+    // Cálculo de IR regressivo
+    let estimated_tax_rate = 0
+    let estimated_tax_value = 0
+    let estimated_net_value = current
+
+    if (
+      inv.tax_regime === 'regressivo' ||
+      (group === 'renda_fixa' && inv.tax_regime !== 'isento' && inv.tax_regime !== 'sem_ir')
+    ) {
+      if (daysSinceApp <= 180) {
+        estimated_tax_rate = 22.5
+      } else if (daysSinceApp <= 360) {
+        estimated_tax_rate = 20.0
+      } else if (daysSinceApp <= 720) {
+        estimated_tax_rate = 17.5
+      } else {
+        estimated_tax_rate = 15.0
+      }
+
+      if (profit_loss > 0) {
+        estimated_tax_value = (profit_loss * estimated_tax_rate) / 100
+        estimated_net_value = current - estimated_tax_value
+      }
+    }
+
     return {
       ...inv,
+      category_group: group,
       current_total_value: current,
       profit_loss,
       profit_loss_pct,
+      days_until_maturity,
+      estimated_net_value,
+      estimated_tax_value,
+      estimated_tax_rate,
     }
   })
 
   const totalInvestmentsResult = totalInvestmentsCurrent - totalInvested
+  const totalProventos = earnings.reduce((sum, e) => sum + Number(e.value || 0), 0)
+
+  // Estimativa de rentabilidade mês e ano consolidada
+  const rentabilidadeMes =
+    totalInvested > 0 ? ((totalInvestmentsResult * 0.25) / totalInvested) * 100 : 0
+  const rentabilidadeAno = totalInvested > 0 ? (totalInvestmentsResult / totalInvested) * 100 : 0
 
   // 5. Goals with accumulated
   const goalsWithAccumulated: Goal[] = goals.map((g) => {
@@ -1128,22 +1326,142 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }
 
   const deleteInvestment = async (id: string) => {
+    // Exclui contribuições e proventos vinculados primeiro
+    try {
+      const [cList, eList] = await Promise.all([
+        pb.collection('investment_contributions').getFullList<InvestmentContribution>({
+          filter: `investment = "${id}"`,
+        }),
+        pb.collection('investment_earnings').getFullList<InvestmentEarning>({
+          filter: `investment = "${id}"`,
+        }),
+      ])
+      for (const c of cList) {
+        await pb
+          .collection('investment_contributions')
+          .delete(c.id)
+          .catch(() => {})
+      }
+      for (const e of eList) {
+        await pb
+          .collection('investment_earnings')
+          .delete(e.id)
+          .catch(() => {})
+      }
+    } catch (err) {
+      console.warn('Erro ao limpar dependências do investimento:', err)
+    }
+
     await pb.collection('investments').delete(id)
     await fetchAllData()
   }
 
-  const refreshCryptoQuotes = async () => {
+  const createContribution = async (data: Partial<InvestmentContribution>) => {
+    if (!user) throw new Error('Não autenticado')
+    if (!data.investment) throw new Error('Investimento não informado')
+
+    const rec = await pb.collection('investment_contributions').create<InvestmentContribution>({
+      ...data,
+      user: user.id,
+    })
+
+    // Atualiza preço médio e quantidade no investimento se for aplicável
     try {
-      await fetch(`${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/investments/refresh-crypto`, {
-        method: 'POST',
-        headers: {
-          Authorization: pb.authStore.token,
-        },
-      })
-      await fetchAllData()
-    } catch (e) {
-      console.warn('Refresh crypto quote failed:', e)
+      const inv = investments.find((i) => i.id === data.investment)
+      if (inv) {
+        const addedQty = Number(data.quantity || 0)
+        const addedPrice = Number(data.unit_price || 0)
+        const addedVal = Number(data.value || addedQty * addedPrice || 0)
+
+        const curQty = Number(inv.quantity || 0)
+        const curPrice = Number(inv.unit_price || 0)
+        const curApplied = Number(inv.applied_value || 0)
+
+        if (data.type === 'compra') {
+          let newQty = curQty + addedQty
+          let newUnitPrice = curPrice
+          if (curQty + addedQty > 0 && addedPrice > 0) {
+            newUnitPrice = (curQty * curPrice + addedQty * addedPrice) / (curQty + addedQty)
+          }
+          const newApplied = curApplied + addedVal
+
+          await pb.collection('investments').update(inv.id, {
+            quantity: newQty > 0 ? newQty : undefined,
+            unit_price: newUnitPrice > 0 ? newUnitPrice : undefined,
+            applied_value: newApplied,
+          })
+        } else if (data.type === 'venda') {
+          const newQty = Math.max(0, curQty - addedQty)
+          const newApplied = Math.max(0, curApplied - addedVal)
+          await pb.collection('investments').update(inv.id, {
+            quantity: newQty,
+            applied_value: newApplied,
+          })
+        }
+      }
+    } catch (calcErr) {
+      console.warn('Erro ao atualizar preço médio do investimento:', calcErr)
     }
+
+    await fetchAllData()
+    return rec
+  }
+
+  const deleteContribution = async (id: string) => {
+    await pb.collection('investment_contributions').delete(id)
+    await fetchAllData()
+  }
+
+  const createEarning = async (data: Partial<InvestmentEarning>) => {
+    if (!user) throw new Error('Não autenticado')
+    if (!data.investment) throw new Error('Investimento não informado')
+
+    const rec = await pb.collection('investment_earnings').create<InvestmentEarning>({
+      ...data,
+      user: user.id,
+    })
+    await fetchAllData()
+    return rec
+  }
+
+  const deleteEarning = async (id: string) => {
+    await pb.collection('investment_earnings').delete(id)
+    await fetchAllData()
+  }
+
+  const refreshAllPrices = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/investments/refresh-prices`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: pb.authStore.token,
+          },
+        },
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.indicators) {
+          setIndicators({
+            cdi: data.indicators.cdi || 13.65,
+            ipca: data.indicators.ipca || 0.42,
+            dolar: data.indicators.dolar || 5.75,
+            euro: data.indicators.euro || 6.15,
+          })
+        }
+        await fetchAllData()
+        return { updated: data.updated || 0, failed: data.failed || 0 }
+      }
+    } catch (e) {
+      console.warn('Refresh all prices failed:', e)
+    }
+    await fetchAllData()
+    return { updated: 0, failed: 0 }
+  }
+
+  const refreshCryptoQuotes = async () => {
+    await refreshAllPrices()
   }
 
   const saveRule = async (keyword: string, category: string) => {
@@ -1498,7 +1816,47 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     await new Promise((r) => setTimeout(r, 500))
 
-    // 2.11 Apagar investimentos (investments)
+    // 2.11 Apagar aportes, proventos e investimentos (investments)
+    try {
+      const userContribs = await pb
+        .collection('investment_contributions')
+        .getFullList<InvestmentContribution>({
+          batch: 500,
+          filter: `user = "${userId}"`,
+        })
+        .catch(() => [] as InvestmentContribution[])
+      await Promise.all(
+        userContribs.map((c) =>
+          pb
+            .collection('investment_contributions')
+            .delete(c.id)
+            .catch((err) => console.warn('Falha ao deletar investment_contribution:', err)),
+        ),
+      )
+    } catch (e) {
+      console.warn('Erro ao limpar aportes de investimentos:', e)
+    }
+
+    try {
+      const userEarnings = await pb
+        .collection('investment_earnings')
+        .getFullList<InvestmentEarning>({
+          batch: 500,
+          filter: `user = "${userId}"`,
+        })
+        .catch(() => [] as InvestmentEarning[])
+      await Promise.all(
+        userEarnings.map((e) =>
+          pb
+            .collection('investment_earnings')
+            .delete(e.id)
+            .catch((err) => console.warn('Falha ao deletar investment_earning:', err)),
+        ),
+      )
+    } catch (e) {
+      console.warn('Erro ao limpar rendimentos de investimentos:', e)
+    }
+
     try {
       const userInvestments = await pb.collection('investments').getFullList<Investment>({
         batch: 500,
@@ -1640,6 +1998,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         goals: goalsWithAccumulated,
         goalContributions,
         investments: investmentsWithMetrics,
+        contributions,
+        earnings,
         rules,
         customCategories,
         isLoading,
@@ -1654,7 +2014,12 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         monthExpensePending,
         monthOpenInvoicesTotal,
         totalInvested,
+        totalInvestmentsCurrent,
         totalInvestmentsResult,
+        rentabilidadeMes,
+        rentabilidadeAno,
+        totalProventos,
+        indicators,
 
         createTransaction,
         updateTransaction,
@@ -1702,7 +2067,12 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         createInvestment,
         updateInvestment,
         deleteInvestment,
+        createContribution,
+        deleteContribution,
+        createEarning,
+        deleteEarning,
         refreshCryptoQuotes,
+        refreshAllPrices,
 
         saveRule,
         deleteRule,

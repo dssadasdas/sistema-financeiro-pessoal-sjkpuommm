@@ -39,6 +39,29 @@ routerAdd(
         console.warn('reset_user_data: erro ao deletar goal_contributions:', err2)
       }
 
+      // 2.5 investment_contributions e investment_earnings (subquery por investments do user ou user = uid)
+      try {
+        const resContrib = $app
+          .db()
+          .newQuery('DELETE FROM investment_contributions WHERE user = {:uid}')
+          .bind({ uid: userId })
+          .execute()
+        deletedCounts.investment_contributions = resContrib ? resContrib.rowsAffected : 0
+      } catch (errC) {
+        console.warn('reset_user_data: erro ao deletar investment_contributions:', errC)
+      }
+
+      try {
+        const resEarn = $app
+          .db()
+          .newQuery('DELETE FROM investment_earnings WHERE user = {:uid}')
+          .bind({ uid: userId })
+          .execute()
+        deletedCounts.investment_earnings = resEarn ? resEarn.rowsAffected : 0
+      } catch (errE) {
+        console.warn('reset_user_data: erro ao deletar investment_earnings:', errE)
+      }
+
       // 3. Demais coleções diretamente por user = {:uid} na ordem segura
       const collections = [
         'transactions',

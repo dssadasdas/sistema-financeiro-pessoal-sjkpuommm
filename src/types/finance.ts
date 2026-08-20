@@ -30,7 +30,62 @@ export type InvoiceStatus = 'aberta' | 'paga'
 export type BillStatus = 'pago' | 'não_pago'
 export type BillType = 'pagar' | 'receber'
 export type RecurringFrequency = 'mensal' | 'semanal' | 'trimestral' | 'anual'
-export type InvestmentType = 'bitcoin' | 'ethereum' | 'acao' | 'fii' | 'renda_fixa' | 'cdi100'
+export type InvestmentType =
+  | 'bitcoin'
+  | 'ethereum'
+  | 'acao'
+  | 'fii'
+  | 'renda_fixa'
+  | 'cdi100'
+  | 'cdb'
+  | 'rdb'
+  | 'lci'
+  | 'lca'
+  | 'tesouro_selic'
+  | 'tesouro_prefixado'
+  | 'tesouro_ipca'
+  | 'debentures'
+  | 'cri'
+  | 'cra'
+  | 'letras_financeiras'
+  | 'poupanca'
+  | 'etf'
+  | 'bdr'
+  | 'fiagro'
+  | 'fundo_rf'
+  | 'fundo_multimercado'
+  | 'fundo_acoes'
+  | 'fundo_cambial'
+  | 'fundo_imobiliario'
+  | 'pgbl'
+  | 'vgbl'
+  | 'acao_us'
+  | 'etf_internacional'
+  | 'ouro'
+  | 'dolar'
+  | 'euro'
+  | 'ativo_personalizado'
+  | 'cripto_alt'
+
+export type InvestmentCategoryGroup =
+  | 'renda_fixa'
+  | 'renda_variavel'
+  | 'fundos'
+  | 'cripto'
+  | 'previdencia'
+  | 'internacional'
+  | 'outros'
+
+export type InvestmentYieldType = 'cdi_pct' | 'prefixado' | 'ipca_mais' | 'manual' | 'variavel'
+export type InvestmentTaxRegime = 'regressivo' | 'isento' | 'sem_ir'
+export type InvestmentContributionType = 'compra' | 'venda'
+export type InvestmentEarningType =
+  | 'dividendo'
+  | 'jcp'
+  | 'rendimento_fii'
+  | 'cupom'
+  | 'juros'
+  | 'outro'
 export type PlanType = 'mensal' | 'anual'
 export type SubscriptionStatus = 'ativa' | 'bloqueada'
 export type SubscriptionProvider = 'stripe' | 'mercadopago'
@@ -340,12 +395,50 @@ export interface Investment {
   application_date?: string
   current_price?: number
   last_price_update?: string
+  institution?: string
+  maturity_date?: string
+  liquidity?: string
+  yield_type?: InvestmentYieldType
+  yield_rate?: number
+  tax_regime?: InvestmentTaxRegime
+  category_group?: InvestmentCategoryGroup
+  notes?: string
   created: string
   updated: string
   // Computed
   current_total_value?: number
   profit_loss?: number
   profit_loss_pct?: number
+  days_until_maturity?: number
+  estimated_net_value?: number
+  estimated_tax_value?: number
+  estimated_tax_rate?: number
+}
+
+export interface InvestmentContribution {
+  id: string
+  investment: string
+  user: string
+  value: number
+  quantity?: number
+  unit_price?: number
+  date: string
+  type: InvestmentContributionType
+  notes?: string
+  created: string
+  updated: string
+}
+
+export interface InvestmentEarning {
+  id: string
+  investment: string
+  user: string
+  value: number
+  type: InvestmentEarningType
+  date: string
+  notes?: string
+  created: string
+  updated: string
 }
 
 export interface WeeklyAnalysis {

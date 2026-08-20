@@ -28,6 +28,7 @@ import CardsPage from '@/pages/CardsPage'
 import CardDetailPage from '@/pages/CardDetailPage'
 import CategoriesPage from '@/pages/CategoriesPage'
 import GoalsPage from '@/pages/GoalsPage'
+import InvestmentsPage from '@/pages/InvestmentsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
 import SettingsPage from '@/pages/SettingsPage'
 import ProfilePage from '@/pages/ProfilePage'
@@ -152,6 +153,7 @@ export default function App() {
                   <Route path="/faturas" element={<Navigate to="/cartoes" replace />} />
                   <Route path="/categorias" element={<CategoriesPage />} />
                   <Route path="/metas" element={<GoalsPage />} />
+                  <Route path="/investimentos" element={<InvestmentsPage />} />
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />
                   <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
                   <Route path="/assistente-ia" element={<Navigate to="/ia-financeira" replace />} />
