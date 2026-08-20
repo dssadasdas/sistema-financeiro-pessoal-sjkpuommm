@@ -38,6 +38,7 @@ import {
 import { useSmartAlerts, getLevelConfig } from '@/components/CentralDeAlertas'
 import { BankLogoIcon } from '@/components/BankLogoIcon'
 import { Progress } from '@/components/ui/progress'
+import CategoryExpensesWidget from '@/components/CategoryExpensesWidget'
 
 function DashboardUserAvatar({
   user,
@@ -469,10 +470,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. "ESTE MÊS" + 5. PREVISÃO & SAÚDE FINANCEIRA */}
-      {/* Grid inteligente no desktop: 2 colunas lado a lado */}
+      {/* 4. GASTOS POR CATEGORIA (DONUT CHART) + "ESTE MÊS" + PREVISÃO & SAÚDE */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+        {/* Gráfico de Gastos por Categoria */}
+        <CategoryExpensesWidget
+          transactions={transactions}
+          customCategories={customCategories}
+          hideValues={hideValues}
+          currentMonthKey={currentMonthKey}
+        />
+
         {/* 4. BLOCO COMPACTO "ESTE MÊS" */}
         <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5 flex flex-col justify-between">
           <div>
@@ -545,96 +553,96 @@ export default function DashboardPage() {
             </div>
           </div>
         </Card>
+      </div>
 
-        {/* 5. PREVISÃO + SAÚDE FINANCEIRA (combinados em UMA área) */}
-        <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Previsão & Saúde
-                </h2>
+      {/* ========================================================================= */}
+      {/* 5. PREVISÃO & SAÚDE FINANCEIRA */}
+      {/* ========================================================================= */}
+      <Card className="rounded-2xl border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#121A2B] shadow-xs p-4 sm:p-5">
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Previsão & Saúde</h2>
+            </div>
+            <Badge
+              variant="outline"
+              className={`text-[10px] font-bold border-0 px-2 py-0.5 ${
+                healthScore.level === 'excelente'
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                  : healthScore.level === 'boa'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-950/80 dark:text-green-300'
+                    : healthScore.level === 'atencao'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300'
+              }`}
+            >
+              {healthScore.levelLabel}
+            </Badge>
+          </div>
+
+          {/* Grid lado a lado: Previsão (esquerda) + Saúde (direita) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Lado esquerdo: Previsão */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                <span className="uppercase tracking-wider">Previsão</span>
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-bold border-0 px-2 py-0.5 ${
-                  healthScore.level === 'excelente'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                    : healthScore.level === 'boa'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-950/80 dark:text-green-300'
-                      : healthScore.level === 'atencao'
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
-                        : 'bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300'
-                }`}
-              >
-                {healthScore.levelLabel}
-              </Badge>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Hoje:</span>
+                  <strong className="text-slate-800 dark:text-slate-200 tabular-nums">
+                    {formatCurrency(forecast30.startingBalance, hideValues)}
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">30 dias:</span>
+                  <strong
+                    className={`tabular-nums font-black ${
+                      forecast30.isPositive
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {formatCurrency(forecast30.projectedEndBalance, hideValues)}
+                  </strong>
+                </div>
+              </div>
             </div>
 
-            {/* Grid lado a lado: Previsão (esquerda) + Saúde (direita) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Lado esquerdo: Previsão */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                  <span className="uppercase tracking-wider">Previsão</span>
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Hoje:</span>
-                    <strong className="text-slate-800 dark:text-slate-200 tabular-nums">
-                      {formatCurrency(forecast30.startingBalance, hideValues)}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">30 dias:</span>
-                    <strong
-                      className={`tabular-nums font-black ${
-                        forecast30.isPositive
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {formatCurrency(forecast30.projectedEndBalance, hideValues)}
-                    </strong>
-                  </div>
-                </div>
+            {/* Lado direito: Saúde Financeira */}
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                <span className="uppercase tracking-wider">Saúde</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
-
-              {/* Lado direito: Saúde Financeira */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/80 flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                  <span className="uppercase tracking-wider">Saúde</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Score:</span>
+                  <strong className="text-slate-900 dark:text-white tabular-nums font-black">
+                    {healthScore.score}/100
+                  </strong>
                 </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Score:</span>
-                    <strong className="text-slate-900 dark:text-white tabular-nums font-black">
-                      {healthScore.score}/100
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between truncate">
-                    {forecast30.risk.hasRisk ? (
-                      <span className="text-red-600 dark:text-red-400 font-bold text-[11px] flex items-center gap-1 truncate">
-                        ⚠️ Risco{' '}
-                        {forecast30.risk.firstNegativeDayLabel
-                          ? `em ${forecast30.risk.firstNegativeDayLabel}`
-                          : 'em 30 dias'}
-                      </span>
-                    ) : (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center gap-1 truncate">
-                        ✓ Fluxo saudável
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between truncate">
+                  {forecast30.risk.hasRisk ? (
+                    <span className="text-red-600 dark:text-red-400 font-bold text-[11px] flex items-center gap-1 truncate">
+                      ⚠️ Risco{' '}
+                      {forecast30.risk.firstNegativeDayLabel
+                        ? `em ${forecast30.risk.firstNegativeDayLabel}`
+                        : 'em 30 dias'}
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center gap-1 truncate">
+                      ✓ Fluxo saudável
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* ========================================================================= */}
       {/* 6. ALERTAS PRIORITÁRIOS (máximo 2) */}

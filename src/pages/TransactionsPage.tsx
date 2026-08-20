@@ -64,7 +64,6 @@ export default function TransactionsPage() {
   const { toast } = useToast()
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'todos' | 'receita' | 'despesa' | 'ajuste'>('todos')
   const [statusFilter, setStatusFilter] = useState<'todos' | 'realizado' | 'pendente'>('todos')
   const [accountFilter, setAccountFilter] = useState<string>('todos')
   const [cardFilter, setCardFilter] = useState<string>('todos')
@@ -86,7 +85,6 @@ export default function TransactionsPage() {
 
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((tx) => {
-      if (typeFilter !== 'todos' && tx.type !== typeFilter) return false
       if (statusFilter !== 'todos' && tx.status !== statusFilter) return false
       if (accountFilter !== 'todos' && tx.account !== accountFilter) return false
       if (cardFilter !== 'todos' && tx.credit_card !== cardFilter) return false
@@ -116,16 +114,7 @@ export default function TransactionsPage() {
           return 0
       }
     })
-  }, [
-    transactions,
-    typeFilter,
-    statusFilter,
-    accountFilter,
-    cardFilter,
-    categoryFilter,
-    searchTerm,
-    sortBy,
-  ])
+  }, [transactions, statusFilter, accountFilter, cardFilter, categoryFilter, searchTerm, sortBy])
 
   // Agrupamento por data (YYYY-MM-DD)
   const groupedByDate = useMemo(() => {
@@ -195,7 +184,6 @@ export default function TransactionsPage() {
 
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
-    typeFilter !== 'todos' ||
     statusFilter !== 'todos' ||
     accountFilter !== 'todos' ||
     cardFilter !== 'todos' ||
@@ -203,7 +191,6 @@ export default function TransactionsPage() {
 
   const clearFilters = () => {
     setSearchTerm('')
-    setTypeFilter('todos')
     setStatusFilter('todos')
     setAccountFilter('todos')
     setCardFilter('todos')
@@ -248,7 +235,7 @@ export default function TransactionsPage() {
 
       {/* Barra de Filtros */}
       <div className="p-4 rounded-2xl bg-white dark:bg-[#121A2B] border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Busca */}
           <div className="relative sm:col-span-2 lg:col-span-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -259,22 +246,6 @@ export default function TransactionsPage() {
               className="pl-9 h-10 rounded-xl"
             />
           </div>
-
-          {/* Tipo */}
-          <Select
-            value={typeFilter}
-            onValueChange={(v) => setTypeFilter(v as 'todos' | 'receita' | 'despesa' | 'ajuste')}
-          >
-            <SelectTrigger className="h-10 rounded-xl">
-              <SelectValue placeholder="Tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos os tipos</SelectItem>
-              <SelectItem value="receita">Receitas (+)</SelectItem>
-              <SelectItem value="despesa">Despesas (−)</SelectItem>
-              <SelectItem value="ajuste">Ajustes</SelectItem>
-            </SelectContent>
-          </Select>
 
           {/* Status */}
           <Select
@@ -305,7 +276,7 @@ export default function TransactionsPage() {
           </Select>
         </div>
 
-        {/* Segunda linha de filtros */}
+        {/* Segunda linha de filtros: Conta, Cartão, Categoria */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Select value={accountFilter} onValueChange={setAccountFilter}>
             <SelectTrigger className="h-10 rounded-xl">
