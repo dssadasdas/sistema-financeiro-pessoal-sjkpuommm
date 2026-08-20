@@ -27,146 +27,139 @@ routerAdd(
         return e.forbiddenError('Conta não pertence ao usuário autenticado')
       }
 
-      // 1. Desvincular bills onde account = id
+      // 1. Desvincular bills.account = NULL
       try {
-        const bills = $app.findRecordsByFilter('bills', 'account = {:id}', '', 5000, 0, {
-          id: accountId,
-        })
-        for (let i = 0; i < bills.length; i++) {
-          try {
-            bills[i].set('account', null)
-            $app.save(bills[i])
-          } catch (billErr) {
-            console.warn(
-              'account_delete_cascade: falha ao atualizar bill ' + bills[i].id + ':',
-              billErr,
-            )
-          }
-        }
-      } catch (billsFilterErr) {
-        console.warn('account_delete_cascade: erro ao buscar bills:', billsFilterErr)
+        $app
+          .db()
+          .newQuery('UPDATE bills SET account = NULL WHERE account = {:id}')
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn('account_delete_cascade: falha ao desvincular bills.account:', err)
       }
 
-      // 2. Desvincular recurring_bills onde account = id
+      // 2. Desvincular recurring_bills.account = NULL
       try {
-        const recurringBills = $app.findRecordsByFilter(
-          'recurring_bills',
-          'account = {:id}',
-          '',
-          5000,
-          0,
-          { id: accountId },
+        $app
+          .db()
+          .newQuery('UPDATE recurring_bills SET account = NULL WHERE account = {:id}')
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn('account_delete_cascade: falha ao desvincular recurring_bills.account:', err)
+      }
+
+      // 3. Desvincular recurrences.account = NULL
+      try {
+        $app
+          .db()
+          .newQuery('UPDATE recurrences SET account = NULL WHERE account = {:id}')
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn('account_delete_cascade: falha ao desvincular recurrences.account:', err)
+      }
+
+      // 4. Desvincular bills.generated_transaction = NULL onde a transaction referencia esta conta
+      try {
+        $app
+          .db()
+          .newQuery(
+            'UPDATE bills SET generated_transaction = NULL WHERE generated_transaction IN (SELECT id FROM transactions WHERE account = {:id} OR transfer_target_account = {:id})',
+          )
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn(
+          'account_delete_cascade: falha ao desvincular bills.generated_transaction:',
+          err,
         )
-        for (let i = 0; i < recurringBills.length; i++) {
-          try {
-            recurringBills[i].set('account', null)
-            $app.save(recurringBills[i])
-          } catch (recBillErr) {
-            console.warn(
-              'account_delete_cascade: falha ao atualizar recurring_bill ' +
-                recurringBills[i].id +
-                ':',
-              recBillErr,
-            )
-          }
-        }
-      } catch (recBillsFilterErr) {
-        console.warn('account_delete_cascade: erro ao buscar recurring_bills:', recBillsFilterErr)
       }
 
-      // 3. Desvincular recurrences onde account = id
+      // 5. Desvincular invoices.payment_transaction = NULL
       try {
-        const recurrences = $app.findRecordsByFilter(
-          'recurrences',
-          'account = {:id}',
-          '',
-          5000,
-          0,
-          { id: accountId },
+        $app
+          .db()
+          .newQuery(
+            'UPDATE invoices SET payment_transaction = NULL WHERE payment_transaction IN (SELECT id FROM transactions WHERE account = {:id} OR transfer_target_account = {:id})',
+          )
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn(
+          'account_delete_cascade: falha ao desvincular invoices.payment_transaction:',
+          err,
         )
-        for (let i = 0; i < recurrences.length; i++) {
-          try {
-            recurrences[i].set('account', null)
-            $app.save(recurrences[i])
-          } catch (recErr) {
-            console.warn(
-              'account_delete_cascade: falha ao atualizar recurrence ' + recurrences[i].id + ':',
-              recErr,
-            )
-          }
-        }
-      } catch (recFilterErr) {
-        console.warn('account_delete_cascade: erro ao buscar recurrences:', recFilterErr)
       }
 
-      // 4. Buscar e deletar todas as transações vinculadas (account = id OU transfer_target_account = id)
+      // Contar quantas transações serão excluídas para retorno informativo
       let deletedTransactionsCount = 0
-
-      // Transações onde account = id
       try {
-        const txnsAsAccount = $app.findRecordsByFilter(
-          'transactions',
-          'account = {:id}',
-          '',
-          5000,
-          0,
-          { id: accountId },
-        )
-        for (let i = 0; i < txnsAsAccount.length; i++) {
-          try {
-            $app.delete(txnsAsAccount[i])
-            deletedTransactionsCount++
-          } catch (txnErr) {
-            console.warn(
-              'account_delete_cascade: falha ao deletar transaction ' + txnsAsAccount[i].id + ':',
-              txnErr,
-            )
-          }
-        }
-      } catch (txnAccFilterErr) {
-        console.warn(
-          'account_delete_cascade: erro ao buscar transações de account:',
-          txnAccFilterErr,
-        )
+        const countRow = $app
+          .db()
+          .newQuery(
+            'SELECT count(*) as c FROM transactions WHERE account = {:id} OR transfer_target_account = {:id}',
+          )
+          .bind({ id: accountId })
+          .one()
+        deletedTransactionsCount = countRow ? Number(countRow.c || 0) : 0
+      } catch (err) {
+        console.warn('account_delete_cascade: erro ao contar transações:', err)
       }
 
-      // Transações onde transfer_target_account = id
+      // 6. Deletar TODAS as transações vinculadas
       try {
-        const txnsAsTarget = $app.findRecordsByFilter(
-          'transactions',
-          'transfer_target_account = {:id}',
-          '',
-          5000,
-          0,
-          { id: accountId },
-        )
-        for (let i = 0; i < txnsAsTarget.length; i++) {
-          try {
-            $app.delete(txnsAsTarget[i])
-            deletedTransactionsCount++
-          } catch (txnTargetErr) {
-            console.warn(
-              'account_delete_cascade: falha ao deletar transaction target ' +
-                txnsAsTarget[i].id +
-                ':',
-              txnTargetErr,
-            )
-          }
-        }
-      } catch (txnTargetFilterErr) {
-        console.warn(
-          'account_delete_cascade: erro ao buscar transações de transfer_target_account:',
-          txnTargetFilterErr,
-        )
+        $app
+          .db()
+          .newQuery(
+            'DELETE FROM transactions WHERE account = {:id} OR transfer_target_account = {:id}',
+          )
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn('account_delete_cascade: falha ao deletar transações vinculadas:', err)
       }
 
-      // 5. Por fim, deleta a conta bancária
-      $app.delete(accountRecord)
+      // 7. Deletar a conta bancária (raw SQL, bypassa hooks)
+      try {
+        $app
+          .db()
+          .newQuery('DELETE FROM accounts WHERE id = {:id}')
+          .bind({ id: accountId })
+          .execute()
+      } catch (err) {
+        console.warn('account_delete_cascade: falha ao deletar a conta bancária via SQL:', err)
+      }
+
+      // Verificação pós-delete: confirmar que a conta foi realmente excluída
+      let remainingCount = 0
+      try {
+        const verifyRow = $app
+          .db()
+          .newQuery('SELECT count(*) as c FROM accounts WHERE id = {:id}')
+          .bind({ id: accountId })
+          .one()
+        remainingCount = verifyRow ? Number(verifyRow.c || 0) : 0
+      } catch (err) {
+        console.warn('account_delete_cascade: erro ao verificar exclusão da conta:', err)
+      }
+
+      const verifiedDeleted = remainingCount === 0
+
+      if (!verifiedDeleted) {
+        return e.json(500, {
+          success: false,
+          error: 'Falha ao confirmar exclusão da conta bancária.',
+          accountId: accountId,
+          verifiedDeleted: false,
+        })
+      }
 
       return e.json(200, {
         success: true,
         deletedTransactions: deletedTransactionsCount,
         accountId: accountId,
+        verifiedDeleted: true,
         message: 'Conta e dados vinculados excluídos com sucesso.',
       })
     } catch (err) {

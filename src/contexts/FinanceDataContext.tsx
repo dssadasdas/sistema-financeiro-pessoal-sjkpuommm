@@ -540,27 +540,8 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deleteAccount = async (id: string, options?: { deleteLinkedTransactions?: boolean }) => {
     if (!user) throw new Error('Não autenticado')
 
-    // Busca transações vinculadas para saber se precisa de cascade
-    const [txnsAsAccount, txnsAsTransferTarget] = await Promise.all([
-      pb
-        .collection('transactions')
-        .getFullList<Transaction>({ batch: 500, filter: `account = "${id}"` }),
-      pb
-        .collection('transactions')
-        .getFullList<Transaction>({ batch: 500, filter: `transfer_target_account = "${id}"` }),
-    ])
-
-    const allLinkedMap = new Map<string, Transaction>()
-    txnsAsAccount.forEach((t) => allLinkedMap.set(t.id, t))
-    txnsAsTransferTarget.forEach((t) => allLinkedMap.set(t.id, t))
-    const linkedTxns = Array.from(allLinkedMap.values())
-
-    if (linkedTxns.length > 0 && !options?.deleteLinkedTransactions) {
-      throw new Error('Esta conta possui movimentações vinculadas. Escolha excluir tudo junto.')
-    }
-
-    if (linkedTxns.length > 0 && options?.deleteLinkedTransactions) {
-      // Usar endpoint dedicado que garante atomicidade real
+    if (options?.deleteLinkedTransactions) {
+      // Quando cascade for solicitado, chama exclusivamente o endpoint dedicado
       const res = await fetch(
         `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/accounts/${encodeURIComponent(id)}/delete-cascade`,
         {
@@ -576,26 +557,22 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         throw new Error(err.error || err.message || 'Falha ao excluir conta com cascade')
       }
     } else {
-      // Sem transações vinculadas — tentar deleção simples primeiro, com fallback para cascade
-      try {
-        await pb.collection('accounts').delete(id)
-      } catch (simpleErr: any) {
-        // Se falhar (ex: ainda tem transações por algum motivo), tenta cascade
-        const res = await fetch(
-          `${import.meta.env.VITE_POCKETBASE_URL}/backend/v1/accounts/${encodeURIComponent(id)}/delete-cascade`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: pb.authStore.token,
-            },
-          },
-        )
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.error || err.message || 'Falha ao excluir conta')
-        }
+      // Busca transações vinculadas para validar antes da exclusão simples
+      const [txnsAsAccount, txnsAsTransferTarget] = await Promise.all([
+        pb
+          .collection('transactions')
+          .getFullList<Transaction>({ batch: 1, filter: `account = "${id}"` }),
+        pb
+          .collection('transactions')
+          .getFullList<Transaction>({ batch: 1, filter: `transfer_target_account = "${id}"` }),
+      ])
+
+      if (txnsAsAccount.length > 0 || txnsAsTransferTarget.length > 0) {
+        throw new Error('Esta conta possui movimentações vinculadas. Escolha excluir tudo junto.')
       }
+
+      // Sem transações vinculadas — exclusão simples direta
+      await pb.collection('accounts').delete(id)
     }
 
     await fetchAllData()
