@@ -33,7 +33,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import TransactionModal from '@/components/modals/TransactionModal'
+import FastTransactionDrawer from '@/components/modals/FastTransactionDrawer'
 import CentralDeAlertas from '@/components/CentralDeAlertas'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer'
+import { ArrowDownCircle, ArrowUpCircle, ArrowLeftRight as TransferIcon } from 'lucide-react'
 
 type NavItem = {
   label: string
@@ -145,9 +154,20 @@ function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout
 }
 
 export default function Layout() {
-  const { user, logout, hideValues } = useAuth()
+  const { user, logout, hideValues, toggleHideValues } = useAuth()
   const { totalCurrentBalance } = useFinance()
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  // Quick Actions Bottom Sheet (+)
+  const [actionsDrawerOpen, setActionsDrawerOpen] = useState(false)
+
+  // Fast Transaction Launch Drawer
+  const [fastDrawerOpen, setFastDrawerOpen] = useState(false)
+  const [fastDrawerType, setFastDrawerType] = useState<
+    'receita' | 'despesa' | 'transferencia' | 'ajuste'
+  >('despesa')
+
+  // Legacy fallback TransactionModal (caso necessário)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickAddType, setQuickAddType] = useState<'receita' | 'despesa' | 'ajuste'>('despesa')
 
@@ -159,9 +179,10 @@ export default function Layout() {
     navigate('/login')
   }
 
-  const handleOpenQuickAdd = (type: 'receita' | 'despesa' | 'ajuste') => {
-    setQuickAddType(type)
-    setQuickAddOpen(true)
+  const handleOpenFastAction = (type: 'receita' | 'despesa' | 'transferencia') => {
+    setActionsDrawerOpen(false)
+    setFastDrawerType(type)
+    setFastDrawerOpen(true)
   }
 
   const currentTitle = () => {
@@ -207,31 +228,60 @@ export default function Layout() {
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Topbar mobile + tablet (abaixo de 1024px): logo + alertas + hamburger que abre drawer */}
-        <header className="lg:hidden sticky top-0 z-30 h-16 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 md:px-5 flex items-center justify-between pt-safe">
-          <Link
-            to="/inicio"
-            className="flex items-center gap-2 min-w-0"
-            aria-label="Ir para o início"
-          >
-            <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white flex-shrink-0">
-              <Wallet className="w-4.5 h-4.5" />
+        {/* Topbar mobile + tablet (abaixo de 1024px): Saudação + Saldo Geral + Ações */}
+        <header className="lg:hidden sticky top-0 z-30 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 pt-3 pb-3 shadow-xs">
+          {/* Linha 1: Avatar / Saudação + Alertas + Menu */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30 flex-shrink-0">
+                {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-slate-400 dark:text-slate-400 leading-none">
+                  Olá,
+                </p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight mt-0.5">
+                  {user?.name || 'Usuário'}
+                </p>
+              </div>
             </div>
-            <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white truncate">
-              Semeia
-            </span>
-          </Link>
-          <div className="flex items-center gap-1">
-            <CentralDeAlertas />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-600 dark:text-slate-300 touch-target flex-shrink-0"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Abrir menu"
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
+
+            <div className="flex items-center gap-1">
+              <CentralDeAlertas />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-slate-600 dark:text-slate-300 touch-target flex-shrink-0 h-9 w-9"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Abrir menu"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Linha 2: Saldo Geral com Olho (mostrar/ocultar) */}
+          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Saldo geral
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {formatCurrency(totalCurrentBalance, hideValues)}
+              </span>
+              <button
+                type="button"
+                onClick={toggleHideValues}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                title={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
+                aria-label={hideValues ? 'Mostrar saldo' : 'Ocultar saldo'}
+              >
+                {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -339,38 +389,15 @@ export default function Layout() {
           <span>Transações</span>
         </NavLink>
 
-        {/* Central + button */}
+        {/* Central + button (Abre Quick Actions Drawer) */}
         <div className="relative -top-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 ring-4 ring-white dark:ring-[#0f1626]"
-                aria-label="Adicionar"
-              >
-                <Plus className="w-6 h-6 stroke-[2.5]" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top" className="w-48 rounded-2xl p-1.5 mb-2">
-              <DropdownMenuItem
-                onClick={() => handleOpenQuickAdd('receita')}
-                className="cursor-pointer text-emerald-600 font-medium py-2 rounded-xl"
-              >
-                <Plus className="w-4 h-4 mr-2" /> Nova Receita
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleOpenQuickAdd('despesa')}
-                className="cursor-pointer text-orange-600 font-medium py-2 rounded-xl"
-              >
-                <Plus className="w-4 h-4 mr-2" /> Nova Despesa
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleOpenQuickAdd('ajuste')}
-                className="cursor-pointer text-blue-600 font-medium py-2 rounded-xl"
-              >
-                <Repeat className="w-4 h-4 mr-2" /> Ajuste de Saldo
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <button
+            onClick={() => setActionsDrawerOpen(true)}
+            className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all text-white flex items-center justify-center shadow-lg shadow-emerald-600/40 ring-4 ring-white dark:ring-[#0f1626]"
+            aria-label="Abrir Ações Rápidas"
+          >
+            <Plus className="w-6 h-6 stroke-[2.5]" />
+          </button>
         </div>
 
         <NavLink
@@ -402,7 +429,85 @@ export default function Layout() {
         </NavLink>
       </nav>
 
-      {/* Quick add modal */}
+      {/* Drawer de Ações Rápidas (Bottom Sheet com 3 botões grandes inspirados na referência) */}
+      <Drawer open={actionsDrawerOpen} onOpenChange={setActionsDrawerOpen}>
+        <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-[#0f172a] text-white p-0 shadow-2xl overflow-hidden">
+          <div className="pt-3 pb-2 px-6">
+            <DrawerHeader className="p-0 text-center">
+              <DrawerTitle className="text-sm font-semibold text-slate-400">
+                Lançamento Rápido
+              </DrawerTitle>
+              <DrawerDescription className="sr-only">
+                Selecione o tipo de movimentação financeira rápida
+              </DrawerDescription>
+            </DrawerHeader>
+          </div>
+
+          <div className="p-6 pt-2 pb-8">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {/* Tile 1: Adicionar Despesa */}
+              <button
+                type="button"
+                onClick={() => handleOpenFastAction('despesa')}
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full border-2 border-rose-500/60 bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition-all mb-3">
+                  <ArrowDownCircle className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                  adicionar
+                </span>
+                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                  despesa
+                </span>
+              </button>
+
+              {/* Tile 2: Criar Transferência */}
+              <button
+                type="button"
+                onClick={() => handleOpenFastAction('transferencia')}
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full border-2 border-blue-500/60 bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white transition-all mb-3">
+                  <TransferIcon className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                  criar uma
+                </span>
+                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                  transferência
+                </span>
+              </button>
+
+              {/* Tile 3: Adicionar Receita */}
+              <button
+                type="button"
+                onClick={() => handleOpenFastAction('receita')}
+                className="flex flex-col items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 active:scale-95 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-full border-2 border-emerald-500/60 bg-emerald-500/10 flex items-center justify-center text-emerald-500 group-hover:scale-110 group-hover:bg-emerald-500 group-hover:text-white transition-all mb-3">
+                  <ArrowUpCircle className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <span className="text-[11px] font-normal text-slate-300 leading-tight text-center">
+                  adicionar
+                </span>
+                <span className="text-xs font-bold text-white leading-tight text-center mt-0.5">
+                  receita
+                </span>
+              </button>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Fast Transaction Flow Drawer */}
+      <FastTransactionDrawer
+        open={fastDrawerOpen}
+        onOpenChange={setFastDrawerOpen}
+        initialType={fastDrawerType}
+      />
+
+      {/* Fallback modal */}
       <TransactionModal
         open={quickAddOpen}
         onOpenChange={setQuickAddOpen}
