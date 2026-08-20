@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, formatDate } from '@/lib/constants'
-import { Account } from '@/types/finance'
+import { Account, BankName } from '@/types/finance'
 import {
   Plus,
   Landmark,
@@ -58,15 +58,34 @@ const ACCOUNT_TYPE_ICONS: Record<string, React.ComponentType<{ className?: strin
   Carteira: Wallet,
 }
 
+const BANKS_LIST: BankName[] = [
+  'Nubank',
+  'Caixa',
+  'Itaú',
+  'Bradesco',
+  'Santander',
+  'Banco do Brasil',
+  'Inter',
+  'C6',
+  'Sicoob',
+  'PicPay',
+  'Mercado Pago',
+  'Neon',
+  'Banco CSF/Atacadão',
+  'Outro',
+]
+
 interface AccountForm {
   name: string
   type: AccountType
+  bank: BankName
   opening_balance: string
 }
 
 const initialForm: AccountForm = {
   name: '',
   type: 'Conta corrente',
+  bank: 'Nubank',
   opening_balance: '',
 }
 
@@ -138,6 +157,7 @@ export default function AccountsPage() {
       type: (ACCOUNT_TYPES.includes(acc.type as AccountType)
         ? acc.type
         : 'Conta corrente') as AccountType,
+      bank: (BANKS_LIST.includes(acc.bank as BankName) ? acc.bank : 'Outro') as BankName,
       opening_balance: String(acc.opening_balance || 0),
     })
     setError('')
@@ -162,6 +182,7 @@ export default function AccountsPage() {
       const payload: Partial<Account> = {
         name: form.name.trim(),
         type: form.type,
+        bank: form.bank,
         opening_balance: parseFloat(form.opening_balance.replace(',', '.')) || 0,
       }
 
@@ -169,6 +190,7 @@ export default function AccountsPage() {
         await updateAccount(editingId, {
           name: payload.name,
           type: payload.type,
+          bank: payload.bank,
         })
       } else {
         await createAccount(payload)
@@ -401,12 +423,19 @@ export default function AccountsPage() {
                         <h3 className="font-bold text-sm text-slate-900 dark:text-white">
                           {acc.name}
                         </h3>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] font-medium mt-0.5 px-1.5 py-0"
-                        >
-                          {acc.type}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0">
+                            {acc.type}
+                          </Badge>
+                          {acc.bank && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] font-medium px-1.5 py-0 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                            >
+                              {acc.bank}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -551,26 +580,50 @@ export default function AccountsPage() {
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="acc-type">Tipo de Conta *</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v as AccountType })}
-              >
-                <SelectTrigger className="h-10 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACCOUNT_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.type && (
-                <span className="text-[11px] text-red-500">{fieldErrors.type}</span>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="acc-type">Tipo de Conta *</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm({ ...form, type: v as AccountType })}
+                >
+                  <SelectTrigger className="h-10 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ACCOUNT_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.type && (
+                  <span className="text-[11px] text-red-500">{fieldErrors.type}</span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="acc-bank">Instituição / Banco *</Label>
+                <Select
+                  value={form.bank}
+                  onValueChange={(v) => setForm({ ...form, bank: v as BankName })}
+                >
+                  <SelectTrigger className="h-10 rounded-xl">
+                    <SelectValue placeholder="Selecione o banco" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-56">
+                    {BANKS_LIST.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.bank && (
+                  <span className="text-[11px] text-red-500">{fieldErrors.bank}</span>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5">

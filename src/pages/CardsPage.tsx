@@ -108,6 +108,8 @@ export default function CardsPage() {
   const [error, setError] = useState('')
 
   const [deleteConfirmCard, setDeleteConfirmCard] = useState<CreditCard | null>(null)
+  const [deleteCardCascade, setDeleteCardCascade] = useState(false)
+  const [deleteBlocked, setDeleteBlocked] = useState(false)
 
   const handleOpenCreate = () => {
     setCardToEdit(null)
@@ -172,12 +174,40 @@ export default function CardsPage() {
     try {
       await deleteCreditCard(deleteConfirmCard.id)
       setDeleteConfirmCard(null)
+      setDeleteBlocked(false)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string; status?: number; response?: { message?: string } }
+      const msg = errorObj?.response?.message || errorObj?.message || 'Erro ao excluir cartão.'
+      if (
+        msg.toLowerCase().includes('movimentações') ||
+        msg.toLowerCase().includes('transaç') ||
+        msg.toLowerCase().includes('vinculad') ||
+        errorObj?.status === 400 ||
+        errorObj?.status === 500
+      ) {
+        setDeleteBlocked(true)
+      } else {
+        setError(msg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteCascade = async () => {
+    if (!deleteConfirmCard) return
+    setDeleteCardCascade(true)
+    setError('')
+    try {
+      await deleteCreditCard(deleteConfirmCard.id, { deleteLinkedTransactions: true })
+      setDeleteConfirmCard(null)
+      setDeleteBlocked(false)
     } catch (err: unknown) {
       const errorObj = err as { message?: string; response?: { message?: string } }
       const msg = errorObj?.response?.message || errorObj?.message || 'Erro ao excluir cartão.'
       setError(msg)
     } finally {
-      setLoading(false)
+      setDeleteCardCascade(false)
     }
   }
 
@@ -507,41 +537,95 @@ export default function CardsPage() {
         onOpenChange={(open) => {
           if (!open) {
             setDeleteConfirmCard(null)
+            setDeleteBlocked(false)
             setError('')
           }
         }}
       >
         <AlertDialogContent className="rounded-2xl bg-white dark:bg-[#121A2B]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-slate-900 dark:text-white">
-              Excluir Cartão de Crédito?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-              Tem certeza que deseja excluir o cartão "<strong>{deleteConfirmCard?.name}</strong>"?
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {error && (
-            <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
-              {error}
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Excluindo...
-                </>
-              ) : (
-                'Excluir'
+          {deleteBlocked ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-amber-600 dark:text-amber-500">
+                  Cartão com compras ou faturas vinculadas
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-slate-600 dark:text-slate-300 space-y-2">
+                  <p>
+                    O cartão "<strong>{deleteConfirmCard?.name}</strong>" possui faturas ou compras
+                    vinculadas no histórico financeiro.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Deseja excluir este cartão e <strong>TODAS</strong> as suas compras vinculadas
+                    permanentemente?
+                  </p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {error && (
+                <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+                  {error}
+                </div>
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel
+                  onClick={() => {
+                    setDeleteConfirmCard(null)
+                    setDeleteBlocked(false)
+                    setError('')
+                  }}
+                  className="rounded-xl"
+                  disabled={deleteCardCascade}
+                >
+                  Cancelar
+                </AlertDialogCancel>
+                <Button
+                  onClick={handleDeleteCascade}
+                  disabled={deleteCardCascade}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold gap-1.5"
+                >
+                  {deleteCardCascade ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Excluindo tudo...
+                    </>
+                  ) : (
+                    'Excluir Cartão e Compras'
+                  )}
+                </Button>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-slate-900 dark:text-white">
+                  Excluir Cartão de Crédito?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
+                  Tem certeza que deseja excluir o cartão "
+                  <strong>{deleteConfirmCard?.name}</strong>"? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {error && (
+                <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+                  {error}
+                </div>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Excluindo...
+                    </>
+                  ) : (
+                    'Excluir'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>

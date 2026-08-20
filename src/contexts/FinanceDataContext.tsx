@@ -605,9 +605,10 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     // 3. Se optou por excluir transações vinculadas, remove todas antes da conta
     if (linkedTxns.length > 0 && options?.deleteLinkedTransactions) {
+      const linkedTxnIds = new Set(linkedTxns.map((t) => t.id))
+
       // 3.1 Se alguma transação gerada estiver em bills, desvincula antes de excluir a transação
       try {
-        const linkedTxnIds = new Set(linkedTxns.map((t) => t.id))
         const billsWithGenTx = await pb.collection('bills').getFullList<Bill>({
           batch: 500,
           filter: `generated_transaction != null && generated_transaction != ""`,
@@ -631,7 +632,6 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
           batch: 500,
           filter: `payment_transaction != null && payment_transaction != ""`,
         })
-        const linkedTxnIds = new Set(linkedTxns.map((t) => t.id))
         for (const inv of invoicesWithPayTx) {
           if (inv.payment_transaction && linkedTxnIds.has(inv.payment_transaction)) {
             try {
@@ -652,6 +652,30 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } catch (err) {
           console.warn(`Erro ao excluir transação ${t.id}:`, err)
         }
+      }
+
+      // 3.4 Verificação extra de segurança: busca qualquer transação restante que ainda aponte para a conta
+      try {
+        const [leftover1, leftover2] = await Promise.all([
+          pb.collection('transactions').getFullList<Transaction>({
+            batch: 500,
+            filter: `account = "${id}"`,
+          }),
+          pb.collection('transactions').getFullList<Transaction>({
+            batch: 500,
+            filter: `transfer_target_account = "${id}"`,
+          }),
+        ])
+        const leftoverAll = [...leftover1, ...leftover2]
+        for (const lt of leftoverAll) {
+          try {
+            await pb.collection('transactions').delete(lt.id)
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch (e) {
+        console.warn('Erro na checagem final de transações vinculadas:', e)
       }
     }
 
