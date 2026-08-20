@@ -168,12 +168,14 @@ export default function CardsPage() {
   const handleDelete = async () => {
     if (!deleteConfirmCard) return
     setLoading(true)
+    setError('')
     try {
       await deleteCreditCard(deleteConfirmCard.id)
       setDeleteConfirmCard(null)
     } catch (err: unknown) {
-      const errorObj = err as { message?: string }
-      alert(errorObj?.message || 'Erro ao excluir cartão.')
+      const errorObj = err as { message?: string; response?: { message?: string } }
+      const msg = errorObj?.response?.message || errorObj?.message || 'Erro ao excluir cartão.'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -502,23 +504,42 @@ export default function CardsPage() {
       {/* Confirmação de Exclusão */}
       <AlertDialog
         open={deleteConfirmCard !== null}
-        onOpenChange={(open) => !open && setDeleteConfirmCard(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteConfirmCard(null)
+            setError('')
+          }
+        }}
       >
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className="rounded-2xl bg-white dark:bg-[#121A2B]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Cartão de Crédito?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-slate-900 dark:text-white">
+              Excluir Cartão de Crédito?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
               Tem certeza que deseja excluir o cartão "<strong>{deleteConfirmCard?.name}</strong>"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {error && (
+            <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+              {error}
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
+              disabled={loading}
               className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold"
             >
-              {loading ? 'Excluindo...' : 'Excluir'}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

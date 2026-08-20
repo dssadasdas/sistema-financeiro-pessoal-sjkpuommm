@@ -225,17 +225,35 @@ export default function AccountsPage() {
     setLoading(true)
     setError('')
     try {
+      // Se a conta já tem transações conhecidas no frontend, abre a confirmação de cascata diretamente
+      const hasKnownTxns = transactions.some(
+        (t) =>
+          t.account === deleteAccountTarget.id ||
+          t.transfer_target_account === deleteAccountTarget.id,
+      )
+      if (hasKnownTxns) {
+        setDeleteBlocked(true)
+        setLoading(false)
+        return
+      }
+
       await deleteAccount(deleteAccountTarget.id)
       setDeleteAccountTarget(null)
       setDeleteBlocked(false)
     } catch (err: unknown) {
-      const errorObj = err as { message?: string }
-      const msg = errorObj?.message || ''
+      const errorObj = err as { message?: string; status?: number; response?: { message?: string } }
+      const msg = errorObj?.response?.message || errorObj?.message || ''
+      const lowerMsg = msg.toLowerCase()
       if (
-        msg.includes('movimentações') ||
-        msg.includes('transaç') ||
-        msg.includes('linked') ||
-        msg.includes('cannot')
+        lowerMsg.includes('movimentações') ||
+        lowerMsg.includes('transaç') ||
+        lowerMsg.includes('transac') ||
+        lowerMsg.includes('linked') ||
+        lowerMsg.includes('cannot') ||
+        lowerMsg.includes('histórico') ||
+        lowerMsg.includes('historico') ||
+        errorObj?.status === 400 ||
+        errorObj?.status === 500
       ) {
         setDeleteBlocked(true)
       } else {
@@ -255,8 +273,9 @@ export default function AccountsPage() {
       setDeleteAccountTarget(null)
       setDeleteBlocked(false)
     } catch (err: unknown) {
-      const errorObj = err as { message?: string }
-      setError(errorObj?.message || 'Erro ao excluir conta e transações vinculadas.')
+      const errorObj = err as { message?: string; response?: { message?: string } }
+      const msg = errorObj?.response?.message || errorObj?.message || ''
+      setError(msg || 'Erro ao excluir conta e transações vinculadas.')
     } finally {
       setDeletingCascade(false)
     }
