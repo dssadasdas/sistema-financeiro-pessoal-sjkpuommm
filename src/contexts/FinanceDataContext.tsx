@@ -118,6 +118,7 @@ interface FinanceDataContextType {
     dreGroup: DreGroup,
     type?: 'receita' | 'despesa',
   ) => Promise<CategoryItem>
+  resetAllUserData: () => Promise<void>
 }
 
 const FinanceDataContext = createContext<FinanceDataContextType | undefined>(undefined)
@@ -1081,6 +1082,267 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return rec
   }
 
+  const resetAllUserData = async () => {
+    if (!user) throw new Error('Não autenticado')
+    const userId = user.id
+
+    // 1. Apagar itens dependentes (filhos) primeiro
+    // 1.1 Goal contributions (filhos de goals do usuário)
+    try {
+      const userGoals = await pb.collection('goals').getFullList<Goal>({
+        filter: `user = "${userId}"`,
+      })
+      for (const g of userGoals) {
+        const contribs = await pb.collection('goal_contributions').getFullList<GoalContribution>({
+          filter: `goal = "${g.id}"`,
+        })
+        for (const c of contribs) {
+          await pb
+            .collection('goal_contributions')
+            .delete(c.id)
+            .catch(() => {})
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar contribuições de metas:', e)
+    }
+
+    // 1.2 Invoice items (filhos de invoices do usuário)
+    try {
+      const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
+        filter: `user = "${userId}"`,
+      })
+      for (const inv of userInvoices) {
+        const items = await pb.collection('invoice_items').getFullList<InvoiceItem>({
+          filter: `invoice = "${inv.id}"`,
+        })
+        for (const item of items) {
+          await pb
+            .collection('invoice_items')
+            .delete(item.id)
+            .catch(() => {})
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar itens de faturas:', e)
+    }
+
+    // 2. Apagar transações vinculadas do usuário (deve vir antes de bills, accounts, cards, installments)
+    try {
+      const userTxns = await pb.collection('transactions').getFullList<Transaction>({
+        filter: `user = "${userId}"`,
+      })
+      for (const t of userTxns) {
+        await pb
+          .collection('transactions')
+          .delete(t.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar transações:', e)
+    }
+
+    // 3. Apagar faturas (invoices)
+    try {
+      const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
+        filter: `user = "${userId}"`,
+      })
+      for (const inv of userInvoices) {
+        await pb
+          .collection('invoices')
+          .delete(inv.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar faturas:', e)
+    }
+
+    // 4. Apagar contas e boletos (bills)
+    try {
+      const userBills = await pb.collection('bills').getFullList<Bill>({
+        filter: `user = "${userId}"`,
+      })
+      for (const b of userBills) {
+        await pb
+          .collection('bills')
+          .delete(b.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar contas/boletos:', e)
+    }
+
+    // 5. Apagar contas recorrentes (recurring_bills)
+    try {
+      const userRecurringBills = await pb.collection('recurring_bills').getFullList<RecurringBill>({
+        filter: `user = "${userId}"`,
+      })
+      for (const rb of userRecurringBills) {
+        await pb
+          .collection('recurring_bills')
+          .delete(rb.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar contas recorrentes:', e)
+    }
+
+    // 6. Apagar recorrências (recurrences)
+    try {
+      const userRecurrences = await pb.collection('recurrences').getFullList<Recurrence>({
+        filter: `user = "${userId}"`,
+      })
+      for (const r of userRecurrences) {
+        await pb
+          .collection('recurrences')
+          .delete(r.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar recorrências:', e)
+    }
+
+    // 7. Apagar parcelamentos (installments)
+    try {
+      const userInstallments = await pb.collection('installments').getFullList<Installment>({
+        filter: `user = "${userId}"`,
+      })
+      for (const inst of userInstallments) {
+        await pb
+          .collection('installments')
+          .delete(inst.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar parcelamentos:', e)
+    }
+
+    // 8. Apagar orçamentos (budgets)
+    try {
+      const userBudgets = await pb.collection('budgets').getFullList<Budget>({
+        filter: `user = "${userId}"`,
+      })
+      for (const bg of userBudgets) {
+        await pb
+          .collection('budgets')
+          .delete(bg.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar orçamentos:', e)
+    }
+
+    // 9. Apagar metas (goals)
+    try {
+      const userGoals = await pb.collection('goals').getFullList<Goal>({
+        filter: `user = "${userId}"`,
+      })
+      for (const g of userGoals) {
+        await pb
+          .collection('goals')
+          .delete(g.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar metas:', e)
+    }
+
+    // 10. Apagar investimentos (investments)
+    try {
+      const userInvestments = await pb.collection('investments').getFullList<Investment>({
+        filter: `user = "${userId}"`,
+      })
+      for (const inv of userInvestments) {
+        await pb
+          .collection('investments')
+          .delete(inv.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar investimentos:', e)
+    }
+
+    // 11. Apagar regras de categorização (categorization_rules)
+    try {
+      const userRules = await pb
+        .collection('categorization_rules')
+        .getFullList<CategorizationRule>({
+          filter: `user = "${userId}"`,
+        })
+      for (const r of userRules) {
+        await pb
+          .collection('categorization_rules')
+          .delete(r.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar regras de categorização:', e)
+    }
+
+    // 12. Apagar categorias personalizadas (categories)
+    try {
+      const userCategories = await pb.collection('categories').getFullList<CategoryItem>({
+        filter: `user = "${userId}"`,
+      })
+      for (const c of userCategories) {
+        await pb
+          .collection('categories')
+          .delete(c.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar categorias personalizadas:', e)
+    }
+
+    // 13. Apagar análises semanais (weekly_analyses)
+    try {
+      const userWeeklyAnalyses = await pb.collection('weekly_analyses').getFullList({
+        filter: `user = "${userId}"`,
+      })
+      for (const wa of userWeeklyAnalyses) {
+        await pb
+          .collection('weekly_analyses')
+          .delete(wa.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar análises semanais:', e)
+    }
+
+    // 14. Apagar cartões de crédito (credit_cards)
+    try {
+      const userCards = await pb.collection('credit_cards').getFullList<CreditCard>({
+        filter: `user = "${userId}"`,
+      })
+      for (const card of userCards) {
+        await pb
+          .collection('credit_cards')
+          .delete(card.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar cartões:', e)
+    }
+
+    // 15. Apagar contas bancárias (accounts) - transações já foram removidas, então passa pelo hook de proteção
+    try {
+      const userAccounts = await pb.collection('accounts').getFullList<Account>({
+        filter: `user = "${userId}"`,
+      })
+      for (const acc of userAccounts) {
+        await pb
+          .collection('accounts')
+          .delete(acc.id)
+          .catch(() => {})
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar contas bancárias:', e)
+    }
+
+    // Atualiza todo o estado local para zerar
+    await fetchAllData()
+  }
+
   return (
     <FinanceDataContext.Provider
       value={{
@@ -1163,6 +1425,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         saveRule,
         deleteRule,
         saveCategoryDreGroup,
+        resetAllUserData,
       }}
     >
       {children}

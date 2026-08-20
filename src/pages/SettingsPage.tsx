@@ -25,6 +25,7 @@ import {
   Settings as SettingsIcon,
   MailCheck,
   Send,
+  RotateCcw,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -85,7 +86,7 @@ export default function SettingsPage() {
     refreshSubscription,
     cancelSubscription,
   } = useAuth()
-  const { refreshAll, isLoading: financeLoading } = useFinance()
+  const { refreshAll, isLoading: financeLoading, resetAllUserData } = useFinance()
   const { theme, toggleTheme } = useTheme()
 
   /* ---------- Perfil ---------- */
@@ -257,6 +258,42 @@ export default function SettingsPage() {
       })
     } finally {
       setCanceling(false)
+    }
+  }
+
+  /* ---------- Reset de Dados Financeiros ---------- */
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [resettingData, setResettingData] = useState(false)
+
+  const handleResetFinanceData = async () => {
+    if (resetConfirmText.trim().toUpperCase() !== 'RESETAR') {
+      toast({
+        title: 'Confirmação incorreta',
+        description: 'Digite exatamente "RESETAR" para confirmar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setResettingData(true)
+    try {
+      await resetAllUserData()
+      setResetDialogOpen(false)
+      setResetConfirmText('')
+      toast({
+        title: 'Dados financeiros resetados',
+        description: 'Todas as suas informações financeiras foram zeradas com sucesso.',
+      })
+      navigate('/inicio')
+    } catch (err) {
+      toast({
+        title: 'Erro ao resetar dados',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setResettingData(false)
     }
   }
 
@@ -846,6 +883,106 @@ export default function SettingsPage() {
               <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 pt-1">
                 Semeia v1.0.0
               </p>
+            </CardContent>
+          </Card>
+
+          {/* ================= Resetar Dados Financeiros ================= */}
+          <Card className="rounded-2xl border-amber-200 dark:border-amber-900/40 bg-white dark:bg-[#121a2b] shadow-sm lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                <RotateCcw className="w-4 h-4" />
+                Resetar dados financeiros
+              </CardTitle>
+              <CardDescription className="text-slate-500 dark:text-slate-400">
+                Zera todas as transações, contas, cartões, faturas, metas, orçamentos, investimentos
+                e recorrências, mantendo apenas seu cadastro de usuário e sua assinatura ativos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog
+                open={resetDialogOpen}
+                onOpenChange={(open) => {
+                  setResetDialogOpen(open)
+                  if (!open) setResetConfirmText('')
+                }}
+              >
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl font-semibold gap-1.5 border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Resetar todos os dados
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-amber-200 dark:border-amber-900/50">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-500" />
+                      Resetar todos os dados financeiros?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-600 dark:text-slate-300 space-y-2">
+                      <p>
+                        Esta ação excluirá permanentemente todos os seus dados de:{' '}
+                        <strong>
+                          movimentações, contas bancárias, cartões de crédito, faturas, contas a
+                          pagar/receber, metas, orçamentos, investimentos e regras
+                        </strong>
+                        .
+                      </p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        ✓ Sua conta (login, e-mail e senha) e sua assinatura continuarão
+                        preservadas.
+                      </p>
+                      <div className="pt-2">
+                        <Label
+                          htmlFor="confirmResetInput"
+                          className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1"
+                        >
+                          Para confirmar, digite <strong>RESETAR</strong> abaixo:
+                        </Label>
+                        <Input
+                          id="confirmResetInput"
+                          value={resetConfirmText}
+                          onChange={(e) => setResetConfirmText(e.target.value)}
+                          placeholder="RESETAR"
+                          className="h-10 uppercase font-mono tracking-widest rounded-xl bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                          autoComplete="off"
+                          disabled={resettingData}
+                        />
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="mt-4">
+                    <AlertDialogCancel
+                      disabled={resettingData}
+                      className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    >
+                      Cancelar
+                    </AlertDialogCancel>
+                    <Button
+                      type="button"
+                      disabled={
+                        resetConfirmText.trim().toUpperCase() !== 'RESETAR' || resettingData
+                      }
+                      onClick={handleResetFinanceData}
+                      className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold gap-1.5"
+                    >
+                      {resettingData ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Resetando dados...
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-4 h-4" />
+                          Confirmar Reset
+                        </>
+                      )}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardContent>
           </Card>
 
