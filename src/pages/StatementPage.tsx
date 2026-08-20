@@ -76,10 +76,23 @@ export default function StatementPage() {
 
   // Totais gerais (apenas realizados)
   const totalIncome = filtered
-    .filter((t) => t.type === 'receita' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'receita' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
+
   const totalExpense = filtered
-    .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'despesa' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
   const totalBalance = totalIncome - totalExpense
 

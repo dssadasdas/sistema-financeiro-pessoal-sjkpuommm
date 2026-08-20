@@ -81,10 +81,22 @@ export default function DashboardPage() {
       const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const monthTxns = transactions.filter((t) => (t.date || '').startsWith(prefix))
       const income = monthTxns
-        .filter((t) => t.type === 'receita' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'receita' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
       const expense = monthTxns
-        .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'despesa' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
       months.push({
         label: MONTHS_PT[d.getMonth()],

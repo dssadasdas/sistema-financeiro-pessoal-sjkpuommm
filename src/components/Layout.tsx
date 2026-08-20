@@ -29,6 +29,7 @@ import {
   Plus,
   Wallet,
   Home,
+  Barcode,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -52,6 +53,7 @@ const navItems: NavItem[] = [
   { label: 'Extrato', path: '/extrato', icon: Receipt },
   { label: 'Contas Bancárias', path: '/contas', icon: Landmark },
   { label: 'Cartões de Crédito', path: '/cartoes', icon: CreditCard },
+  { label: 'Boletos', path: '/boletos', icon: Barcode },
   { label: 'Contas a Pagar e Receber', path: '/contas-a-pagar', icon: FileText },
   { label: 'Recorrências', path: '/recorrencias', icon: RefreshCw },
   { label: 'Parcelamentos', path: '/parcelamentos', icon: Layers },

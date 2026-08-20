@@ -66,7 +66,7 @@ export function useSmartAlerts(): SmartAlert[] {
     threeDaysAhead.setDate(threeDaysAhead.getDate() + 3)
     const threeDaysStr = threeDaysAhead.toISOString().slice(0, 10)
 
-    // A) Bills não pagas
+    // A) Bills não pagas (Boletos / Contas)
     bills.forEach((b) => {
       if (b.status === 'pago') return
       const due = (b.due_date || '').slice(0, 10)
@@ -74,31 +74,39 @@ export function useSmartAlerts(): SmartAlert[] {
       const isDespesa = (b.type || 'pagar') === 'pagar'
 
       if (due < todayStr) {
+        const diffMs = today.getTime() - new Date(due + 'T00:00:00').getTime()
+        const diffDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
         list.push({
           id: `bill-overdue-${b.id}`,
           level: 'critical',
           category: 'contas',
-          title: `${isDespesa ? 'Conta a Pagar' : 'Receita'} Vencida`,
-          description: `"${b.description}" venceu em ${formatDate(due)} no valor de ${formatCurrency(b.value)}.`,
-          targetPath: '/contas-a-pagar',
+          title: `${isDespesa ? 'Boleto Vencido' : 'Receita Vencida'}`,
+          description: `${isDespesa ? 'Boleto de ' : ''}${b.description} está vencido há ${diffDays} dia(s) — ${formatCurrency(b.value)}`,
+          targetPath: `/boletos?id=${b.id}`,
           date: due,
           value: b.value,
-          badgeText: 'Vencida',
+          badgeText: 'Vencido',
         })
       } else if (due <= threeDaysStr) {
         const isToday = due === todayStr
+        const diffMs = new Date(due + 'T00:00:00').getTime() - today.getTime()
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
         list.push({
           id: `bill-upcoming-${b.id}`,
           level: isToday ? 'high' : 'warning',
           category: 'contas',
           title: isToday
-            ? `${isDespesa ? 'Conta' : 'Receita'} Vence Hoje!`
-            : `${isDespesa ? 'Conta' : 'Receita'} Próxima do Vencimento`,
-          description: `"${b.description}" vence ${isToday ? 'hoje' : 'em ' + formatDate(due)} (${formatCurrency(b.value)}).`,
-          targetPath: '/contas-a-pagar',
+            ? `${isDespesa ? 'Boleto' : 'Receita'} Vence Hoje!`
+            : `${isDespesa ? 'Boleto' : 'Receita'} Próximo do Vencimento`,
+          description: isToday
+            ? `${b.description} vence hoje — ${formatCurrency(b.value)}`
+            : diffDays === 1
+              ? `${b.description} vence amanhã — ${formatCurrency(b.value)}`
+              : `${b.description} vence em ${diffDays} dias — ${formatCurrency(b.value)}`,
+          targetPath: `/boletos?id=${b.id}`,
           date: due,
           value: b.value,
-          badgeText: isToday ? 'Hoje' : 'Em breve',
+          badgeText: isToday ? 'Hoje' : diffDays === 1 ? 'Amanhã' : 'Em breve',
         })
       }
     })

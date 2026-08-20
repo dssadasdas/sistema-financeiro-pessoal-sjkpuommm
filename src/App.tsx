@@ -26,6 +26,7 @@ import AccountsPage from '@/pages/AccountsPage'
 import CardsPage from '@/pages/CardsPage'
 import CardDetailPage from '@/pages/CardDetailPage'
 import BillsPage from '@/pages/BillsPage'
+import BoletosPage from '@/pages/BoletosPage'
 import RecurrencesPage from '@/pages/RecurrencesPage'
 import InstallmentsPage from '@/pages/InstallmentsPage'
 import BudgetPage from '@/pages/BudgetPage'
@@ -153,15 +154,13 @@ export default function App() {
                   <Route path="/cartoes" element={<CardsPage />} />
                   <Route path="/cartoes/:id" element={<CardDetailPage />} />
                   <Route path="/faturas" element={<CardsPage />} />
+                  <Route path="/boletos" element={<BoletosPage />} />
                   <Route path="/contas-a-pagar" element={<BillsPage />} />
                   <Route
                     path="/contas-a-pagar-e-receber"
                     element={<Navigate to="/contas-a-pagar" replace />}
                   />
-                  <Route
-                    path="/contas-e-boletos"
-                    element={<Navigate to="/contas-a-pagar" replace />}
-                  />
+                  <Route path="/contas-e-boletos" element={<Navigate to="/boletos" replace />} />
                   <Route path="/recorrencias" element={<RecurrencesPage />} />
                   <Route path="/recorrentes" element={<Navigate to="/recorrencias" replace />} />
                   <Route path="/parcelamentos" element={<InstallmentsPage />} />

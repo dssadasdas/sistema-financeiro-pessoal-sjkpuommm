@@ -61,11 +61,23 @@ export default function ReportsPage() {
 
   // Métricas do Mês
   const monthIncome = monthTxns
-    .filter((t) => t.type === 'receita' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'receita' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthExpenses = monthTxns
-    .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'despesa' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthResult = monthIncome - monthExpenses
@@ -75,7 +87,13 @@ export default function ReportsPage() {
   const categoryStats = useMemo(() => {
     const map = new Map<string, number>()
     monthTxns
-      .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+      .filter(
+        (t) =>
+          t.type === 'despesa' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
+      )
       .forEach((t) => {
         const cat = t.category || 'Outros'
         map.set(cat, (map.get(cat) || 0) + Number(t.value || 0))
@@ -95,7 +113,13 @@ export default function ReportsPage() {
 
   // Maior gasto individual do mês
   const topExpense = useMemo(() => {
-    const list = monthTxns.filter((t) => t.type === 'despesa' && t.status === 'realizado')
+    const list = monthTxns.filter(
+      (t) =>
+        t.type === 'despesa' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     if (list.length === 0) return null
     return list.reduce(
       (prev, curr) => (Number(curr.value) > Number(prev.value) ? curr : prev),
@@ -106,7 +130,13 @@ export default function ReportsPage() {
   // Top 10 maiores despesas do mês
   const top10Expenses = useMemo(() => {
     return monthTxns
-      .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+      .filter(
+        (t) =>
+          t.type === 'despesa' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
+      )
       .sort((a, b) => Number(b.value || 0) - Number(a.value || 0))
       .slice(0, 10)
   }, [monthTxns])
@@ -124,10 +154,22 @@ export default function ReportsPage() {
 
       const inMonth = transactions.filter((t) => (t.date || '').startsWith(key))
       const inc = inMonth
-        .filter((t) => t.type === 'receita' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'receita' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
       const exp = inMonth
-        .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'despesa' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
       result.push({ monthKey: key, label, income: inc, expenses: exp })
@@ -148,10 +190,22 @@ export default function ReportsPage() {
 
       const inMonth = transactions.filter((t) => (t.date || '').startsWith(key))
       const inc = inMonth
-        .filter((t) => t.type === 'receita' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'receita' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
       const exp = inMonth
-        .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+        .filter(
+          (t) =>
+            t.type === 'despesa' &&
+            t.status === 'realizado' &&
+            !t.transfer_group_id &&
+            t.category !== 'Transferência',
+        )
         .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
       result.push({ label, receitas: inc, despesas: exp, saldo: inc - exp })
@@ -167,7 +221,11 @@ export default function ReportsPage() {
     const prevExp = transactions
       .filter(
         (t) =>
-          (t.date || '').startsWith(prevKey) && t.type === 'despesa' && t.status === 'realizado',
+          (t.date || '').startsWith(prevKey) &&
+          t.type === 'despesa' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
       )
       .reduce((acc, t) => acc + Number(t.value || 0), 0)
     const diff = monthExpenses - prevExp

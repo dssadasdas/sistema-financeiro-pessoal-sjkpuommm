@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T01:57:07.985Z",
+  "generatedAt": "2026-08-20T02:10:51.372Z",
   "collections": [
     {
       "name": "users",
@@ -414,6 +414,26 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "bill_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "bills"
+        },
+        {
+          "name": "transfer_target_account",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "accounts"
+        },
+        {
+          "name": "transfer_group_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -687,6 +707,18 @@
           "required": false,
           "system": false,
           "collectionRef": "recurring_bills"
+        },
+        {
+          "name": "barcode",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "paid_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

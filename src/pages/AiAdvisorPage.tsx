@@ -180,10 +180,22 @@ export default function AiAdvisorPage() {
     // 1. Receitas e Despesas do Mês
     const monthTxns = transactions.filter((t) => (t.date || '').startsWith(currentMonthKey))
     const totalIncome = monthTxns
-      .filter((t) => t.type === 'receita' && t.status === 'realizado')
+      .filter(
+        (t) =>
+          t.type === 'receita' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
+      )
       .reduce((acc, t) => acc + Number(t.value || 0), 0)
     const totalExpenses = monthTxns
-      .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+      .filter(
+        (t) =>
+          t.type === 'despesa' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
+      )
       .reduce((acc, t) => acc + Number(t.value || 0), 0)
     const netSavings = totalIncome - totalExpenses
     const savingsRate = totalIncome > 0 ? Math.round((netSavings / totalIncome) * 100) : 0
@@ -191,7 +203,13 @@ export default function AiAdvisorPage() {
     // 2. Gastos por Categoria do Mês
     const catMap: Record<string, number> = {}
     monthTxns
-      .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+      .filter(
+        (t) =>
+          t.type === 'despesa' &&
+          t.status === 'realizado' &&
+          !t.transfer_group_id &&
+          t.category !== 'Transferência',
+      )
       .forEach((t) => {
         const c = t.category || 'Outros'
         catMap[c] = (catMap[c] || 0) + Number(t.value || 0)

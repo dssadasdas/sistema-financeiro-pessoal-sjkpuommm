@@ -63,11 +63,18 @@ interface FinanceDataContextType {
   deleteCreditCard: (id: string) => Promise<void>
   payInvoice: (invoiceId: string, accountId: string) => Promise<void>
 
-  createBill: (data: Partial<Bill>) => Promise<Bill>
+  createBill: (data: Partial<Bill>, linkExistingTransactionId?: string) => Promise<Bill>
   updateBill: (id: string, data: Partial<Bill>) => Promise<Bill>
   deleteBill: (id: string) => Promise<void>
-  markBillAsPaid: (bill: Bill, accountId?: string) => Promise<void>
+  markBillAsPaid: (bill: Bill, accountId?: string, paidDate?: string) => Promise<void>
   markBillAsUnpaid: (bill: Bill) => Promise<void>
+  createTransfer: (
+    sourceAccountId: string,
+    targetAccountId: string,
+    amount: number,
+    date?: string,
+    description?: string,
+  ) => Promise<void>
 
   createRecurringBill: (data: Partial<RecurringBill>) => Promise<RecurringBill>
   updateRecurringBill: (id: string, data: Partial<RecurringBill>) => Promise<RecurringBill>
@@ -318,19 +325,43 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const currentMonthTxns = transactions.filter((t) => (t.date || '').startsWith(currentMonthPrefix))
 
   const monthIncomeReceived = currentMonthTxns
-    .filter((t) => t.type === 'receita' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'receita' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthExpensePaid = currentMonthTxns
-    .filter((t) => t.type === 'despesa' && t.status === 'realizado')
+    .filter(
+      (t) =>
+        t.type === 'despesa' &&
+        t.status === 'realizado' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthIncomePending = currentMonthTxns
-    .filter((t) => t.type === 'receita' && t.status === 'pendente')
+    .filter(
+      (t) =>
+        t.type === 'receita' &&
+        t.status === 'pendente' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthExpensePending = currentMonthTxns
-    .filter((t) => t.type === 'despesa' && t.status === 'pendente')
+    .filter(
+      (t) =>
+        t.type === 'despesa' &&
+        t.status === 'pendente' &&
+        !t.transfer_group_id &&
+        t.category !== 'Transferência',
+    )
     .reduce((acc, t) => acc + Number(t.value || 0), 0)
 
   const monthOpenInvoicesTotal = invoices
@@ -551,12 +582,53 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await fetchAllData()
   }
 
-  const createBill = async (data: Partial<Bill>) => {
+  const createBill = async (data: Partial<Bill>, linkExistingTransactionId?: string) => {
     if (!user) throw new Error('Não autenticado')
+    const billType = data.type || 'pagar'
+    const isReceber = billType === 'receber'
+    const isPaid = data.status === 'pago'
+    const nowIso = new Date().toISOString()
+    const paidDate = data.paid_date || (isPaid ? data.due_date || nowIso.split('T')[0] : undefined)
+
+    let txnId = linkExistingTransactionId
+
+    // Se o usuário NÃO vinculou a uma despesa/receita já existente, criamos a despesa correspondente
+    if (!txnId) {
+      const newTxn = await pb.collection('transactions').create<Transaction>({
+        user: user.id,
+        description: data.description || 'Boleto / Conta',
+        value: data.value || 0,
+        category: data.category || 'Contas e Boletos',
+        date: data.due_date || nowIso.split('T')[0],
+        payment_method: 'Boleto',
+        status: isPaid ? 'realizado' : 'pendente',
+        type: isReceber ? 'receita' : 'despesa',
+        account: data.account || undefined,
+        source: 'manual',
+        paid_at: isPaid ? nowIso : undefined,
+      })
+      txnId = newTxn.id
+    }
+
+    // Cria o boleto vinculado
     const rec = await pb.collection('bills').create<Bill>({
       ...data,
       user: user.id,
+      generated_transaction: txnId,
+      paid_date: isPaid ? paidDate : undefined,
+      paid_at: isPaid ? nowIso : undefined,
     })
+
+    // Atualiza a transação com o bill_id
+    if (txnId) {
+      await pb
+        .collection('transactions')
+        .update(txnId, {
+          bill_id: rec.id,
+        })
+        .catch(() => {})
+    }
+
     await fetchAllData()
     return rec
   }
@@ -572,18 +644,27 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await fetchAllData()
   }
 
-  const markBillAsPaid = async (bill: Bill, accountId?: string) => {
+  const markBillAsPaid = async (bill: Bill, accountId?: string, paidDate?: string) => {
     if (!user) return
+    // Idempotência: se já está pago, não debita nem duplica nada
+    if (bill.status === 'pago') return
+
     const nowIso = new Date().toISOString()
+    const effectivePaidDate = paidDate || nowIso.split('T')[0]
+    const chosenAccount = accountId || bill.account || undefined
     const isReceber = bill.type === 'receber'
 
-    // Se já existe transação gerada vinculada, apenas a marca como realizada
-    const existingTxnId = bill.generated_transaction
+    // Localiza a transação vinculada (seja por generated_transaction ou bill_id)
+    const existingTxnId =
+      bill.generated_transaction || transactions.find((t) => t.bill_id === bill.id)?.id
     let txnId = existingTxnId
+
     if (existingTxnId) {
       await pb.collection('transactions').update(existingTxnId, {
         status: 'realizado',
         paid_at: nowIso,
+        date: effectivePaidDate,
+        ...(chosenAccount ? { account: chosenAccount } : {}),
       })
     } else {
       const txn = await pb.collection('transactions').create<Transaction>({
@@ -591,22 +672,87 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         description: bill.description,
         value: bill.value,
         category: bill.category || 'Contas e Boletos',
-        date: bill.due_date || nowIso,
+        date: effectivePaidDate,
         payment_method: 'Boleto',
         status: 'realizado',
         type: isReceber ? 'receita' : 'despesa',
-        account: accountId || bill.account || undefined,
+        account: chosenAccount,
         source: 'manual',
         paid_at: nowIso,
+        bill_id: bill.id,
       })
       txnId = txn.id
     }
 
-    // Atualiza status do boleto
+    // Atualiza status do boleto UMA ÚNICA VEZ
     await pb.collection('bills').update(bill.id, {
       status: 'pago',
       paid_at: nowIso,
+      paid_date: effectivePaidDate,
       generated_transaction: txnId,
+      ...(chosenAccount ? { account: chosenAccount } : {}),
+    })
+
+    await fetchAllData()
+  }
+
+  const createTransfer = async (
+    sourceAccountId: string,
+    targetAccountId: string,
+    amount: number,
+    date?: string,
+    description?: string,
+  ) => {
+    if (!user) throw new Error('Usuário não autenticado')
+    if (sourceAccountId === targetAccountId) {
+      throw new Error('A conta de origem e destino devem ser diferentes')
+    }
+    if (amount <= 0) {
+      throw new Error('O valor da transferência deve ser maior que zero')
+    }
+
+    const sourceAcc = accounts.find((a) => a.id === sourceAccountId)
+    const targetAcc = accounts.find((a) => a.id === targetAccountId)
+
+    if (!sourceAcc || !targetAcc) {
+      throw new Error('Contas bancárias não encontradas')
+    }
+
+    const transferDate = date || new Date().toISOString().split('T')[0]
+    const transferGroupId = 'trf_' + Math.random().toString(36).substring(2, 11)
+    const desc = description || `Transferência: ${sourceAcc.name} → ${targetAcc.name}`
+
+    // Cria as duas transações vinculadas pelo transfer_group_id
+    // Débito da conta origem
+    await pb.collection('transactions').create<Transaction>({
+      user: user.id,
+      description: desc,
+      value: amount,
+      category: 'Transferência',
+      date: transferDate,
+      payment_method: 'Transferência',
+      status: 'realizado',
+      type: 'despesa',
+      account: sourceAccountId,
+      transfer_target_account: targetAccountId,
+      transfer_group_id: transferGroupId,
+      paid_at: new Date().toISOString(),
+    })
+
+    // Crédito na conta destino
+    await pb.collection('transactions').create<Transaction>({
+      user: user.id,
+      description: desc,
+      value: amount,
+      category: 'Transferência',
+      date: transferDate,
+      payment_method: 'Transferência',
+      status: 'realizado',
+      type: 'receita',
+      account: targetAccountId,
+      transfer_target_account: sourceAccountId,
+      transfer_group_id: transferGroupId,
+      paid_at: new Date().toISOString(),
     })
 
     await fetchAllData()
@@ -941,6 +1087,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         deleteBill,
         markBillAsPaid,
         markBillAsUnpaid,
+        createTransfer,
 
         createRecurringBill,
         updateRecurringBill,

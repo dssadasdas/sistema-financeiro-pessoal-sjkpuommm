@@ -77,6 +77,7 @@ export default function AccountsPage() {
     createAccount,
     updateAccount,
     deleteAccount,
+    createTransfer,
     createTransaction,
     isLoading,
     loadError,
@@ -98,6 +99,15 @@ export default function AccountsPage() {
   const [adjustValue, setAdjustValue] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjustLoading, setAdjustLoading] = useState(false)
+
+  // Modal Transferência entre Contas
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [sourceAccountId, setSourceAccountId] = useState('')
+  const [targetAccountId, setTargetAccountId] = useState('')
+  const [transferAmount, setTransferAmount] = useState('')
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().slice(0, 10))
+  const [transferDesc, setTransferDesc] = useState('')
+  const [transferLoading, setTransferLoading] = useState(false)
 
   // Confirmação de Exclusão
   const [deleteAccountTarget, setDeleteAccountTarget] = useState<Account | null>(null)
@@ -251,6 +261,41 @@ export default function AccountsPage() {
     return <ErrorState message="Não foi possível carregar suas contas." onRetry={refreshAll} />
   }
 
+  const handleTransfer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    const amt = parseFloat(transferAmount.replace(',', '.'))
+    if (isNaN(amt) || amt <= 0) {
+      setError('Informe um valor de transferência válido e maior que zero.')
+      return
+    }
+    if (!sourceAccountId || !targetAccountId) {
+      setError('Selecione as contas de origem e destino.')
+      return
+    }
+    if (sourceAccountId === targetAccountId) {
+      setError('A conta de origem e destino devem ser diferentes.')
+      return
+    }
+
+    setTransferLoading(true)
+    try {
+      await createTransfer(
+        sourceAccountId,
+        targetAccountId,
+        amt,
+        transferDate,
+        transferDesc.trim() || undefined,
+      )
+      setTransferModalOpen(false)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      setError(errorObj?.message || 'Erro ao realizar transferência.')
+    } finally {
+      setTransferLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -263,12 +308,31 @@ export default function AccountsPage() {
             </span>
           </p>
         </div>
-        <Button
-          onClick={handleOpenCreate}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> Nova Conta
-        </Button>
+        <div className="flex items-center gap-2">
+          {accounts.length >= 2 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSourceAccountId(accounts[0]?.id || '')
+                setTargetAccountId(accounts[1]?.id || '')
+                setTransferAmount('')
+                setTransferDesc('')
+                setTransferDate(new Date().toISOString().slice(0, 10))
+                setError('')
+                setTransferModalOpen(true)
+              }}
+              className="rounded-xl font-semibold text-xs sm:text-sm gap-1.5 h-10 border-slate-200 dark:border-slate-800"
+            >
+              <ArrowRightLeft className="w-4 h-4 text-emerald-600" /> Transferir
+            </Button>
+          )}
+          <Button
+            onClick={handleOpenCreate}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-semibold gap-1.5 h-10"
+          >
+            <Plus className="w-4 h-4" /> Nova Conta
+          </Button>
+        </div>
       </div>
 
       {accounts.length === 0 ? (
@@ -603,6 +667,124 @@ export default function AccountsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Transferência entre Contas */}
+      <Dialog open={transferModalOpen} onOpenChange={setTransferModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl bg-white dark:bg-[#121A2B]">
+          <DialogHeader>
+            <DialogTitle className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 text-emerald-600" />
+              Transferência entre Contas
+            </DialogTitle>
+          </DialogHeader>
+
+          {error && (
+            <div className="p-3 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleTransfer} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>Conta de Origem (Sai o valor) *</Label>
+              <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
+                <SelectTrigger className="h-10 rounded-xl text-xs">
+                  <SelectValue placeholder="Selecione a conta origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} (Saldo: {formatCurrency(acc.current_balance || 0, hideValues)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Conta de Destino (Recebe o valor) *</Label>
+              <Select value={targetAccountId} onValueChange={setTargetAccountId}>
+                <SelectTrigger className="h-10 rounded-xl text-xs">
+                  <SelectValue placeholder="Selecione a conta destino" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} (Saldo: {formatCurrency(acc.current_balance || 0, hideValues)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Valor (R$) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0,00"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="h-10 rounded-xl font-bold"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                  className="h-10 rounded-xl font-semibold"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Descrição / Motivo</Label>
+              <Input
+                placeholder="Ex: Transferência de reserva, PIX para conta conjunta..."
+                value={transferDesc}
+                onChange={(e) => setTransferDesc(e.target.value)}
+                className="h-10 rounded-xl text-xs"
+              />
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
+              Transferências entre contas não alteram seu saldo consolidado patrimonial e não geram
+              duplicação de receitas ou despesas nos relatórios.
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTransferModalOpen(false)}
+                className="rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={transferLoading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
+              >
+                {transferLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Transferindo...
+                  </>
+                ) : (
+                  'Confirmar Transferência'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

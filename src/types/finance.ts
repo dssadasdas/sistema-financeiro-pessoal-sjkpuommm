@@ -129,6 +129,9 @@ export interface Transaction {
   account?: string
   credit_card?: string
   installment_group?: string
+  bill_id?: string
+  transfer_target_account?: string
+  transfer_group_id?: string
   source?: TransactionSource
   paid_at?: string
   created: string
@@ -137,6 +140,8 @@ export interface Transaction {
     account?: Account
     credit_card?: CreditCard
     installment_group?: Installment
+    bill_id?: Bill
+    transfer_target_account?: Account
   }
 }
 
@@ -147,9 +152,11 @@ export interface Bill {
   value: number
   due_date: string
   category?: string
+  barcode?: string
   status: BillStatus
   type?: BillType
   paid_at?: string
+  paid_date?: string
   account?: string
   recurring?: boolean
   recurring_bill?: string
