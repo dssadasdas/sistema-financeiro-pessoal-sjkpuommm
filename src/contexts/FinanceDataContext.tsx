@@ -540,31 +540,26 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const deleteAccount = async (id: string, options?: { deleteLinkedTransactions?: boolean }) => {
     if (!user) throw new Error('Não autenticado')
 
-    // 1. Busca transações que apontam para essa conta (account ou transfer_target_account)
+    // 1. Busca TODAS as transações vinculadas (account + transfer_target_account)
     const [txnsAsAccount, txnsAsTransferTarget] = await Promise.all([
-      pb.collection('transactions').getFullList<Transaction>({
-        batch: 500,
-        filter: `account = "${id}"`,
-      }),
-      pb.collection('transactions').getFullList<Transaction>({
-        batch: 500,
-        filter: `transfer_target_account = "${id}"`,
-      }),
+      pb
+        .collection('transactions')
+        .getFullList<Transaction>({ batch: 500, filter: `account = "${id}"` }),
+      pb
+        .collection('transactions')
+        .getFullList<Transaction>({ batch: 500, filter: `transfer_target_account = "${id}"` }),
     ])
 
-    // Combina removendo possíveis duplicatas de id
     const allLinkedMap = new Map<string, Transaction>()
     txnsAsAccount.forEach((t) => allLinkedMap.set(t.id, t))
     txnsAsTransferTarget.forEach((t) => allLinkedMap.set(t.id, t))
     const linkedTxns = Array.from(allLinkedMap.values())
 
     if (linkedTxns.length > 0 && !options?.deleteLinkedTransactions) {
-      throw new Error(
-        'Esta conta possui movimentações vinculadas e não pode ser excluída para não quebrar o histórico.',
-      )
+      throw new Error('Esta conta possui movimentações vinculadas. Escolha excluir tudo junto.')
     }
 
-    // 2. Desvincula ou limpa contas (bills), recorrentes e recorrências que apontam para essa conta
+    // 2. Desvincula bills, recurring_bills, recurrences
     try {
       const [linkedBills, linkedRecurring, linkedRecurrences] = await Promise.all([
         pb.collection('bills').getFullList<Bill>({ batch: 500, filter: `account = "${id}"` }),
@@ -577,109 +572,97 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ])
 
       for (const b of linkedBills) {
-        try {
-          await pb.collection('bills').update(b.id, { account: null })
-        } catch {
-          /* intentionally ignored */
-        }
+        await pb
+          .collection('bills')
+          .update(b.id, { account: null })
+          .catch(() => {})
       }
-
       for (const rb of linkedRecurring) {
-        try {
-          await pb.collection('recurring_bills').update(rb.id, { account: null })
-        } catch {
-          /* intentionally ignored */
-        }
+        await pb
+          .collection('recurring_bills')
+          .update(rb.id, { account: null })
+          .catch(() => {})
       }
-
       for (const r of linkedRecurrences) {
-        try {
-          await pb.collection('recurrences').update(r.id, { account: null })
-        } catch {
-          /* intentionally ignored */
-        }
+        await pb
+          .collection('recurrences')
+          .update(r.id, { account: null })
+          .catch(() => {})
       }
     } catch (e) {
-      console.warn('Erro ao desvincular conta de bills/recurrences:', e)
+      console.warn('Erro ao desvincular bills/recurrences:', e)
     }
 
-    // 3. Se optou por excluir transações vinculadas, remove todas antes da conta
+    // 3. Se cascade, deleta TODAS as transações vinculadas ANTES da conta
     if (linkedTxns.length > 0 && options?.deleteLinkedTransactions) {
       const linkedTxnIds = new Set(linkedTxns.map((t) => t.id))
 
-      // 3.1 Se alguma transação gerada estiver em bills, desvincula antes de excluir a transação
+      // 3.1 Desvincula generated_transaction em bills
       try {
-        const billsWithGenTx = await pb.collection('bills').getFullList<Bill>({
-          batch: 500,
-          filter: `generated_transaction != null && generated_transaction != ""`,
-        })
-        for (const b of billsWithGenTx) {
+        const allBills = await pb.collection('bills').getFullList<Bill>({ batch: 500 })
+        for (const b of allBills) {
           if (b.generated_transaction && linkedTxnIds.has(b.generated_transaction)) {
-            try {
-              await pb.collection('bills').update(b.id, { generated_transaction: null })
-            } catch {
-              /* intentionally ignored */
-            }
+            await pb
+              .collection('bills')
+              .update(b.id, { generated_transaction: null })
+              .catch(() => {})
           }
         }
       } catch (e) {
-        console.warn('Erro ao desvincular generated_transaction de bills:', e)
+        console.warn('Erro bills gen tx:', e)
       }
 
-      // 3.2 Se alguma transação estiver vinculada como pagamento de fatura, desvincula
+      // 3.2 Desvincula payment_transaction em invoices
       try {
-        const invoicesWithPayTx = await pb.collection('invoices').getFullList<Invoice>({
-          batch: 500,
-          filter: `payment_transaction != null && payment_transaction != ""`,
-        })
-        for (const inv of invoicesWithPayTx) {
+        const allInvoices = await pb.collection('invoices').getFullList<Invoice>({ batch: 500 })
+        for (const inv of allInvoices) {
           if (inv.payment_transaction && linkedTxnIds.has(inv.payment_transaction)) {
-            try {
-              await pb.collection('invoices').update(inv.id, { payment_transaction: null })
-            } catch {
-              /* intentionally ignored */
-            }
+            await pb
+              .collection('invoices')
+              .update(inv.id, { payment_transaction: null })
+              .catch(() => {})
           }
         }
       } catch (e) {
-        console.warn('Erro ao desvincular payment_transaction de faturas:', e)
+        console.warn('Erro invoices pay tx:', e)
       }
 
-      // 3.3 Deleta as transações vinculadas sequencialmente para garantir sincronismo no PocketBase
-      for (const t of linkedTxns) {
-        try {
-          await pb.collection('transactions').delete(t.id)
-        } catch (err) {
-          console.warn(`Erro ao excluir transação ${t.id}:`, err)
-        }
-      }
+      // 3.3 Deleta transações em LOTES para performance
+      const deletePromises = linkedTxns.map((t) =>
+        pb
+          .collection('transactions')
+          .delete(t.id)
+          .catch((err) => {
+            console.warn(`Falha ao deletar transação ${t.id}:`, err)
+          }),
+      )
+      await Promise.all(deletePromises)
 
-      // 3.4 Verificação extra de segurança: busca qualquer transação restante que ainda aponte para a conta
-      try {
-        const [leftover1, leftover2] = await Promise.all([
-          pb.collection('transactions').getFullList<Transaction>({
-            batch: 500,
-            filter: `account = "${id}"`,
-          }),
-          pb.collection('transactions').getFullList<Transaction>({
-            batch: 500,
-            filter: `transfer_target_account = "${id}"`,
-          }),
-        ])
-        const leftoverAll = [...leftover1, ...leftover2]
-        for (const lt of leftoverAll) {
-          try {
-            await pb.collection('transactions').delete(lt.id)
-          } catch {
-            /* ignore */
-          }
-        }
-      } catch (e) {
-        console.warn('Erro na checagem final de transações vinculadas:', e)
+      // 3.4 Verificação final: busca qualquer transação remanescente
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const [leftover1, leftover2] = await Promise.all([
+        pb
+          .collection('transactions')
+          .getFullList<Transaction>({ batch: 500, filter: `account = "${id}"` }),
+        pb
+          .collection('transactions')
+          .getFullList<Transaction>({ batch: 500, filter: `transfer_target_account = "${id}"` }),
+      ])
+      const allLeftovers = [...leftover1, ...leftover2]
+      if (allLeftovers.length > 0) {
+        await Promise.all(
+          allLeftovers.map((t) =>
+            pb
+              .collection('transactions')
+              .delete(t.id)
+              .catch(() => {}),
+          ),
+        )
+        await new Promise((resolve) => setTimeout(resolve, 300))
       }
     }
 
-    // 4. Exclui a conta bancária
+    // 4. Exclui a conta
     await pb.collection('accounts').delete(id)
     await fetchAllData()
   }

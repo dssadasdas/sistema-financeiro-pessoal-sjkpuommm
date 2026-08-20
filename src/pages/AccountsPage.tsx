@@ -247,36 +247,26 @@ export default function AccountsPage() {
     setLoading(true)
     setError('')
     try {
-      // Se a conta já tem transações conhecidas no frontend, abre a confirmação de cascata diretamente
-      const hasKnownTxns = transactions.some(
-        (t) =>
-          t.account === deleteAccountTarget.id ||
-          t.transfer_target_account === deleteAccountTarget.id,
-      )
-      if (hasKnownTxns) {
-        setDeleteBlocked(true)
-        setLoading(false)
-        return
-      }
-
+      // Tenta deletar sem cascade primeiro
       await deleteAccount(deleteAccountTarget.id)
       setDeleteAccountTarget(null)
       setDeleteBlocked(false)
     } catch (err: unknown) {
-      const errorObj = err as { message?: string; status?: number; response?: { message?: string } }
+      const errorObj = err as {
+        message?: string
+        status?: number
+        response?: { message?: string; code?: string }
+      }
       const msg = errorObj?.response?.message || errorObj?.message || ''
+      const code = errorObj?.response?.code || ''
       const lowerMsg = msg.toLowerCase()
+
       if (
-        lowerMsg.includes('movimentações') ||
-        lowerMsg.includes('transaç') ||
-        lowerMsg.includes('transac') ||
-        lowerMsg.includes('linked') ||
-        lowerMsg.includes('cannot') ||
-        lowerMsg.includes('histórico') ||
-        lowerMsg.includes('historico') ||
-        errorObj?.status === 400 ||
-        errorObj?.status === 500
+        lowerMsg.includes('movimenta') ||
+        lowerMsg.includes('vinculada') ||
+        code === 'linked_transactions'
       ) {
+        // Mostra modal de confirmação para cascade
         setDeleteBlocked(true)
       } else {
         setError(msg || 'Erro ao excluir conta.')
