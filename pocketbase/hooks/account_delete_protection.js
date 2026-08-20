@@ -9,12 +9,17 @@ onRecordDeleteRequest((e) => {
 
   const recordId = record.id
 
-  // Verifica se o parâmetro ?cascade=true ou ?cascade=1 foi enviado na query string
+  // Verifica se o parâmetro ?cascade=true ou ?cascade=1 foi enviado na query string via request.url
   let isCascade = false
   try {
-    const query = e.requestInfo().query || {}
-    const cascadeParam = String(query.cascade || '').toLowerCase()
-    isCascade = cascadeParam === 'true' || cascadeParam === '1'
+    if (e.httpContext && e.httpContext.request()) {
+      const queryParams = e.httpContext.request().url.queryParameters() || {}
+      const cascadeVal = queryParams.cascade
+      const cascadeStr = Array.isArray(cascadeVal)
+        ? String(cascadeVal[0] || '')
+        : String(cascadeVal || '')
+      isCascade = cascadeStr.toLowerCase() === 'true' || cascadeStr === '1'
+    }
   } catch (_) {}
 
   if (isCascade) {
@@ -105,7 +110,8 @@ onRecordDeleteRequest((e) => {
     return
   }
 
-  // Se cascade NÃO estiver presente, mantém a proteção original contra exclusão acidental
+  // Se cascade NÃO estiver presente, verifica se há movimentações vinculadas
+  let linked = 0
   try {
     const row = $app
       .db()
@@ -115,25 +121,22 @@ onRecordDeleteRequest((e) => {
       .bind({ id: recordId })
       .one()
 
-    const linked = row ? Number(row.c || 0) : 0
+    linked = row ? Number(row.c || 0) : 0
+  } catch (queryErr) {
+    console.warn('account_delete_protection: query falhou, permitindo exclusão:', queryErr)
+    linked = 0
+  }
 
-    if (linked > 0) {
-      // Retornar resposta HTTP 400 diretamente sem chamar e.next()
-      const res = e.httpContext.response()
-      res.status = 400
-      res.json({
-        message:
-          'Esta conta possui ' +
-          linked +
-          ' movimentacoes vinculadas. Exclua as movimentacoes primeiro.',
+  if (linked > 0) {
+    throw new BadRequestError(
+      'Esta conta possui ' +
+        linked +
+        ' movimentações vinculadas. Exclua as movimentações primeiro ou confirme a exclusão completa.',
+      {
         code: 'linked_transactions',
         linkedCount: linked,
-      })
-      return // Bloqueia a exclusão
-    }
-  } catch (queryErr) {
-    // Se a query falhar, permite a exclusão
-    console.warn('account_delete_protection: query falhou, permitindo exclusão:', queryErr)
+      },
+    )
   }
 
   e.next()
