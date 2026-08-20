@@ -415,9 +415,9 @@ export default function FastTransactionDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] text-slate-900 dark:text-white shadow-2xl p-0 overflow-hidden max-h-[92vh]">
+      <DrawerContent className="max-w-md mx-auto rounded-t-3xl border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121A2B] text-slate-900 dark:text-white shadow-2xl p-0 overflow-hidden max-h-[calc(var(--viewport-height,100dvh)-1.5rem)]">
         {/* Top bar com indicador de arrastar, botão voltar e progresso de passos */}
-        <div className="pt-3 pb-2.5 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
+        <div className="pt-3 pb-2.5 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0">
           <div className="flex items-center gap-2">
             {step > 1 && (
               <Button
@@ -463,12 +463,12 @@ export default function FastTransactionDrawer({
         </div>
 
         {error && (
-          <div className="mx-6 mt-3 p-2.5 text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-xl">
+          <div className="mx-6 mt-3 p-2.5 text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-xl shrink-0">
             {error}
           </div>
         )}
 
-        <div className="p-6 pt-4 overflow-y-auto max-h-[calc(92vh-60px)]">
+        <div className="p-6 pt-4 overflow-y-auto max-h-[calc(var(--viewport-height,100dvh)-5rem)]">
           {/* ========================================================================= */}
           {/* PASSO 1: CALCULADORA / ENTRADA DE VALOR */}
           {/* ========================================================================= */}
@@ -655,7 +655,7 @@ export default function FastTransactionDrawer({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  className="h-11 w-full rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base"
                   required
                 />
               </div>
@@ -876,8 +876,7 @@ export default function FastTransactionDrawer({
                   }
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-emerald-500"
-                  autoFocus
+                  className="h-11 rounded-2xl bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-emerald-500 text-base"
                 />
               </div>
 

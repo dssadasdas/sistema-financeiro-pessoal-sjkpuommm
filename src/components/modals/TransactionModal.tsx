@@ -185,7 +185,7 @@ export default function TransactionModal({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
-                className="h-10 rounded-xl"
+                className="h-10 rounded-xl text-base"
               />
             </div>
 
@@ -195,11 +195,12 @@ export default function TransactionModal({
                 id="tx-val"
                 type="number"
                 step="0.01"
+                inputMode="decimal"
                 placeholder="0,00"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 required
-                className="h-10 rounded-xl font-bold"
+                className="h-10 rounded-xl font-bold text-base"
               />
             </div>
           </div>
@@ -230,7 +231,7 @@ export default function TransactionModal({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="h-10 rounded-xl"
+                className="h-10 w-full rounded-xl text-base"
               />
             </div>
           </div>

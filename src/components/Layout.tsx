@@ -302,7 +302,12 @@ export default function Layout() {
         </header>
 
         {/* Content - padding 16px mobile, 20px tablet (768-1023), 24px desktop */}
-        <main className="flex-1 w-full max-w-[1280px] mx-auto p-3 sm:p-4 md:p-5 lg:p-6 pb-28 lg:pb-8 min-w-0">
+        <main
+          className="flex-1 w-full max-w-[1280px] mx-auto p-3 sm:p-4 md:p-5 lg:p-6 lg:pb-8 min-w-0"
+          style={{
+            paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
           <Outlet />
         </main>
       </div>
@@ -360,7 +365,13 @@ export default function Layout() {
       )}
 
       {/* Bottom navigation mobile + tablet (abaixo de 1024px): 5 itens (Início, Transações, +, Cartões, IA) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 px-2 h-16 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-none">
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-[#0f1626] border-t border-slate-200 dark:border-slate-800 px-2 flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.04)] dark:shadow-none pointer-events-auto"
+        style={{
+          height: 'calc(4rem + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'max(16px, env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <NavLink
           to="/inicio"
           className={({ isActive }) =>

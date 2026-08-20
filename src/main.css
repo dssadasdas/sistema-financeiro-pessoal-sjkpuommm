@@ -157,11 +157,15 @@
     transition-property: background-color, border-color, color;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
+    min-height: 100%;
+    min-height: 100dvh;
   }
   body {
     transition-property: background-color, border-color, color;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
+    min-height: 100%;
+    min-height: 100dvh;
   }
 }
 
@@ -351,7 +355,38 @@
     border-radius: 6px;
   }
 
-  /* Keep native date/time pickers legible in dark mode */
+  /* Normalization for input[type="date"], input[type="datetime-local"], input[type="time"] */
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='time'] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    min-height: 2.5rem;
+    line-height: 1.25rem;
+    display: flex;
+    align-items: center;
+    font-family: inherit;
+    font-size: 1rem; /* Minimum 16px to prevent iOS auto-zoom */
+  }
+
+  /* Keep native date/time pickers legible in dark mode and nicely positioned */
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+    padding: 0;
+    margin-left: 0.5rem;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator:hover,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator:hover,
+  input[type='time']::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
+
   .dark input[type='date']::-webkit-calendar-picker-indicator,
   .dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
   .dark input[type='time']::-webkit-calendar-picker-indicator {
@@ -382,6 +417,15 @@
     word-break: normal;
   }
 
+  /* Prevent text zoom on input focus for iOS Safari */
+  @media screen and (max-width: 768px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   /* Respect device safe areas (notch, home indicator) */
   body {
     padding-top: env(safe-area-inset-top);
@@ -393,13 +437,14 @@
      and scrollable internally. Scoped with !important to win over per-instance
      max-h utilities that were forgotten on several dialogs. */
   [role='dialog'] {
-    max-height: calc(100dvh - 2rem) !important;
+    max-height: calc(var(--viewport-height, 100dvh) - 2rem) !important;
     overflow-y: auto !important;
   }
   @media (max-width: 640px) {
     [role='dialog'] {
       width: calc(100vw - 1.5rem) !important;
       max-width: calc(100vw - 1.5rem) !important;
+      max-height: calc(var(--viewport-height, 100dvh) - 1.5rem) !important;
     }
   }
 

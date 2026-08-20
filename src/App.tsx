@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { FinanceDataProvider } from '@/contexts/FinanceDataContext'
 import Layout from '@/components/Layout'
 import PageTitle from '@/components/PageTitle'
+import { useMobileViewportStabilizer } from '@/hooks/use-mobile-viewport'
 import { Wallet, Loader2 } from 'lucide-react'
 
 // Páginas Públicas
@@ -77,6 +78,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useMobileViewportStabilizer()
+
   return (
     <BrowserRouter>
       <ThemeProvider>

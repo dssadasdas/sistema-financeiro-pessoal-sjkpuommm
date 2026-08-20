@@ -449,7 +449,7 @@ export default function InvoiceImportModal({
                   placeholder="Geralmente os 5 ou 6 primeiros dígitos do CPF..."
                   value={pdfPassword}
                   onChange={(e) => setPdfPassword(e.target.value)}
-                  className="h-9 rounded-lg text-xs"
+                  className="h-9 rounded-lg text-base sm:text-xs"
                 />
                 <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-tight">
                   Se o PDF for criptografado pelo banco, informe a senha. Como alternativa, cole o
@@ -514,7 +514,7 @@ export default function InvoiceImportModal({
                   type="month"
                   value={referenceMonth}
                   onChange={(e) => setReferenceMonth(e.target.value)}
-                  className="h-8 w-36 rounded-lg text-xs font-bold"
+                  className="h-8 w-36 rounded-lg text-base sm:text-xs font-bold"
                 />
               </div>
 
@@ -524,7 +524,7 @@ export default function InvoiceImportModal({
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="h-8 w-36 rounded-lg text-xs"
+                  className="h-8 w-36 rounded-lg text-base sm:text-xs"
                 />
               </div>
 
@@ -533,9 +533,10 @@ export default function InvoiceImportModal({
                 <Input
                   type="number"
                   step="0.01"
+                  inputMode="decimal"
                   value={invoiceTotal}
                   onChange={(e) => setInvoiceTotal(parseFloat(e.target.value) || 0)}
-                  className="h-8 w-36 rounded-lg text-xs font-bold text-slate-900 dark:text-white"
+                  className="h-8 w-36 rounded-lg text-base sm:text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
