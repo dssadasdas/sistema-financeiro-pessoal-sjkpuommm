@@ -291,7 +291,7 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       0,
     )
 
-    // Also include transactions made on this card that aren't closed in invoices
+    // Transações manuais/importadas no cartão no mês corrente (ou ativas)
     const cardTxns = transactions.filter(
       (t) =>
         t.credit_card === card.id &&

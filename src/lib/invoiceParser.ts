@@ -49,7 +49,18 @@ const CATEGORY_RULES: { category: string; keywords: string[] }[] = [
   { category: 'Água', keywords: ['embasa', 'sabesp', 'sanepar', 'casan', 'água'] },
   {
     category: 'Alimentação',
-    keywords: ['ifood', 'rap', 'zé delivery', 'supermercado', 'mercado', 'restaurante'],
+    keywords: [
+      'ifood',
+      'rap',
+      'zé delivery',
+      'supermercado',
+      'mercado',
+      'restaurante',
+      'padaria',
+      'panificadora',
+      'lanchonete',
+      'café',
+    ],
   },
   {
     category: 'Combustível',
@@ -85,6 +96,23 @@ const CATEGORY_RULES: { category: string; keywords: string[] }[] = [
       'max ',
       'streaming',
       'youtube',
+    ],
+  },
+  {
+    category: 'Compras',
+    keywords: [
+      'amazon',
+      'mercado livre',
+      'mercadolivre',
+      'magalu',
+      'magazine luiza',
+      'shopee',
+      'shein',
+      'aliexpress',
+      'riachuelo',
+      'zara',
+      'renner',
+      'c&a',
     ],
   },
   {
