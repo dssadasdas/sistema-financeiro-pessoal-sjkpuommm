@@ -9,6 +9,8 @@ import {
   ArrowLeftRight,
   Landmark,
   CreditCard,
+  Tag,
+  Target,
   Sparkles,
   Settings,
   LogOut,
@@ -44,6 +46,8 @@ const navItems: NavItem[] = [
   { label: 'Transações', path: '/transacoes', icon: ArrowLeftRight },
   { label: 'Contas', path: '/contas', icon: Landmark },
   { label: 'Cartões', path: '/cartoes', icon: CreditCard },
+  { label: 'Categorias', path: '/categorias', icon: Tag },
+  { label: 'Metas', path: '/metas', icon: Target },
   { label: 'Assistente IA', path: '/ia-financeira', icon: Sparkles },
 ]
 
@@ -165,6 +169,8 @@ export default function Layout() {
     if (item) return item.label
     if (location.pathname.startsWith('/cartoes/')) return 'Detalhe do Cartão'
     if (location.pathname.startsWith('/configuracoes')) return 'Configurações'
+    if (location.pathname.startsWith('/categorias')) return 'Categorias'
+    if (location.pathname.startsWith('/metas')) return 'Metas Financeiras'
     return 'Semeia'
   }
 

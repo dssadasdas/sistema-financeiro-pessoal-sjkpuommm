@@ -24,6 +24,8 @@ import TransactionsPage from '@/pages/TransactionsPage'
 import AccountsPage from '@/pages/AccountsPage'
 import CardsPage from '@/pages/CardsPage'
 import CardDetailPage from '@/pages/CardDetailPage'
+import CategoriesPage from '@/pages/CategoriesPage'
+import GoalsPage from '@/pages/GoalsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
 import SettingsPage from '@/pages/SettingsPage'
 
@@ -143,6 +145,8 @@ export default function App() {
                   <Route path="/cartoes" element={<CardsPage />} />
                   <Route path="/cartoes/:id" element={<CardDetailPage />} />
                   <Route path="/faturas" element={<Navigate to="/cartoes" replace />} />
+                  <Route path="/categorias" element={<CategoriesPage />} />
+                  <Route path="/metas" element={<GoalsPage />} />
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />
                   <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
                   <Route path="/assistente-ia" element={<Navigate to="/ia-financeira" replace />} />

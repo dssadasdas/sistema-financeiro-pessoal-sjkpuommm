@@ -20,14 +20,11 @@ import {
   Sun,
   Lock,
   Loader2,
-  ExternalLink,
   Clock,
   Settings as SettingsIcon,
   MailCheck,
   Send,
   RotateCcw,
-  Tag,
-  Plus,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -37,13 +34,6 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,7 +45,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { CategoryItem } from '@/types/finance'
 
 const LAST_SYNC_KEY = 'semeia_last_sync'
 
@@ -96,74 +85,8 @@ export default function SettingsPage() {
     refreshSubscription,
     cancelSubscription,
   } = useAuth()
-  const {
-    refreshAll,
-    isLoading: financeLoading,
-    resetAllUserData,
-    customCategories,
-    createCategory,
-    deleteCategory,
-  } = useFinance()
+  const { refreshAll, isLoading: financeLoading, resetAllUserData } = useFinance()
   const { theme, toggleTheme } = useTheme()
-
-  /* ---------- Categorias Personalizadas ---------- */
-  const [newCatName, setNewCatName] = useState('')
-  const [newCatType, setNewCatType] = useState<'receita' | 'despesa'>('despesa')
-  const [categorySubmitting, setCategorySubmitting] = useState(false)
-  const [deletingCatId, setDeletingCatId] = useState<string | null>(null)
-  const [categoryToDelete, setCategoryToDelete] = useState<CategoryItem | null>(null)
-
-  const handleAddCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = newCatName.trim()
-    if (!trimmed) {
-      toast({
-        title: 'Nome obrigatório',
-        description: 'Informe o nome da categoria.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    setCategorySubmitting(true)
-    try {
-      await createCategory(trimmed, newCatType)
-      setNewCatName('')
-      toast({
-        title: 'Categoria adicionada',
-        description: `Categoria "${trimmed}" cadastrada com sucesso.`,
-      })
-    } catch (err) {
-      toast({
-        title: 'Erro ao criar categoria',
-        description: getErrorMessage(err),
-        variant: 'destructive',
-      })
-    } finally {
-      setCategorySubmitting(false)
-    }
-  }
-
-  const handleConfirmDeleteCategory = async () => {
-    if (!categoryToDelete) return
-    setDeletingCatId(categoryToDelete.id)
-    try {
-      await deleteCategory(categoryToDelete.id)
-      toast({
-        title: 'Categoria excluída',
-        description: `Categoria "${categoryToDelete.name}" foi removida.`,
-      })
-      setCategoryToDelete(null)
-    } catch (err) {
-      toast({
-        title: 'Erro ao excluir',
-        description: getErrorMessage(err),
-        variant: 'destructive',
-      })
-    } finally {
-      setDeletingCatId(null)
-    }
-  }
 
   /* ---------- Perfil ---------- */
   const [name, setName] = useState('')
@@ -728,190 +651,6 @@ export default function SettingsPage() {
                   Alterar senha
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-
-          {/* ================= Categorias ================= */}
-          <Card className="rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-[#121a2b] shadow-sm lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2 text-slate-900 dark:text-white">
-                <Tag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                Categorias
-              </CardTitle>
-              <CardDescription className="text-slate-500 dark:text-slate-400">
-                Gerencie suas categorias personalizadas de receitas e despesas.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Formulário para adicionar nova categoria */}
-              <form
-                onSubmit={handleAddCategory}
-                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 space-y-3"
-              >
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Adicionar nova categoria
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                  <div className="sm:col-span-6 space-y-1.5">
-                    <Label htmlFor="catName" className="text-xs text-slate-600 dark:text-slate-400">
-                      Nome da categoria
-                    </Label>
-                    <Input
-                      id="catName"
-                      value={newCatName}
-                      onChange={(e) => setNewCatName(e.target.value)}
-                      placeholder="Ex: Freelance, Supermercado..."
-                      className="h-10 rounded-xl bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700"
-                      disabled={categorySubmitting}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-4 space-y-1.5">
-                    <Label htmlFor="catType" className="text-xs text-slate-600 dark:text-slate-400">
-                      Tipo
-                    </Label>
-                    <Select
-                      value={newCatType}
-                      onValueChange={(val) => setNewCatType(val as 'receita' | 'despesa')}
-                      disabled={categorySubmitting}
-                    >
-                      <SelectTrigger
-                        id="catType"
-                        className="h-10 rounded-xl bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
-                        <SelectItem value="despesa">Despesa</SelectItem>
-                        <SelectItem value="receita">Receita</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <Button
-                      type="submit"
-                      disabled={categorySubmitting || !newCatName.trim()}
-                      className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold gap-1.5"
-                    >
-                      {categorySubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                      Adicionar
-                    </Button>
-                  </div>
-                </div>
-              </form>
-
-              {/* Lista de categorias existentes */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Categorias cadastradas ({customCategories.length})
-                </p>
-
-                {customCategories.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-slate-50/50 dark:bg-slate-900/20 border border-dashed border-slate-200 dark:border-slate-800 text-center">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Nenhuma categoria personalizada. As categorias padrão são criadas
-                      automaticamente conforme você registra transações.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-96 overflow-y-auto pr-1">
-                    {customCategories.map((cat) => {
-                      const isReceita = cat.type === 'receita'
-                      const isDeletingThis = deletingCatId === cat.id
-
-                      return (
-                        <div
-                          key={cat.id}
-                          className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                            <span
-                              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                                isReceita ? 'bg-emerald-500' : 'bg-red-500'
-                              }`}
-                              style={cat.color ? { backgroundColor: cat.color } : undefined}
-                            />
-                            <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                              {cat.name}
-                            </span>
-                            <Badge
-                              className={`text-[10px] px-2 py-0.5 font-semibold flex-shrink-0 ${
-                                isReceita
-                                  ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-500/30'
-                                  : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300 border border-red-300/60 dark:border-red-500/30'
-                              }`}
-                            >
-                              {isReceita ? 'Receita' : 'Despesa'}
-                            </Badge>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            disabled={isDeletingThis}
-                            onClick={() => setCategoryToDelete(cat)}
-                            className="h-8 w-8 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg flex-shrink-0"
-                            title="Excluir categoria"
-                          >
-                            {isDeletingThis ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* AlertDialog de confirmação de exclusão */}
-              <AlertDialog
-                open={!!categoryToDelete}
-                onOpenChange={(open) => {
-                  if (!open) setCategoryToDelete(null)
-                }}
-              >
-                <AlertDialogContent className="bg-white dark:bg-[#121a2b] border-slate-200 dark:border-slate-800">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-slate-900 dark:text-white">
-                      Excluir categoria {categoryToDelete ? `"${categoryToDelete.name}"` : ''}?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-                      Transações que usam esta categoria não serão afetadas.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel
-                      disabled={!!deletingCatId}
-                      className="bg-transparent border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
-                    >
-                      Cancelar
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      disabled={!!deletingCatId}
-                      onClick={handleConfirmDeleteCategory}
-                      className="bg-red-600 hover:bg-red-700 text-white font-semibold"
-                    >
-                      {deletingCatId ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-                          Excluindo...
-                        </>
-                      ) : (
-                        'Excluir categoria'
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </CardContent>
           </Card>
 
