@@ -14,7 +14,6 @@ routerAdd(
     // Verificar posse da conta
     const rows = arrayOf(new DynamicModel({ user: '' }))
     $app
-      .dao()
       .db()
       .newQuery('SELECT user FROM accounts WHERE id = {:id}')
       .bind({ id: accountId })
@@ -29,7 +28,6 @@ routerAdd(
 
     // PASSO 1: Desvincular bills que referenciam transações desta conta
     $app
-      .dao()
       .db()
       .newQuery(
         `UPDATE bills SET generated_transaction = NULL 
@@ -42,7 +40,6 @@ routerAdd(
 
     // PASSO 2: Desvincular invoices que referenciam transações desta conta
     $app
-      .dao()
       .db()
       .newQuery(
         `UPDATE invoices SET payment_transaction = NULL 
@@ -55,7 +52,6 @@ routerAdd(
 
     // PASSO 3: Deletar TODAS as transações
     $app
-      .dao()
       .db()
       .newQuery('DELETE FROM transactions WHERE account = {:id} OR transfer_target_account = {:id}')
       .bind({ id: accountId })
@@ -63,7 +59,6 @@ routerAdd(
 
     // PASSO 4: Desvincular bills.account
     $app
-      .dao()
       .db()
       .newQuery('UPDATE bills SET account = NULL WHERE account = {:id}')
       .bind({ id: accountId })
@@ -71,7 +66,6 @@ routerAdd(
 
     // PASSO 5: Desvincular recurring_bills.account
     $app
-      .dao()
       .db()
       .newQuery('UPDATE recurring_bills SET account = NULL WHERE account = {:id}')
       .bind({ id: accountId })
@@ -79,19 +73,13 @@ routerAdd(
 
     // PASSO 6: Desvincular recurrences.account
     $app
-      .dao()
       .db()
       .newQuery('UPDATE recurrences SET account = NULL WHERE account = {:id}')
       .bind({ id: accountId })
       .execute()
 
     // PASSO 7: Deletar a conta
-    $app
-      .dao()
-      .db()
-      .newQuery('DELETE FROM accounts WHERE id = {:id}')
-      .bind({ id: accountId })
-      .execute()
+    $app.db().newQuery('DELETE FROM accounts WHERE id = {:id}').bind({ id: accountId }).execute()
 
     return e.json(200, { success: true, accountId })
   },

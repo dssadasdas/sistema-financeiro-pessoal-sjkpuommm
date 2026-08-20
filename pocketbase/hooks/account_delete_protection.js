@@ -32,7 +32,6 @@ onRecordDeleteRequest((e) => {
     }),
   )
   $app
-    .dao()
     .db()
     .newQuery(
       'SELECT count(*) as c FROM transactions WHERE account = {:id} OR transfer_target_account = {:id}',
