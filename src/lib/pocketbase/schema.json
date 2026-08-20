@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-20T04:45:37.825Z",
+  "generatedAt": "2026-08-20T04:52:10.588Z",
   "collections": [
     {
       "name": "users",
@@ -37,6 +37,36 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "birth_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useFinance } from '@/contexts/FinanceDataContext'
 import { formatCurrency } from '@/lib/constants'
+import pb from '@/lib/pocketbase/client'
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -24,6 +25,7 @@ import {
   Wallet,
   Home,
   Repeat,
+  User,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -97,22 +99,66 @@ function SidebarNav({ onNavigate, pathname }: { onNavigate?: () => void; pathnam
   )
 }
 
+function UserAvatar({
+  user,
+  size = 'w-10 h-10',
+  textSize = 'text-sm',
+}: {
+  user: {
+    id?: string
+    name?: string
+    display_name?: string
+    avatar?: string
+    email?: string
+  } | null
+  size?: string
+  textSize?: string
+}) {
+  const avatarUrl =
+    user?.avatar && user?.id ? pb.files.getURL(user, user.avatar, { thumb: '100x100' }) : null
+
+  const displayName = user?.display_name || user?.name || user?.email || 'U'
+  const initials = displayName.trim().slice(0, 2).toUpperCase()
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName}
+        className={`${size} rounded-full object-cover border border-emerald-500/30 flex-shrink-0`}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`${size} rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold ${textSize} border border-emerald-500/30 flex-shrink-0 select-none`}
+    >
+      {initials}
+    </div>
+  )
+}
+
 function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout: () => void }) {
   const { theme, toggleTheme } = useTheme()
   const { hideValues, toggleHideValues } = useAuth()
   return (
     <div className="px-3 py-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
-      <div className="flex items-center gap-1 px-1 pb-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleHideValues}
-          className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400"
-          title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
-        >
-          {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </Button>
-      </div>
+      {/* Meu Perfil */}
+      <NavLink
+        to="/perfil"
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            isActive
+              ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+          }`
+        }
+      >
+        <User className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500 flex-shrink-0" />
+        <span>Meu Perfil</span>
+      </NavLink>
 
       {/* Configurações + toggle de tema lado a lado */}
       <div className="flex items-center gap-1">
@@ -127,14 +173,14 @@ function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout
             }`
           }
         >
-          <Settings className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500" />
+          <Settings className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500 flex-shrink-0" />
           <span>Configurações</span>
         </NavLink>
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400"
+          className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 shrink-0"
           title={theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
           aria-label={theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro'}
         >
@@ -142,13 +188,26 @@ function SidebarFooter({ onNavigate, logout }: { onNavigate?: () => void; logout
         </Button>
       </div>
 
-      <button
-        onClick={logout}
-        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-      >
-        <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-        <span>Sair</span>
-      </button>
+      <div className="flex items-center justify-between pt-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleHideValues}
+          className="h-8 px-2 text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 gap-1.5"
+          title={hideValues ? 'Mostrar valores' : 'Ocultar valores'}
+        >
+          {hideValues ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          <span>{hideValues ? 'Mostrar' : 'Ocultar'}</span>
+        </Button>
+
+        <button
+          onClick={logout}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Sair</span>
+        </button>
+      </div>
     </div>
   )
 }
@@ -188,12 +247,15 @@ export default function Layout() {
   const currentTitle = () => {
     const item = navItems.find((n) => isActivePath(location.pathname, n.path))
     if (item) return item.label
+    if (location.pathname.startsWith('/perfil')) return 'Meu Perfil'
     if (location.pathname.startsWith('/cartoes/')) return 'Detalhe do Cartão'
     if (location.pathname.startsWith('/configuracoes')) return 'Configurações'
     if (location.pathname.startsWith('/categorias')) return 'Categorias'
     if (location.pathname.startsWith('/metas')) return 'Metas Financeiras'
     return 'Semeia'
   }
+
+  const greetingName = user?.display_name || user?.name || 'Usuário'
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0b1120] text-slate-900 dark:text-slate-100 flex">
@@ -209,18 +271,19 @@ export default function Layout() {
           </span>
         </div>
 
-        {/* Greeting */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
-            {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
-          </div>
-          <div className="min-w-0">
+        {/* Greeting / Profile Link */}
+        <Link
+          to="/perfil"
+          className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group"
+        >
+          <UserAvatar user={user} size="w-10 h-10" textSize="text-xs" />
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-slate-400 dark:text-slate-500">Olá,</p>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-              {user?.name || 'Usuário'}
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+              {greetingName}
             </p>
           </div>
-        </div>
+        </Link>
 
         <SidebarNav pathname={location.pathname} />
         <SidebarFooter logout={handleLogout} />
@@ -232,19 +295,17 @@ export default function Layout() {
         <header className="lg:hidden sticky top-0 z-30 bg-white dark:bg-[#0f1626] border-b border-slate-200 dark:border-slate-800 px-4 pt-3 pb-3 shadow-xs">
           {/* Linha 1: Avatar / Saudação + Alertas + Menu */}
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30 flex-shrink-0">
-                {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
-              </div>
+            <Link to="/perfil" className="flex items-center gap-2.5 min-w-0">
+              <UserAvatar user={user} size="w-9 h-9" textSize="text-xs" />
               <div className="min-w-0">
                 <p className="text-xs font-medium text-slate-400 dark:text-slate-400 leading-none">
                   Olá,
                 </p>
                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight mt-0.5">
-                  {user?.name || 'Usuário'}
+                  {greetingName}
                 </p>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-1">
               <CentralDeAlertas />
@@ -345,17 +406,19 @@ export default function Layout() {
               </Button>
             </div>
 
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold text-sm border border-emerald-500/30">
-                {user?.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
-              </div>
-              <div className="min-w-0">
+            <Link
+              to="/perfil"
+              onClick={() => setDrawerOpen(false)}
+              className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group"
+            >
+              <UserAvatar user={user} size="w-10 h-10" textSize="text-xs" />
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-slate-400 dark:text-slate-500">Olá,</p>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                  {user?.name || 'Usuário'}
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  {greetingName}
                 </p>
               </div>
-            </div>
+            </Link>
 
             <SidebarNav pathname={location.pathname} onNavigate={() => setDrawerOpen(false)} />
             <SidebarFooter onNavigate={() => setDrawerOpen(false)} logout={handleLogout} />

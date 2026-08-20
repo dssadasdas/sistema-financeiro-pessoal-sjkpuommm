@@ -29,6 +29,7 @@ import CategoriesPage from '@/pages/CategoriesPage'
 import GoalsPage from '@/pages/GoalsPage'
 import AiAdvisorPage from '@/pages/AiAdvisorPage'
 import SettingsPage from '@/pages/SettingsPage'
+import ProfilePage from '@/pages/ProfilePage'
 
 // Full-screen loading spinner with logo
 function FullScreenLoader() {
@@ -153,6 +154,7 @@ export default function App() {
                   <Route path="/ia-financeira" element={<AiAdvisorPage />} />
                   <Route path="/assistente" element={<Navigate to="/ia-financeira" replace />} />
                   <Route path="/assistente-ia" element={<Navigate to="/ia-financeira" replace />} />
+                  <Route path="/perfil" element={<ProfilePage />} />
                   <Route path="/configuracoes" element={<SettingsPage />} />
                 </Route>
 

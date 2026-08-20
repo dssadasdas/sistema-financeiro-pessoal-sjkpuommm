@@ -69,6 +69,11 @@ export interface User {
   email: string
   name?: string
   avatar?: string
+  phone?: string
+  birth_date?: string
+  city?: string
+  state?: string
+  display_name?: string
   verified?: boolean
   created: string
   updated: string
