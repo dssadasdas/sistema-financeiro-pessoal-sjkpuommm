@@ -112,6 +112,7 @@ export default function AccountsPage() {
   // Confirmação de Exclusão
   const [deleteAccountTarget, setDeleteAccountTarget] = useState<Account | null>(null)
   const [deleteBlocked, setDeleteBlocked] = useState(false)
+  const [deletingCascade, setDeletingCascade] = useState(false)
 
   // Conta selecionada para detalhes (extrato)
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null)
@@ -222,10 +223,11 @@ export default function AccountsPage() {
   const handleDelete = async () => {
     if (!deleteAccountTarget) return
     setLoading(true)
-    setDeleteBlocked(false)
+    setError('')
     try {
       await deleteAccount(deleteAccountTarget.id)
       setDeleteAccountTarget(null)
+      setDeleteBlocked(false)
     } catch (err: unknown) {
       const errorObj = err as { message?: string }
       const msg = errorObj?.message || ''
@@ -241,6 +243,22 @@ export default function AccountsPage() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteCascade = async () => {
+    if (!deleteAccountTarget) return
+    setDeletingCascade(true)
+    setError('')
+    try {
+      await deleteAccount(deleteAccountTarget.id, { deleteLinkedTransactions: true })
+      setDeleteAccountTarget(null)
+      setDeleteBlocked(false)
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string }
+      setError(errorObj?.message || 'Erro ao excluir conta e transações vinculadas.')
+    } finally {
+      setDeletingCascade(false)
     }
   }
 
@@ -795,41 +813,69 @@ export default function AccountsPage() {
           if (!open) {
             setDeleteAccountTarget(null)
             setDeleteBlocked(false)
+            setError('')
           }
         }}
       >
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className="rounded-2xl bg-white dark:bg-[#121A2B]">
           {deleteBlocked ? (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-                  <AlertTriangle className="w-5 h-5" /> Exclusão bloqueada
+                <AlertDialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                  <AlertTriangle className="w-5 h-5" /> Conta com transações vinculadas
                 </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta conta possui movimentações vinculadas e não pode ser excluída. Para
-                  removê-la, primeiro exclua ou migre as transações vinculadas a ela.
+                <AlertDialogDescription className="text-slate-600 dark:text-slate-300 space-y-2">
+                  <p>
+                    A conta "<strong>{deleteAccountTarget?.name}</strong>" possui movimentações ou
+                    transações vinculadas no histórico financeiro.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Deseja excluir esta conta e <strong>TODAS</strong> as suas transações vinculadas
+                    permanentemente?
+                  </p>
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogAction
+              {error && (
+                <div className="p-2.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl">
+                  {error}
+                </div>
+              )}
+              <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel
                   onClick={() => {
                     setDeleteAccountTarget(null)
                     setDeleteBlocked(false)
+                    setError('')
                   }}
-                  className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white"
+                  className="rounded-xl"
+                  disabled={deletingCascade}
                 >
-                  Entendi
-                </AlertDialogAction>
+                  Cancelar
+                </AlertDialogCancel>
+                <Button
+                  onClick={handleDeleteCascade}
+                  disabled={deletingCascade}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold gap-1.5"
+                >
+                  {deletingCascade ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Excluindo tudo...
+                    </>
+                  ) : (
+                    'Excluir Conta e Transações'
+                  )}
+                </Button>
               </AlertDialogFooter>
             </>
           ) : (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Conta Bancária?</AlertDialogTitle>
-                <AlertDialogDescription>
+                <AlertDialogTitle className="text-slate-900 dark:text-white">
+                  Excluir Conta Bancária?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
                   Tem certeza que deseja excluir a conta "
                   <strong>{deleteAccountTarget?.name}</strong>"? Esta ação não pode ser desfeita.
-                  Contas com transações vinculadas serão bloqueadas.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               {error && (

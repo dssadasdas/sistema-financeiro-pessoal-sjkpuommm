@@ -58,7 +58,7 @@ interface FinanceDataContextType {
 
   createAccount: (data: Partial<Account>) => Promise<Account>
   updateAccount: (id: string, data: Partial<Account>) => Promise<Account>
-  deleteAccount: (id: string) => Promise<void>
+  deleteAccount: (id: string, options?: { deleteLinkedTransactions?: boolean }) => Promise<void>
   adjustAccountBalance: (accountId: string, newBalance: number, note?: string) => Promise<void>
 
   createCreditCard: (data: Partial<CreditCard>) => Promise<CreditCard>
@@ -181,35 +181,48 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ruleRes,
         catRes,
       ] = await Promise.all([
-        pb.collection('accounts').getFullList<Account>({ sort: 'name' }),
-        pb.collection('credit_cards').getFullList<CreditCard>({ sort: 'name' }),
+        pb.collection('accounts').getFullList<Account>({ batch: 500, sort: 'name' }),
+        pb.collection('credit_cards').getFullList<CreditCard>({ batch: 500, sort: 'name' }),
         pb
           .collection('transactions')
-          .getFullList<Transaction>({ sort: '-date,created', expand: 'account,credit_card' }),
+          .getFullList<Transaction>({
+            batch: 500,
+            sort: '-date,created',
+            expand: 'account,credit_card',
+          }),
         pb
           .collection('invoices')
-          .getFullList<Invoice>({ sort: '-reference', expand: 'credit_card' }),
+          .getFullList<Invoice>({ batch: 500, sort: '-reference', expand: 'credit_card' }),
         pb.collection('bills').getFullList<Bill>({
+          batch: 500,
           sort: 'due_date',
           expand: 'account,recurring_bill',
         }),
         pb
           .collection('recurring_bills')
-          .getFullList<RecurringBill>({ sort: 'next_date', expand: 'account,credit_card' }),
+          .getFullList<RecurringBill>({
+            batch: 500,
+            sort: 'next_date',
+            expand: 'account,credit_card',
+          }),
         pb
           .collection('recurrences')
-          .getFullList<Recurrence>({ sort: 'due_day', expand: 'account' }),
+          .getFullList<Recurrence>({ batch: 500, sort: 'due_day', expand: 'account' }),
         pb
           .collection('installments')
-          .getFullList<Installment>({ sort: '-created', expand: 'credit_card' }),
-        pb.collection('budgets').getFullList<Budget>({ sort: 'category' }),
-        pb.collection('goals').getFullList<Goal>({ sort: 'name' }),
-        pb.collection('goal_contributions').getFullList<GoalContribution>({ sort: '-date' }),
-        pb.collection('investments').getFullList<Investment>({ sort: 'name' }),
-        pb.collection('categorization_rules').getFullList<CategorizationRule>({ sort: 'keyword' }),
+          .getFullList<Installment>({ batch: 500, sort: '-created', expand: 'credit_card' }),
+        pb.collection('budgets').getFullList<Budget>({ batch: 500, sort: 'category' }),
+        pb.collection('goals').getFullList<Goal>({ batch: 500, sort: 'name' }),
+        pb
+          .collection('goal_contributions')
+          .getFullList<GoalContribution>({ batch: 500, sort: '-date' }),
+        pb.collection('investments').getFullList<Investment>({ batch: 500, sort: 'name' }),
+        pb
+          .collection('categorization_rules')
+          .getFullList<CategorizationRule>({ batch: 500, sort: 'keyword' }),
         pb
           .collection('categories')
-          .getFullList<CategoryItem>({ sort: 'name' })
+          .getFullList<CategoryItem>({ batch: 500, sort: 'name' })
           .catch(() => [] as CategoryItem[]),
       ])
 
@@ -522,14 +535,70 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return rec
   }
 
-  const deleteAccount = async (id: string) => {
-    // Validação de movimentações vinculadas
-    const linkedTxns = transactions.filter((t) => t.account === id)
+  const deleteAccount = async (id: string, options?: { deleteLinkedTransactions?: boolean }) => {
+    if (!user) throw new Error('Não autenticado')
+
+    // 1. Busca transações que apontam para essa conta (account ou transfer_target_account)
+    const linkedTxns = await pb.collection('transactions').getFullList<Transaction>({
+      batch: 500,
+      filter: `account = "${id}" || transfer_target_account = "${id}"`,
+    })
+
     if (linkedTxns.length > 0) {
-      throw new Error(
-        'Esta conta possui movimentações vinculadas e não pode ser excluída para não quebrar o histórico.',
-      )
+      if (options?.deleteLinkedTransactions) {
+        // Exclui todas as transações vinculadas em paralelo
+        await Promise.all(
+          linkedTxns.map((t) =>
+            pb
+              .collection('transactions')
+              .delete(t.id)
+              .catch(() => {}),
+          ),
+        )
+      } else {
+        throw new Error(
+          'Esta conta possui movimentações vinculadas e não pode ser excluída para não quebrar o histórico.',
+        )
+      }
     }
+
+    // 2. Desvincula ou limpa contas (bills), recorrentes e recorrências que apontam para essa conta
+    try {
+      const [linkedBills, linkedRecurring, linkedRecurrences] = await Promise.all([
+        pb.collection('bills').getFullList<Bill>({ batch: 500, filter: `account = "${id}"` }),
+        pb
+          .collection('recurring_bills')
+          .getFullList<RecurringBill>({ batch: 500, filter: `account = "${id}"` }),
+        pb
+          .collection('recurrences')
+          .getFullList<Recurrence>({ batch: 500, filter: `account = "${id}"` }),
+      ])
+
+      await Promise.all([
+        ...linkedBills.map((b) =>
+          pb
+            .collection('bills')
+            .update(b.id, { account: null })
+            .catch(() => {}),
+        ),
+        ...linkedRecurring.map((rb) =>
+          pb
+            .collection('recurring_bills')
+            .update(rb.id, { account: null })
+            .catch(() => {}),
+        ),
+        ...linkedRecurrences.map((r) =>
+          pb
+            .collection('recurrences')
+            .update(r.id, { account: null })
+            .catch(() => {}),
+        ),
+      ])
+    } catch (e) {
+      console.warn('Erro ao desvincular conta de bills/recurrences:', e)
+    }
+
+    // 3. Exclui a conta bancária
     await pb.collection('accounts').delete(id)
     await fetchAllData()
   }
@@ -577,6 +646,89 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }
 
   const deleteCreditCard = async (id: string) => {
+    if (!user) throw new Error('Não autenticado')
+
+    // 1. Limpa referências nas transações (remove cartão ou apaga vínculo)
+    try {
+      const linkedTxns = await pb.collection('transactions').getFullList<Transaction>({
+        batch: 500,
+        filter: `credit_card = "${id}"`,
+      })
+      await Promise.all(
+        linkedTxns.map((t) =>
+          pb
+            .collection('transactions')
+            .update(t.id, { credit_card: null })
+            .catch(() => {}),
+        ),
+      )
+    } catch (e) {
+      console.warn('Erro ao desvincular transações do cartão:', e)
+    }
+
+    // 2. Apaga faturas do cartão e seus itens
+    try {
+      const linkedInvoices = await pb.collection('invoices').getFullList<Invoice>({
+        batch: 500,
+        filter: `credit_card = "${id}"`,
+      })
+      if (linkedInvoices.length > 0) {
+        const invIds = linkedInvoices.map((inv) => `invoice = "${inv.id}"`).join(' || ')
+        const items = await pb.collection('invoice_items').getFullList<InvoiceItem>({
+          batch: 500,
+          filter: invIds,
+        })
+        await Promise.all(
+          items.map((it) =>
+            pb
+              .collection('invoice_items')
+              .delete(it.id)
+              .catch(() => {}),
+          ),
+        )
+        await Promise.all(
+          linkedInvoices.map((inv) =>
+            pb
+              .collection('invoices')
+              .delete(inv.id)
+              .catch(() => {}),
+          ),
+        )
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar faturas do cartão:', e)
+    }
+
+    // 3. Desvincula de contas recorrentes e parcelamentos
+    try {
+      const [linkedRecBills, linkedInst] = await Promise.all([
+        pb.collection('recurring_bills').getFullList<RecurringBill>({
+          batch: 500,
+          filter: `credit_card = "${id}"`,
+        }),
+        pb.collection('installments').getFullList<Installment>({
+          batch: 500,
+          filter: `credit_card = "${id}"`,
+        }),
+      ])
+      await Promise.all([
+        ...linkedRecBills.map((rb) =>
+          pb
+            .collection('recurring_bills')
+            .update(rb.id, { credit_card: null })
+            .catch(() => {}),
+        ),
+        ...linkedInst.map((inst) =>
+          pb
+            .collection('installments')
+            .update(inst.id, { credit_card: null })
+            .catch(() => {}),
+        ),
+      ])
+    } catch (e) {
+      console.warn('Erro ao desvincular cartão de recorrentes/parcelamentos:', e)
+    }
+
     await pb.collection('credit_cards').delete(id)
     await fetchAllData()
   }
@@ -1090,18 +1242,23 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 1.1 Goal contributions (filhos de goals do usuário)
     try {
       const userGoals = await pb.collection('goals').getFullList<Goal>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const g of userGoals) {
+      if (userGoals.length > 0) {
+        const goalIds = userGoals.map((g) => `goal = "${g.id}"`).join(' || ')
         const contribs = await pb.collection('goal_contributions').getFullList<GoalContribution>({
-          filter: `goal = "${g.id}"`,
+          batch: 500,
+          filter: goalIds,
         })
-        for (const c of contribs) {
-          await pb
-            .collection('goal_contributions')
-            .delete(c.id)
-            .catch(() => {})
-        }
+        await Promise.all(
+          contribs.map((c) =>
+            pb
+              .collection('goal_contributions')
+              .delete(c.id)
+              .catch(() => {}),
+          ),
+        )
       }
     } catch (e) {
       console.warn('Erro ao limpar contribuições de metas:', e)
@@ -1110,18 +1267,23 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 1.2 Invoice items (filhos de invoices do usuário)
     try {
       const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const inv of userInvoices) {
+      if (userInvoices.length > 0) {
+        const invIds = userInvoices.map((inv) => `invoice = "${inv.id}"`).join(' || ')
         const items = await pb.collection('invoice_items').getFullList<InvoiceItem>({
-          filter: `invoice = "${inv.id}"`,
+          batch: 500,
+          filter: invIds,
         })
-        for (const item of items) {
-          await pb
-            .collection('invoice_items')
-            .delete(item.id)
-            .catch(() => {})
-        }
+        await Promise.all(
+          items.map((item) =>
+            pb
+              .collection('invoice_items')
+              .delete(item.id)
+              .catch(() => {}),
+          ),
+        )
       }
     } catch (e) {
       console.warn('Erro ao limpar itens de faturas:', e)
@@ -1130,14 +1292,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 2. Apagar transações vinculadas do usuário (deve vir antes de bills, accounts, cards, installments)
     try {
       const userTxns = await pb.collection('transactions').getFullList<Transaction>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const t of userTxns) {
-        await pb
-          .collection('transactions')
-          .delete(t.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userTxns.map((t) =>
+          pb
+            .collection('transactions')
+            .delete(t.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar transações:', e)
     }
@@ -1145,14 +1310,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 3. Apagar faturas (invoices)
     try {
       const userInvoices = await pb.collection('invoices').getFullList<Invoice>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const inv of userInvoices) {
-        await pb
-          .collection('invoices')
-          .delete(inv.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userInvoices.map((inv) =>
+          pb
+            .collection('invoices')
+            .delete(inv.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar faturas:', e)
     }
@@ -1160,14 +1328,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 4. Apagar contas e boletos (bills)
     try {
       const userBills = await pb.collection('bills').getFullList<Bill>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const b of userBills) {
-        await pb
-          .collection('bills')
-          .delete(b.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userBills.map((b) =>
+          pb
+            .collection('bills')
+            .delete(b.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar contas/boletos:', e)
     }
@@ -1175,14 +1346,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 5. Apagar contas recorrentes (recurring_bills)
     try {
       const userRecurringBills = await pb.collection('recurring_bills').getFullList<RecurringBill>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const rb of userRecurringBills) {
-        await pb
-          .collection('recurring_bills')
-          .delete(rb.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userRecurringBills.map((rb) =>
+          pb
+            .collection('recurring_bills')
+            .delete(rb.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar contas recorrentes:', e)
     }
@@ -1190,14 +1364,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 6. Apagar recorrências (recurrences)
     try {
       const userRecurrences = await pb.collection('recurrences').getFullList<Recurrence>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const r of userRecurrences) {
-        await pb
-          .collection('recurrences')
-          .delete(r.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userRecurrences.map((r) =>
+          pb
+            .collection('recurrences')
+            .delete(r.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar recorrências:', e)
     }
@@ -1205,14 +1382,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 7. Apagar parcelamentos (installments)
     try {
       const userInstallments = await pb.collection('installments').getFullList<Installment>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const inst of userInstallments) {
-        await pb
-          .collection('installments')
-          .delete(inst.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userInstallments.map((inst) =>
+          pb
+            .collection('installments')
+            .delete(inst.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar parcelamentos:', e)
     }
@@ -1220,14 +1400,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 8. Apagar orçamentos (budgets)
     try {
       const userBudgets = await pb.collection('budgets').getFullList<Budget>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const bg of userBudgets) {
-        await pb
-          .collection('budgets')
-          .delete(bg.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userBudgets.map((bg) =>
+          pb
+            .collection('budgets')
+            .delete(bg.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar orçamentos:', e)
     }
@@ -1235,14 +1418,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 9. Apagar metas (goals)
     try {
       const userGoals = await pb.collection('goals').getFullList<Goal>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const g of userGoals) {
-        await pb
-          .collection('goals')
-          .delete(g.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userGoals.map((g) =>
+          pb
+            .collection('goals')
+            .delete(g.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar metas:', e)
     }
@@ -1250,14 +1436,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 10. Apagar investimentos (investments)
     try {
       const userInvestments = await pb.collection('investments').getFullList<Investment>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const inv of userInvestments) {
-        await pb
-          .collection('investments')
-          .delete(inv.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userInvestments.map((inv) =>
+          pb
+            .collection('investments')
+            .delete(inv.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar investimentos:', e)
     }
@@ -1267,14 +1456,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const userRules = await pb
         .collection('categorization_rules')
         .getFullList<CategorizationRule>({
+          batch: 500,
           filter: `user = "${userId}"`,
         })
-      for (const r of userRules) {
-        await pb
-          .collection('categorization_rules')
-          .delete(r.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userRules.map((r) =>
+          pb
+            .collection('categorization_rules')
+            .delete(r.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar regras de categorização:', e)
     }
@@ -1282,14 +1474,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 12. Apagar categorias personalizadas (categories)
     try {
       const userCategories = await pb.collection('categories').getFullList<CategoryItem>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const c of userCategories) {
-        await pb
-          .collection('categories')
-          .delete(c.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userCategories.map((c) =>
+          pb
+            .collection('categories')
+            .delete(c.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar categorias personalizadas:', e)
     }
@@ -1297,14 +1492,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 13. Apagar análises semanais (weekly_analyses)
     try {
       const userWeeklyAnalyses = await pb.collection('weekly_analyses').getFullList({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const wa of userWeeklyAnalyses) {
-        await pb
-          .collection('weekly_analyses')
-          .delete(wa.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userWeeklyAnalyses.map((wa) =>
+          pb
+            .collection('weekly_analyses')
+            .delete(wa.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar análises semanais:', e)
     }
@@ -1312,14 +1510,17 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 14. Apagar cartões de crédito (credit_cards)
     try {
       const userCards = await pb.collection('credit_cards').getFullList<CreditCard>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const card of userCards) {
-        await pb
-          .collection('credit_cards')
-          .delete(card.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userCards.map((card) =>
+          pb
+            .collection('credit_cards')
+            .delete(card.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar cartões:', e)
     }
@@ -1327,19 +1528,24 @@ export const FinanceDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // 15. Apagar contas bancárias (accounts) - transações já foram removidas, então passa pelo hook de proteção
     try {
       const userAccounts = await pb.collection('accounts').getFullList<Account>({
+        batch: 500,
         filter: `user = "${userId}"`,
       })
-      for (const acc of userAccounts) {
-        await pb
-          .collection('accounts')
-          .delete(acc.id)
-          .catch(() => {})
-      }
+      await Promise.all(
+        userAccounts.map((acc) =>
+          pb
+            .collection('accounts')
+            .delete(acc.id)
+            .catch(() => {}),
+        ),
+      )
     } catch (e) {
       console.warn('Erro ao limpar contas bancárias:', e)
     }
 
-    // Atualiza todo o estado local para zerar
+    // Atualiza todo o estado local para zerar e repete com delay para garantir consistência
+    await fetchAllData()
+    await new Promise((resolve) => setTimeout(resolve, 300))
     await fetchAllData()
   }
 
